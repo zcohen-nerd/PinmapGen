@@ -23,13 +23,13 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 
 ---
 
-## 📍 Milestone 2: Better Outputs
+## 📍 Milestone 2: Better Outputs ✅ **COMPLETE**
 **Goal:** Richer, role-aware generated code and docs.
 
-- [ ] Add `roles.py` to infer roles (i2c.sda, uart.tx, pwm, etc.)
-- [ ] Include role metadata in JSON and Markdown
-- [ ] MicroPython emitter: helpers for `adc()`, `pin_in()`, `pin_out()`
-- [ ] Arduino emitter: `DiffPair` struct for USB/CAN
+- [x] Add `roles.py` to infer roles (i2c.sda, uart.tx, pwm, etc.)
+- [x] Include role metadata in JSON and Markdown
+- [x] MicroPython emitter: helpers for `adc()`, `pin_in()`, `pin_out()`
+- [x] Arduino emitter: `DiffPair` struct for USB/CAN
 - [ ] Markdown: split tables into Single-ended vs Differential pairs
 - [ ] Mermaid: visualize diff pairs distinctly
 - [x] Deterministic ordering + "Auto-generated" headers in all files
@@ -113,7 +113,7 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 
 ## 📊 Current Status
 
-**Completed Milestones:** 1/8 (12.5%)
+**Completed Milestones:** 2/8 (25%)
 
 **Key Achievements:**
 - ✅ Complete CLI toolchain with dual input support (CSV/EAGLE)
@@ -121,9 +121,13 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 - ✅ Five output formats: JSON, MicroPython, Arduino, Markdown, Mermaid
 - ✅ File watcher for automatic regeneration
 - ✅ VS Code integration with tasks and code snippets
+- ✅ Role inference system with 20+ pin function patterns
+- ✅ Enhanced JSON output with bus groups and role metadata
+- ✅ MicroPython helpers: pin_in(), pin_out(), pwm(), setup_i2c0(), USBPins class
+- ✅ Arduino helpers: DiffPair structs, PIN_INPUT/OUTPUT macros, SETUP_I2C0 macros
 - ✅ Sample data and comprehensive documentation
 
-**Next Priority:** Milestone 2 (Better Outputs) - Add role inference and richer generated code with helpers and improved organization.
+**Next Priority:** Milestone 3 (Developer Experience) - Add GitHub Actions, pre-commit hooks, unit tests, and CONTRIBUTING.md.
 
 **Development Notes:**
 - Project built with Python 3.11, stdlib-only (no external dependencies)
