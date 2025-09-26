@@ -1,0 +1,40 @@
+{
+    "PinmapGen Import": {
+        "prefix": "pinmap-import",
+        "body": [
+            "from tools.pinmapgen.${1|cli,bom_csv,eagle_sch,normalize,emit_json,emit_micropython,emit_arduino,emit_markdown,emit_mermaid,watch|} import ${2:function_name}"
+        ],
+        "description": "Import from PinmapGen modules"
+    },
+    "RP2040 Pin Definition": {
+        "prefix": "rp2040-pin",
+        "body": [
+            "${1:PIN_NAME} = ${2:0}  # GP${2:0} - ${3:Description}"
+        ],
+        "description": "Define RP2040 GPIO pin constant"
+    },
+    "MicroPython Pin Setup": {
+        "prefix": "mp-pin-setup",
+        "body": [
+            "from machine import Pin",
+            "",
+            "${1:pin_name} = Pin(${2:PIN_NUMBER}, Pin.${3|IN,OUT|})",
+            "${4:# Additional pin configuration}"
+        ],
+        "description": "MicroPython pin setup template"
+    },
+    "Arduino Pin Definition": {
+        "prefix": "arduino-pin-def",
+        "body": [
+            "#define ${1:PIN_NAME} ${2:0}  // GP${2:0} - ${3:Description}"
+        ],
+        "description": "Arduino pin definition template"
+    },
+    "Pinmap CLI Command": {
+        "prefix": "pinmap-cli",
+        "body": [
+            "python -m tools.pinmapgen.cli --${1|csv,sch|} ${2:input_file} --mcu ${3:rp2040} --mcu-ref ${4:U1} --out-root ${5:.} ${6:--mermaid}"
+        ],
+        "description": "PinmapGen CLI command template"
+    }
+}

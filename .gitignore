@@ -1,0 +1,31 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Generated files
+pinmaps/pinmap.json
+firmware/include/pinmap_arduino.h
+firmware/micropython/pinmap_micropython.py
+firmware/docs/PINOUT.md
+firmware/docs/pinout.mmd

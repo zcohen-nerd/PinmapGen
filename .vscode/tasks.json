@@ -1,0 +1,64 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Generate Pinmap",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"tools.pinmapgen.cli",
+				"--csv",
+				"hardware/exports/sample_netlist.csv",
+				"--mcu",
+				"rp2040",
+				"--mcu-ref",
+				"U1",
+				"--out-root",
+				".",
+				"--mermaid"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch Pinmap",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"tools.pinmapgen.watch",
+				"hardware/exports/",
+				"--mermaid",
+				"--interval",
+				"1.0"
+			],
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Test PinmapGen CLI",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"tools.pinmapgen.cli",
+				"--help"
+			],
+			"group": "test"
+		}
+	]
+}
