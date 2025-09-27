@@ -160,6 +160,32 @@ The MCU profile system is designed to be extensible. To add a new MCU:
 3. Register the profile in `cli.py` MCU_PROFILES dictionary
 4. Add sample netlist and test cases
 
+## 🎨 Fusion 360 Add-in (NEW!)
+
+**For PCB designers who want to generate pinmaps without touching code!**
+
+The Fusion add-in provides a user-friendly interface directly in Fusion 360 Electronics workspace:
+
+### ✨ Key Features
+- **One-click generation** from your Electronics design
+- **Smart MCU detection** and validation
+- **Plain-English error messages** for non-programmers  
+- **Multiple output formats** with checkboxes
+- **No manual exports** - works directly with your schematic
+
+### 🚀 Quick Start
+1. **Install**: Run `python fusion_addin/install.py`
+2. **Open Fusion**: Electronics workspace with your design
+3. **Click PinmapGen**: Button in ADD-INS toolbar
+4. **Configure & Generate**: Choose MCU type and output formats
+5. **Share with programmer**: Complete organized file structure
+
+**Perfect for teams where PCB designers and programmers are different people!**
+
+See [`fusion_addin/USER_GUIDE.md`](fusion_addin/USER_GUIDE.md) for complete instructions.
+
+---
+
 ## Multi-MCU Examples
 
 ### RP2040 Project
