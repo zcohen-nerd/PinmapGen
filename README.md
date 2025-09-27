@@ -1,290 +1,223 @@
 # PinmapGen
 
-A Python 3.11 toolchain that bridges Fusion Electronics (EAGLE) exports to firmware projects in VS Code. This tool treats nets in CAD as the source of truth and generates consistent pinmap definitions across multiple firmware platforms.
-
-## Features
-
-- **Multi-format Input**: Parse EAGLE `.sch` XML files or CSV exports
-- **Multi-MCU Support**: RP2040, STM32G0, ESP32 with extensible profile system
-- **Multiple Output Formats**:
-  - `pinmaps/pinmap.json` - Canonical pinmap data
-  - `firmware/micropython/pinmap_micropython.py` - MicroPython constants
-  - `firmware/include/pinmap_arduino.h` - Arduino C++ header
-  - `firmware/docs/PINOUT.md` - Human-readable documentation
-  - `firmware/docs/pinout.mmd` - Mermaid diagrams for visualization
-- **Validation**: Detects duplicate pins, multi-pin nets, and differential pair issues
-- **File Watching**: Automatic regeneration when source files change
-- **VS Code Integration**: Tasks and code snippets for seamless workflow
-
-## Quick Start
-
-### Installation
-
-```bash
-# Clone and navigate to project
-cd Fusion_PinMapGen
-
-# Create virtual environment (optional but recommended)
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/macOS
-
-# Install in development mode
-pip install -e .
-```
-
-### Basic Usage
-
-```bash
-# Generate from CSV export (RP2040)
-python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-
-# Generate for STM32G0 
-python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu stm32g0 --mcu-ref U1 --out-root .
-
-# Generate for ESP32 with Mermaid diagrams
-python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root . --mermaid
-
-# Watch for changes and auto-regenerate
-python -m tools.pinmapgen.watch hardware/exports/
-```
-
-### VS Code Integration
-
-Use the built-in tasks:
-- **Ctrl+Shift+P** → "Tasks: Run Task" → "Generate Pinmap"
-- **Ctrl+Shift+P** → "Tasks: Run Task" → "Watch Pinmap"
-
-Code snippets are available with prefixes:
-- `pinmap-import` - Import PinmapGen modules
-- `rp2040-pin` - Define RP2040 GPIO constants
-- `mp-pin-setup` - MicroPython pin setup
-- `arduino-pin-def` - Arduino pin definitions
-
-## RP2040 Example
-
-Given this sample netlist (`hardware/exports/sample_netlist.csv`):
-
-```csv
-Net,Pin,Component,RefDes
-I2C0_SDA,GP0,RP2040,U1
-I2C0_SCL,GP1,RP2040,U1
-LED_DATA,GP4,RP2040,U1
-BUTTON,GP5,RP2040,U1
-USB_DP,GP24,RP2040,U1
-USB_DN,GP25,RP2040,U1
-QRD1114_A0,GP26,RP2040,U1
-QRD1114_A1,GP27,RP2040,U1
-```
-
-PinmapGen generates:
-
-**MicroPython** (`firmware/micropython/pinmap_micropython.py`):
-```python
-# Auto-generated pinmap for RP2040
-I2C0_SDA = 0     # GP0
-I2C0_SCL = 1     # GP1
-LED_DATA = 4     # GP4
-BUTTON = 5       # GP5
-USB_DP = 24      # GP24
-USB_DN = 25      # GP25
-QRD1114_A0 = 26  # GP26 (ADC0)
-QRD1114_A1 = 27  # GP27 (ADC1)
-```
-
-**Arduino** (`firmware/include/pinmap_arduino.h`):
-```cpp
-// Auto-generated pinmap for RP2040
-#ifndef PINMAP_ARDUINO_H
-#define PINMAP_ARDUINO_H
-
-#define I2C0_SDA    0   // GP0
-#define I2C0_SCL    1   // GP1
-#define LED_DATA    4   // GP4
-#define BUTTON      5   // GP5
-#define USB_DP      24  // GP24
-#define USB_DN      25  // GP25
-#define QRD1114_A0  26  // GP26 (ADC0)
-#define QRD1114_A1  27  // GP27 (ADC1)
-
-#endif // PINMAP_ARDUINO_H
-```
-
-## Project Structure
-
-```
-Fusion_PinMapGen/
-├── firmware/
-│   ├── include/           # Generated Arduino headers
-│   ├── micropython/       # Generated MicroPython modules
-│   └── docs/             # Generated documentation
-├── pinmaps/              # Canonical JSON pinmaps
-├── tools/pinmapgen/      # Core toolchain modules
-│   ├── cli.py           # Command-line interface
-│   ├── bom_csv.py       # CSV parser
-│   ├── eagle_sch.py     # EAGLE schematic parser
-│   ├── normalize.py     # MCU-specific normalization
-│   ├── emit_*.py        # Output format emitters
-│   └── watch.py         # File watcher
-├── hardware/exports/     # Source CAD exports
-├── .vscode/             # VS Code tasks and snippets
-├── pyproject.toml       # Python project configuration
-└── README.md           # This file
-```
-
-## MCU Support
-
-### RP2040 ✅
-- **Pin Normalization**: `GPIOxx`/`IOxx` → `GPxx`
-- **Differential Pairs**: Detects `_P`/`_N`, `DP`/`DM`, `CANH`/`CANL` patterns
-- **Validation**: Duplicate pin usage, multi-pin nets, lonely differential pairs
-- **Special Pins**: USB D+/D-, ADC channels, SPI/I2C functions
-
-### STM32G0 ✅
-- **Pin Normalization**: Port-based GPIO (PA0-PA15, PB0-PB15, PC13-PC15, etc.)
-- **Alternate Functions**: PWM, ADC, DAC, I2C, SPI, UART capability validation
-- **Special Features**: Clock output pins, boot pins, low-power wake-up sources
-- **Validation**: STM32-specific pin constraints and alternate function conflicts
-
-### ESP32 ✅
-- **Pin Normalization**: `GPIOxx` format with input-only pin detection
-- **GPIO Matrix**: Flexible peripheral assignment validation
-- **Strapping Pins**: Boot mode and configuration pin warnings
-- **Special Features**: ADC1/ADC2 channels, DAC, Touch sensors, WiFi constraints
-
-### Adding Custom MCUs
-The MCU profile system is designed to be extensible. To add a new MCU:
-
-1. Create a new profile class inheriting from `MCUProfile`
-2. Implement pin normalization and validation methods
-3. Register the profile in `cli.py` MCU_PROFILES dictionary
-4. Add sample netlist and test cases
-
-## 🎨 Fusion 360 Add-in (NEW!)
-
-**For PCB designers who want to generate pinmaps without touching code!**
-
-The Fusion add-in provides a user-friendly interface directly in Fusion 360 Electronics workspace:
-
-### ✨ Key Features
-- **One-click generation** from your Electronics design
-- **Smart MCU detection** and validation
-- **Plain-English error messages** for non-programmers  
-- **Multiple output formats** with checkboxes
-- **No manual exports** - works directly with your schematic
-
-### 🚀 Quick Start
-1. **Install**: Run `python fusion_addin/install.py`
-2. **Open Fusion**: Electronics workspace with your design
-3. **Click PinmapGen**: Button in ADD-INS toolbar
-4. **Configure & Generate**: Choose MCU type and output formats
-5. **Share with programmer**: Complete organized file structure
-
-**Perfect for teams where PCB designers and programmers are different people!**
-
-See [`fusion_addin/USER_GUIDE.md`](fusion_addin/USER_GUIDE.md) for complete instructions.
+PinmapGen is a Python 3.11 toolchain that turns Fusion Electronics (EAGLE) 
+designs into firmware-ready pinmaps. It provides both a command-line workflow 
+for firmware engineers and a Fusion 360 add-in for PCB designers who prefer a 
+graphical experience.
 
 ---
 
-## Multi-MCU Examples
+## Table of contents
 
-### RP2040 Project
-```csv
-Net,Pin,Component,RefDes
-I2C0_SDA,GP0,RP2040,U1
-I2C0_SCL,GP1,RP2040,U1
-LED_DATA,GP4,RP2040,U1
-USB_DP,GP24,RP2040,U1
-USB_DN,GP25,RP2040,U1
+1. [Highlights](#highlights)
+2. [Who is this for?](#who-is-this-for)
+3. [Installation](#installation)
+4. [Quick starts](#quick-starts)
+5. [Generated outputs](#generated-outputs)
+6. [Command-line workflow](#command-line-workflow)
+7. [Fusion 360 add-in workflow](#fusion-360-add-in-workflow)
+8. [MCU support](#mcu-support)
+9. [Troubleshooting](#troubleshooting)
+10. [Project roadmap](#project-roadmap)
+11. [Contributing](#contributing)
+12. [License](#license)
+
+---
+
+## Highlights
+
+- **Multi-MCU aware** profiles for RP2040, STM32G0 and ESP32, with a registry 
+  designed for rapid expansion.
+- **Multiple output formats** (JSON, MicroPython, Arduino, Markdown and 
+  Mermaid) generated in a single run.
+- **Rich validation** that flags duplicate nets, lonely differential pairs and 
+  MCU-specific hazards (strapping pins, input-only pads, etc.).
+- **Two entry points**:
+  - A CLI that integrates into existing firmware toolchains
+  - A Fusion 360 add-in with a point-and-click UI for non-programmers
+- **Automation friendly** thanks to VS Code tasks, a file watcher, pre-commit 
+  hooks and GitHub Actions workflows.
+
+---
+
+## Who is this for?
+
+| Role | What you get | Key docs |
+|------|--------------|----------|
+| PCB designer (Fusion) | One-click pinmap export directly from Electronics workspace | [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) |
+| Firmware engineer | CLI for generating and validating pinmaps from CAD exports | [Command-line reference](docs/cli.md) |
+| Educator / Lab lead | Repeatable workflows, warnings, classroom-ready outputs | [Team workflows](docs/workflows.md) |
+
+---
+
+## Installation
+
+### Clone the repository
+
+```bash
+git clone https://github.com/zcohen-nerd/PinmapGen.git
+cd PinmapGen
 ```
 
-### STM32G0 Project  
-```csv
-Net,Pin,Component,RefDes
-UART1_TX,PA0,MCU,U1
-UART1_RX,PA1,MCU,U1
-SPI1_SCK,PA5,MCU,U1
-I2C1_SCL,PB6,MCU,U1
-I2C1_SDA,PB7,MCU,U1
-USER_LED,PC13,MCU,U1
+### Python environment (developers)
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+# source .venv/bin/activate  # Linux/macOS
+pip install -e .
 ```
 
-### ESP32 Project
-```csv
-Net,Pin,Component,RefDes
-UART_TX,GPIO1,MCU,U1
-UART_RX,GPIO3,MCU,U1
-I2C_SDA,GPIO21,MCU,U1
-I2C_SCL,GPIO22,MCU,U1
-SPI_MOSI,GPIO23,MCU,U1
-DAC_OUT,GPIO25,MCU,U1
+### Fusion 360 add-in (designers)
+
+```bash
+python fusion_addin/install.py
 ```
 
-## Command Line Reference
+> This copies the add-in into your Fusion add-ins directory. Launch Fusion 
+> 360 and enable **PinmapGen** from **Tools → ADD-INS**.
+
+---
+
+## Quick starts
+
+### Firmware engineer (CLI)
+
+```bash
+# Generate pinmaps from a CSV netlist (RP2040)
+python -m tools.pinmapgen.cli \
+  --csv hardware/exports/sample_netlist.csv \
+  --mcu rp2040 \
+  --mcu-ref U1 \
+  --out-root build/pinmaps
+
+# Watch a directory for new exports
+python -m tools.pinmapgen.watch hardware/exports --mermaid
+```
+
+### PCB designer (Fusion add-in)
+
+1. Open your design in the **Electronics** workspace
+2. Click **PinmapGen** in the ADD-INS toolbar
+3. Pick the MCU type and reference designator (auto-suggested when possible)
+4. Choose the output formats (MicroPython, Arduino, Docs, Mermaid)
+5. Click **Generate** and hand the output folder to your programmer
+
+The add-in produces the same outputs as the CLI without requiring command-line 
+knowledge. See the [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) for 
+screen captures and detailed instructions.
+
+---
+
+## Generated outputs
+
+```
+pinmaps/
+└── pinmap.json                # Canonical machine-readable pinmap
+
+firmware/
+├── include/pinmap_arduino.h   # Arduino/PlatformIO header
+├── micropython/pinmap_micropython.py
+└── docs/
+    ├── PINOUT.md              # Human-readable pinout
+    └── pinout.mmd             # Mermaid diagram source
+```
+
+Each file includes generation metadata and role annotations. See 
+[`docs/output-formats.md`](docs/output-formats.md) for details.
+
+---
+
+## Command-line workflow
+
+The CLI accepts either EAGLE `.sch` files or CSV exports from Fusion.
 
 ```bash
 python -m tools.pinmapgen.cli [OPTIONS]
 
-Options:
-  --sch PATH              EAGLE schematic file (.sch)
-  --csv PATH              CSV netlist export  
-  --mcu {rp2040,stm32g0,esp32}  MCU profile (required)
-  --mcu-ref TEXT          MCU reference designator (e.g., U1)
-  --out-root PATH         Output root directory (default: .)
-  --mermaid              Generate Mermaid diagrams
-  --help                 Show help message
+Required arguments:
+  --sch PATH | --csv PATH     Input schematic or CSV export
+  --mcu {rp2040,stm32g0,esp32}
+  --mcu-ref TEXT              Reference designator (e.g., U1)
+
+Useful flags:
+  --out-root PATH             Output directory (default: current dir)
+  --mermaid                   Emit Mermaid diagram
+  --verbose, -v               Print normalization summary
 ```
 
-## Development
-
-PinmapGen uses Python 3.11+ with stdlib-only dependencies for maximum compatibility.
-
-### Code Quality
-```bash
-# Format and lint (optional - requires ruff)
-ruff format .
-ruff check .
-```
-
-### Testing
-```bash
-# Run with sample data
-python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-```
-
-## Roadmap
-
-### Phase 1 (Current)
-- [x] Project scaffolding and structure
-- [ ] CSV parser implementation
-- [ ] RP2040 profile and normalization
-- [ ] JSON/MicroPython/Arduino emitters
-- [ ] Basic CLI functionality
-
-### Phase 2
-- [ ] EAGLE schematic parser
-- [ ] File watcher implementation  
-- [ ] Mermaid diagram generation
-- [ ] Enhanced validation rules
-
-### Phase 3
-- [ ] STM32 MCU profile
-- [ ] ESP32 MCU profile
-- [ ] Plugin architecture for custom MCUs
-- [ ] Web-based pinmap visualizer
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Additional examples, including STM32G0 and ESP32 workflows, are documented in 
+[`docs/cli.md`](docs/cli.md).
 
 ---
 
-**Note**: This is a development version. Core functionality is currently being implemented. See the `TODO` comments throughout the codebase for specific implementation tasks.
+## Fusion 360 add-in workflow
+
+The add-in bundles the PinmapGen toolchain, so designers do not need Python or 
+Git installed. After installation:
+
+- The command appears under **Tools → ADD-INS** and can be promoted to the 
+  toolbar.
+- Output folders default to a `pinmaps` directory adjacent to the Fusion 
+  design, but can be browsed to network drives or shared folders.
+- Warnings and errors are presented in plain language with suggested fixes.
+
+Refer to the [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) for 
+step-by-step walkthroughs, troubleshooting and handoff best practices.
+
+---
+
+## MCU support
+
+| MCU | Highlights | Notes |
+|-----|------------|-------|
+| RP2040 | GPIO normalization, USB diff pair detection, ADC role hints | Original reference implementation |
+| STM32G0 | Port-based pin naming, alternate function validation, boot pin warnings | Modelled on STM32G071 reference design |
+| ESP32 | GPIO matrix awareness, strapping pin warnings, ADC2 Wi-Fi guard rails | Based on ESP32-WROOM-32 module |
+
+Adding new MCUs only requires implementing an `MCUProfile` subclass and 
+registering it in the CLI. See [`docs/extending.md`](docs/extending.md) for a 
+walkthrough.
+
+---
+
+## Troubleshooting
+
+Common issues and solutions are documented in [`docs/troubleshooting.md`]
+(docs/troubleshooting.md). Highlights:
+
+- **"MCU 'U1' not found"** → Confirm the reference designator in your CAD
+- **"Input-only pin used as output"** → Adjust assignment or choose another 
+  pin supported by the MCU profile
+- **"Cannot write output"** → Pick a writable folder and close open files
+- **Fusion add-in missing** → Re-run `python fusion_addin/install.py` and 
+  enable the add-in from the ADD-INS dialog
+
+---
+
+## Project roadmap
+
+A milestone-driven roadmap is maintained in [`MILESTONES.md`](MILESTONES.md). 
+Current focus: **Milestone 6 – Classroom / Team Readiness**.
+
+---
+
+## Contributing
+
+We welcome pull requests and issues. Start with the 
+[`CONTRIBUTING.md`](CONTRIBUTING.md) guide, then:
+
+1. Create a feature branch: `git checkout -b feature/my-update`
+2. Make changes and run the test suite: `pytest` (or `python -m pytest`)
+3. Commit with conventional commits if possible
+4. Submit a pull request with context and screenshots when relevant
+
+Pre-commit hooks and GitHub Actions will validate that generated pinmaps are 
+up to date.
+
+---
+
+## License
+
+PinmapGen is released under the MIT License. See [`LICENSE`](LICENSE) for the 
+full text.

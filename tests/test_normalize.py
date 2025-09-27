@@ -3,69 +3,87 @@ Test cases for pin name normalization functionality.
 """
 
 import unittest
-from tools.pinmapgen.normalize import RP2040PinNormalizer
+
+from tools.pinmapgen.rp2040_profile import RP2040Profile
 
 
 class TestNormalize(unittest.TestCase):
     """Test pin name normalization for different MCUs."""
-    
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.rp2040_profile = RP2040Profile()
+
     def test_rp2040_pin_normalization(self):
         """Test RP2040 pin name normalization."""
         # Standard GPIO pin normalization
-        self.assertEqual(normalize_pin_name("GPIO0", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("GPIO1", "rp2040"), "GP1")
-        self.assertEqual(normalize_pin_name("GPIO15", "rp2040"), "GP15")
-        
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("GPIO0"), "GP0")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("GPIO1"), "GP1")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("GPIO15"), "GP15")
+
         # Already normalized pins should remain unchanged
-        self.assertEqual(normalize_pin_name("GP0", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("GP28", "rp2040"), "GP28")
-        
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("GP0"), "GP0")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("GP28"), "GP28")
+
         # Alternative formats
-        self.assertEqual(normalize_pin_name("Pin0", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("IO5", "rp2040"), "GP5")
-        
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("0"), "GP0")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("IO5"), "GP5")
+
     def test_rp2040_special_pins(self):
         """Test normalization of special function pins."""
-        # USB pins
-        self.assertEqual(normalize_pin_name("USB_DP", "rp2040"), "GP24")
-        self.assertEqual(normalize_pin_name("USB_DM", "rp2040"), "GP25") 
-        self.assertEqual(normalize_pin_name("USB_DN", "rp2040"), "GP25")
-        
+        # USB pins (note: GP24=USB_DM, GP25=USB_DP per RP2040 datasheet)
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DP"), "GP25")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DM"), "GP24")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DN"), "GP24")
+
         # Alternative USB naming
-        self.assertEqual(normalize_pin_name("USBDP", "rp2040"), "GP24")
-        self.assertEqual(normalize_pin_name("USBDM", "rp2040"), "GP25")
-        
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("USBDP"), "GP25")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("USBDM"), "GP24")
+
     def test_rp2040_case_insensitive(self):
         """Test that normalization is case insensitive."""
-        self.assertEqual(normalize_pin_name("gpio0", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("Gpio15", "rp2040"), "GP15")
-        self.assertEqual(normalize_pin_name("usb_dp", "rp2040"), "GP24")
-        
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("gpio0"), "GP0")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("Gpio15"), "GP15")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("usb_dp"), "GP25")
+
     def test_rp2040_invalid_pins(self):
         """Test handling of invalid pin names."""
-        # Non-existent pins should return as-is
-        self.assertEqual(normalize_pin_name("GP99", "rp2040"), "GP99")
-        self.assertEqual(normalize_pin_name("INVALID", "rp2040"), "INVALID")
-        self.assertEqual(normalize_pin_name("", "rp2040"), "")
-        
-    def test_unknown_mcu(self):
-        """Test normalization with unknown MCU returns pin as-is."""
-        self.assertEqual(normalize_pin_name("GPIO0", "unknown"), "GPIO0")
-        self.assertEqual(normalize_pin_name("PA5", "stm32"), "PA5")
-        
+        # Non-existent pins should raise ValueError
+        with self.assertRaises(ValueError):
+            self.rp2040_profile.normalize_pin_name("GP99")
+        with self.assertRaises(ValueError):
+            self.rp2040_profile.normalize_pin_name("INVALID")
+        with self.assertRaises(ValueError):
+            self.rp2040_profile.normalize_pin_name("")
+
     def test_edge_cases(self):
         """Test edge cases and malformed input."""
-        # None input
-        self.assertEqual(normalize_pin_name(None, "rp2040"), None)
-        
-        # Empty strings
-        self.assertEqual(normalize_pin_name("", "rp2040"), "")
-        self.assertEqual(normalize_pin_name("GPIO", "rp2040"), "GPIO")
-        
         # Whitespace handling
-        self.assertEqual(normalize_pin_name(" GPIO0 ", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("\tGP5\n", "rp2040"), "GP5")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name(" GPIO0 "), "GP0")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("\tGP5\n"), "GP5")
+
+        # Invalid patterns should raise ValueError
+        with self.assertRaises(ValueError):
+            self.rp2040_profile.normalize_pin_name("GPIO")
+
+    def test_differential_pair_detection(self):
+        """Test differential pair detection."""
+        nets = {
+            "USB_DP": ["GP25"],
+            "USB_DM": ["GP24"],
+            "I2C_SDA": ["GP0"],
+            "I2C_SCL": ["GP1"]
+        }
+
+        canonical = self.rp2040_profile.create_canonical_pinmap(nets)
+        diff_pairs = canonical.get("differential_pairs", [])
+
+        # Should detect USB differential pair
+        self.assertEqual(len(diff_pairs), 1)
+        pair = diff_pairs[0]
+        self.assertIn(pair["positive"], ["USB_DP", "USB_DM"])
+        self.assertIn(pair["negative"], ["USB_DP", "USB_DM"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,21 +1,43 @@
-MIT License
+PinmapGen Community License
 
 Copyright (c) 2025 Zachary Cohen
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## License Terms
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This software is provided under a dual-licensing model:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+### Non-Commercial Use (Free)
+
+You are granted a royalty-free license to use, modify, and distribute this software for **Non-Commercial Use** only.
+
+**Non-Commercial Use** includes:
+- Personal hobby projects
+- Educational use by students and teachers
+- Academic research and coursework
+- Open source projects where no money is made
+- Internal use at educational institutions
+- Learning and experimentation
+
+### Commercial Use (Requires License)
+
+Any **Commercial Use** of this software requires a paid commercial license.
+
+**Commercial Use** includes:
+- Use by or for any business or company
+- Client work or consulting projects
+- Integration into products or services offered for sale
+- Use in revenue-generating activities
+- Distribution as part of commercial products
+- Use by contractors or freelancers on paid projects
+
+### Commercial Licensing
+
+Commercial users must obtain a paid license from the project owner before using this software. Commercial licenses provide additional rights, support, and legal protections.
+
+### Warranty Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+**For commercial licensing inquiries, contact: https://github.com/zcohen-nerd**

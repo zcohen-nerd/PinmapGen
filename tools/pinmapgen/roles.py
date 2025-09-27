@@ -7,7 +7,6 @@ output with helper functions and better organization.
 """
 
 import re
-from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
@@ -23,22 +22,22 @@ class PinRole(Enum):
     SPI_MISO = "spi.miso"
     SPI_SCK = "spi.sck"
     SPI_CS = "spi.cs"
-    
+
     # USB/Differential
     USB_DP = "usb.dp"
     USB_DN = "usb.dn"
     CAN_H = "can.h"
     CAN_L = "can.l"
-    
+
     # Analog
     ADC = "adc"
     DAC = "dac"
-    
+
     # Digital I/O
     PWM = "pwm"
     GPIO_IN = "gpio.in"
     GPIO_OUT = "gpio.out"
-    
+
     # Special
     LED = "led"
     BUTTON = "button"
@@ -46,7 +45,7 @@ class PinRole(Enum):
     CLOCK = "clock"
     POWER = "power"
     GROUND = "ground"
-    
+
     # Unknown
     UNKNOWN = "unknown"
 
@@ -59,162 +58,162 @@ class PinInfo:
     component: str
     ref_des: str
     role: PinRole
-    bus_group: Optional[str] = None  # e.g., "I2C0", "UART1", "SPI2"
-    description: Optional[str] = None
+    bus_group: str | None = None  # e.g., "I2C0", "UART1", "SPI2"
+    description: str | None = None
 
 
 class RoleInferencer:
     """Infers pin roles from net names and patterns."""
-    
+
     def __init__(self):
         # Pattern matching for role inference
         self.patterns = {
             # I2C patterns
             PinRole.I2C_SDA: [
-                r'(?i).*i2c.*sda.*',
-                r'(?i).*sda.*',
+                r"(?i).*i2c.*sda.*",
+                r"(?i).*sda.*",
             ],
             PinRole.I2C_SCL: [
-                r'(?i).*i2c.*scl.*',
-                r'(?i).*scl.*',
+                r"(?i).*i2c.*scl.*",
+                r"(?i).*scl.*",
             ],
-            
+
             # UART patterns
             PinRole.UART_TX: [
-                r'(?i).*uart.*tx.*',
-                r'(?i).*tx.*',
-                r'(?i).*serial.*tx.*',
+                r"(?i).*uart.*tx.*",
+                r"(?i).*tx.*",
+                r"(?i).*serial.*tx.*",
             ],
             PinRole.UART_RX: [
-                r'(?i).*uart.*rx.*',
-                r'(?i).*rx.*',
-                r'(?i).*serial.*rx.*',
+                r"(?i).*uart.*rx.*",
+                r"(?i).*rx.*",
+                r"(?i).*serial.*rx.*",
             ],
-            
+
             # SPI patterns
             PinRole.SPI_MOSI: [
-                r'(?i).*spi.*mosi.*',
-                r'(?i).*mosi.*',
-                r'(?i).*spi.*tx.*',
+                r"(?i).*spi.*mosi.*",
+                r"(?i).*mosi.*",
+                r"(?i).*spi.*tx.*",
             ],
             PinRole.SPI_MISO: [
-                r'(?i).*spi.*miso.*',
-                r'(?i).*miso.*',
-                r'(?i).*spi.*rx.*',
+                r"(?i).*spi.*miso.*",
+                r"(?i).*miso.*",
+                r"(?i).*spi.*rx.*",
             ],
             PinRole.SPI_SCK: [
-                r'(?i).*spi.*sck.*',
-                r'(?i).*sck.*',
-                r'(?i).*spi.*clk.*',
+                r"(?i).*spi.*sck.*",
+                r"(?i).*sck.*",
+                r"(?i).*spi.*clk.*",
             ],
             PinRole.SPI_CS: [
-                r'(?i).*spi.*cs.*',
-                r'(?i).*cs.*',
-                r'(?i).*spi.*ss.*',
-                r'(?i).*ss.*',
+                r"(?i).*spi.*cs.*",
+                r"(?i).*cs.*",
+                r"(?i).*spi.*ss.*",
+                r"(?i).*ss.*",
             ],
-            
+
             # USB patterns
             PinRole.USB_DP: [
-                r'(?i).*usb.*d\+.*',
-                r'(?i).*usb.*dp.*',
-                r'(?i).*usb.*plus.*',
+                r"(?i).*usb.*d\+.*",
+                r"(?i).*usb.*dp.*",
+                r"(?i).*usb.*plus.*",
             ],
             PinRole.USB_DN: [
-                r'(?i).*usb.*d-.*',
-                r'(?i).*usb.*dn.*',
-                r'(?i).*usb.*minus.*',
+                r"(?i).*usb.*d-.*",
+                r"(?i).*usb.*dn.*",
+                r"(?i).*usb.*minus.*",
             ],
-            
+
             # CAN patterns
             PinRole.CAN_H: [
-                r'(?i).*can.*h.*',
-                r'(?i).*canh.*',
+                r"(?i).*can.*h.*",
+                r"(?i).*canh.*",
             ],
             PinRole.CAN_L: [
-                r'(?i).*can.*l.*',
-                r'(?i).*canl.*',
+                r"(?i).*can.*l.*",
+                r"(?i).*canl.*",
             ],
-            
+
             # Analog patterns
             PinRole.ADC: [
-                r'(?i).*adc.*',
-                r'(?i).*analog.*in.*',
-                r'(?i).*ain.*',
+                r"(?i).*adc.*",
+                r"(?i).*analog.*in.*",
+                r"(?i).*ain.*",
             ],
             PinRole.DAC: [
-                r'(?i).*dac.*',
-                r'(?i).*analog.*out.*',
-                r'(?i).*aout.*',
+                r"(?i).*dac.*",
+                r"(?i).*analog.*out.*",
+                r"(?i).*aout.*",
             ],
-            
+
             # PWM patterns
             PinRole.PWM: [
-                r'(?i).*pwm.*',
-                r'(?i).*pulse.*',
-                r'(?i).*servo.*',
-                r'(?i).*motor.*',
+                r"(?i).*pwm.*",
+                r"(?i).*pulse.*",
+                r"(?i).*servo.*",
+                r"(?i).*motor.*",
             ],
-            
+
             # Special patterns
             PinRole.LED: [
-                r'(?i).*led.*',
-                r'(?i).*light.*',
+                r"(?i).*led.*",
+                r"(?i).*light.*",
             ],
             PinRole.BUTTON: [
-                r'(?i).*button.*',
-                r'(?i).*btn.*',
-                r'(?i).*switch.*',
-                r'(?i).*sw.*',
+                r"(?i).*button.*",
+                r"(?i).*btn.*",
+                r"(?i).*switch.*",
+                r"(?i).*sw.*",
             ],
             PinRole.RESET: [
-                r'(?i).*reset.*',
-                r'(?i).*rst.*',
+                r"(?i).*reset.*",
+                r"(?i).*rst.*",
             ],
             PinRole.CLOCK: [
-                r'(?i).*clock.*',
-                r'(?i).*clk.*',
-                r'(?i).*xtal.*',
-                r'(?i).*osc.*',
+                r"(?i).*clock.*",
+                r"(?i).*clk.*",
+                r"(?i).*xtal.*",
+                r"(?i).*osc.*",
             ],
         }
-    
+
     def infer_role(self, net_name: str) -> PinRole:
         """Infer the role of a pin from its net name."""
         for role, patterns in self.patterns.items():
             for pattern in patterns:
                 if re.match(pattern, net_name):
                     return role
-        
+
         # Default to GPIO based on direction hints
-        if any(keyword in net_name.lower() for keyword in ['in', 'input', 'sense']):
+        if any(keyword in net_name.lower() for keyword in ["in", "input", "sense"]):
             return PinRole.GPIO_IN
-        elif any(keyword in net_name.lower() for keyword in ['out', 'output', 'drive']):
+        if any(keyword in net_name.lower() for keyword in ["out", "output", "drive"]):
             return PinRole.GPIO_OUT
-        
+
         return PinRole.UNKNOWN
-    
-    def extract_bus_group(self, net_name: str, role: PinRole) -> Optional[str]:
+
+    def extract_bus_group(self, net_name: str, role: PinRole) -> str | None:
         """Extract bus/peripheral group identifier (e.g., I2C0, UART1, SPI2)."""
         # Look for numbered peripherals
         bus_patterns = {
-            PinRole.I2C_SDA: r'(?i)(i2c\d*)',
-            PinRole.I2C_SCL: r'(?i)(i2c\d*)',
-            PinRole.UART_TX: r'(?i)(uart\d*)',
-            PinRole.UART_RX: r'(?i)(uart\d*)',
-            PinRole.SPI_MOSI: r'(?i)(spi\d*)',
-            PinRole.SPI_MISO: r'(?i)(spi\d*)',
-            PinRole.SPI_SCK: r'(?i)(spi\d*)',
-            PinRole.SPI_CS: r'(?i)(spi\d*)',
+            PinRole.I2C_SDA: r"(?i)(i2c\d*)",
+            PinRole.I2C_SCL: r"(?i)(i2c\d*)",
+            PinRole.UART_TX: r"(?i)(uart\d*)",
+            PinRole.UART_RX: r"(?i)(uart\d*)",
+            PinRole.SPI_MOSI: r"(?i)(spi\d*)",
+            PinRole.SPI_MISO: r"(?i)(spi\d*)",
+            PinRole.SPI_SCK: r"(?i)(spi\d*)",
+            PinRole.SPI_CS: r"(?i)(spi\d*)",
         }
-        
+
         if role in bus_patterns:
             match = re.search(bus_patterns[role], net_name)
             if match:
                 return match.group(1).upper()
-        
+
         return None
-    
+
     def generate_description(self, pin_info: PinInfo) -> str:
         """Generate a human-readable description for the pin."""
         role_descriptions = {
@@ -240,40 +239,40 @@ class RoleInferencer:
             PinRole.RESET: "Reset Signal",
             PinRole.CLOCK: "Clock Signal",
         }
-        
+
         base_desc = role_descriptions.get(pin_info.role, "General Purpose I/O")
-        
+
         if pin_info.bus_group:
             return f"{base_desc} ({pin_info.bus_group})"
-        
+
         return base_desc
-    
-    def analyze_pinmap(self, canonical_pinmap: Dict) -> List[PinInfo]:
+
+    def analyze_pinmap(self, canonical_pinmap: dict) -> list[PinInfo]:
         """Analyze a canonical pinmap and return enhanced pin information."""
         pin_infos = []
-        
+
         for net_name, pin_data in canonical_pinmap.items():
             # Handle different canonical dictionary formats
             if isinstance(pin_data, dict):
                 # New format with pin metadata
-                pin_name = pin_data.get('pin', 'UNKNOWN')
-                component = pin_data.get('component', 'UNKNOWN')
-                ref_des = pin_data.get('ref_des', 'UNKNOWN')
+                pin_name = pin_data.get("pin", "UNKNOWN")
+                component = pin_data.get("component", "UNKNOWN")
+                ref_des = pin_data.get("ref_des", "UNKNOWN")
             elif isinstance(pin_data, list):
                 # Original format with list of pins
-                pin_name = pin_data[0] if pin_data else 'UNKNOWN'
-                component = 'UNKNOWN'
-                ref_des = 'UNKNOWN'
+                pin_name = pin_data[0] if pin_data else "UNKNOWN"
+                component = "UNKNOWN"
+                ref_des = "UNKNOWN"
             else:
                 # Fallback
                 pin_name = str(pin_data)
-                component = 'UNKNOWN'
-                ref_des = 'UNKNOWN'
-            
+                component = "UNKNOWN"
+                ref_des = "UNKNOWN"
+
             # Infer role
             role = self.infer_role(net_name)
             bus_group = self.extract_bus_group(net_name, role)
-            
+
             # Create enhanced pin info
             pin_info = PinInfo(
                 net_name=net_name,
@@ -283,18 +282,18 @@ class RoleInferencer:
                 role=role,
                 bus_group=bus_group
             )
-            
+
             # Generate description
             pin_info.description = self.generate_description(pin_info)
-            
+
             pin_infos.append(pin_info)
-        
+
         return pin_infos
-    
-    def group_by_bus(self, pin_infos: List[PinInfo]) -> Dict[str, List[PinInfo]]:
+
+    def group_by_bus(self, pin_infos: list[PinInfo]) -> dict[str, list[PinInfo]]:
         """Group pins by their bus/peripheral."""
         groups = {}
-        
+
         for pin_info in pin_infos:
             if pin_info.bus_group:
                 group_key = pin_info.bus_group
@@ -322,43 +321,43 @@ class RoleInferencer:
                     PinRole.GPIO_OUT: "GPIO",
                 }
                 group_key = role_groups.get(pin_info.role, "Other")
-            
+
             if group_key not in groups:
                 groups[group_key] = []
             groups[group_key].append(pin_info)
-        
+
         return groups
-    
-    def detect_differential_pairs(self, pin_infos: List[PinInfo]) -> List[Tuple[PinInfo, PinInfo]]:
+
+    def detect_differential_pairs(self, pin_infos: list[PinInfo]) -> list[tuple[PinInfo, PinInfo]]:
         """Detect differential pairs from enhanced pin information."""
         pairs = []
-        
+
         # Group by bus to find pairs
         bus_groups = self.group_by_bus(pin_infos)
-        
+
         for group_name, pins in bus_groups.items():
             if group_name == "USB":
                 # Find USB D+/D- pairs
                 dp_pins = [p for p in pins if p.role == PinRole.USB_DP]
                 dn_pins = [p for p in pins if p.role == PinRole.USB_DN]
-                
+
                 for dp in dp_pins:
                     for dn in dn_pins:
                         pairs.append((dp, dn))
-            
+
             elif group_name == "CAN":
                 # Find CAN H/L pairs
                 h_pins = [p for p in pins if p.role == PinRole.CAN_H]
                 l_pins = [p for p in pins if p.role == PinRole.CAN_L]
-                
+
                 for h in h_pins:
                     for l in l_pins:
                         pairs.append((h, l))
-        
+
         return pairs
 
 
-def analyze_roles(canonical_pinmap: Dict) -> Tuple[List[PinInfo], Dict[str, List[PinInfo]], List[Tuple[PinInfo, PinInfo]]]:
+def analyze_roles(canonical_pinmap: dict) -> tuple[list[PinInfo], dict[str, list[PinInfo]], list[tuple[PinInfo, PinInfo]]]:
     """
     Analyze pin roles from a canonical pinmap.
     
@@ -368,16 +367,16 @@ def analyze_roles(canonical_pinmap: Dict) -> Tuple[List[PinInfo], Dict[str, List
         - List of detected differential pairs
     """
     inferencer = RoleInferencer()
-    
+
     # Analyze all pins
     pin_infos = inferencer.analyze_pinmap(canonical_pinmap)
-    
+
     # Group by bus/peripheral
     bus_groups = inferencer.group_by_bus(pin_infos)
-    
+
     # Detect differential pairs
     diff_pairs = inferencer.detect_differential_pairs(pin_infos)
-    
+
     return pin_infos, bus_groups, diff_pairs
 
 
@@ -395,17 +394,17 @@ if __name__ == "__main__":
         "USB_DP": {"pin": "GP24", "component": "RP2040", "ref_des": "U1"},
         "USB_DN": {"pin": "GP25", "component": "RP2040", "ref_des": "U1"},
     }
-    
+
     pin_infos, bus_groups, diff_pairs = analyze_roles(sample_pinmap)
-    
+
     print("Pin Roles:")
     for pin in pin_infos:
         print(f"  {pin.net_name} -> {pin.pin_name}: {pin.role.value} ({pin.description})")
-    
+
     print("\nBus Groups:")
     for group, pins in bus_groups.items():
         print(f"  {group}: {[p.net_name for p in pins]}")
-    
+
     print("\nDifferential Pairs:")
     for pair in diff_pairs:
         print(f"  {pair[0].net_name} / {pair[1].net_name}")
