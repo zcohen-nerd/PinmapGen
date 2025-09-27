@@ -99,75 +99,61 @@ jobs:
         echo 'EOF' >> $GITHUB_OUTPUT
         
     - name: Create GitHub Release
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.version.outputs.VERSION }}
-        release_name: PinmapGen ${{ steps.version.outputs.VERSION }}
-        body: |
-          ## PinmapGen Release ${{ steps.version.outputs.VERSION }}
-          
-          A Python toolchain that bridges Fusion Electronics (EAGLE) exports to firmware projects.
-          
-          ### 🚀 Features
-          - Multi-format input (EAGLE .sch, CSV exports)  
-          - RP2040 pin normalization and validation
-          - Multiple output formats (JSON, MicroPython, Arduino, Markdown, Mermaid)
-          - File watching for automatic regeneration
-          - VS Code integration with tasks and snippets
-          
-          ### 📋 What's Changed
-          ${{ steps.changelog.outputs.CHANGELOG }}
-          
-          ### 📦 Installation
-          
-          ```bash
-          # Download and extract the source
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
-          tar -xzf pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
-          cd pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}
-          
-          # Install in development mode
-          pip install -e .
-          ```
-          
-          ### 🎯 Quick Start
-          
-          ```bash
-          # Generate from CSV
-          python -m tools.pinmapgen.cli \
-            --csv hardware/exports/sample_netlist.csv \
-            --mcu rp2040 \
-            --mcu-ref U1 \
-            --out-root . \
-            --mermaid
-          ```
-          
-          ### 📁 Files
-          - `pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz` - Complete source code
-          - `pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz` - Example project with generated outputs
-          
-          Full documentation available in the repository README.
-        draft: false
-        prerelease: false
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        VERSION_NUMBER=${{ steps.version.outputs.VERSION_NUMBER }}
+        CHANGELOG="${{ steps.changelog.outputs.CHANGELOG }}"
         
-    - name: Upload source archive
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release_artifacts/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
-        asset_name: pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
-        asset_content_type: application/gzip
-        
-    - name: Upload example archive  
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release_artifacts/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz
-        asset_name: pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz
-        asset_content_type: application/gzip
+        # Create release with gh CLI (more reliable than deprecated actions)
+        gh release create "$VERSION" \
+          --title "PinmapGen $VERSION" \
+          --notes "## PinmapGen Release $VERSION
+
+A Python toolchain that bridges Fusion Electronics (EAGLE) exports to firmware projects.
+
+### 🚀 Features
+- Multi-MCU support: RP2040, STM32G0, ESP32 with extensible profile system
+- Multi-format input (EAGLE .sch, CSV exports)  
+- Multiple output formats (JSON, MicroPython, Arduino, Markdown, Mermaid)
+- File watching for automatic regeneration
+- VS Code integration with tasks and snippets
+- GitHub Actions CI/CD with validation workflows
+- Pre-commit hooks for automatic pinmap regeneration
+
+### 📋 What's Changed
+$CHANGELOG
+
+### 📦 Installation
+
+\`\`\`bash
+# Download and extract the source
+wget https://github.com/${{ github.repository }}/releases/download/$VERSION/pinmapgen-$VERSION_NUMBER-source.tar.gz
+tar -xzf pinmapgen-$VERSION_NUMBER-source.tar.gz
+cd pinmapgen-$VERSION_NUMBER
+
+# Install in development mode
+pip install -e .
+\`\`\`
+
+### 🎯 Quick Start
+
+\`\`\`bash
+# Generate for RP2040
+python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
+
+# Generate for STM32G0  
+python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu stm32g0 --mcu-ref U1 --out-root .
+
+# Generate for ESP32
+python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root .
+\`\`\`
+
+### 📁 Files
+- \`pinmapgen-$VERSION_NUMBER-source.tar.gz\` - Complete source code
+- \`pinmapgen-$VERSION_NUMBER-example.tar.gz\` - Example project with generated outputs
+
+Full documentation available in the repository README." \
+          release_artifacts/pinmapgen-$VERSION_NUMBER-source.tar.gz \
+          release_artifacts/pinmapgen-$VERSION_NUMBER-example.tar.gz
