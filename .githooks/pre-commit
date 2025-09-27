@@ -27,10 +27,20 @@ if [ -n "$HARDWARE_CHANGED" ]; then
             for csv_file in $CSV_FILES; do
                 echo "📋 Processing $csv_file..."
                 
+                # Detect MCU type from filename or default to rp2040
+                mcu_type="rp2040"
+                if [[ "$csv_file" == *"stm32"* ]]; then
+                    mcu_type="stm32g0"
+                elif [[ "$csv_file" == *"esp32"* ]]; then
+                    mcu_type="esp32"
+                fi
+                
+                echo "🔍 Detected MCU type: $mcu_type"
+                
                 # Run the generator
                 python -m tools.pinmapgen.cli \
                     --csv "$csv_file" \
-                    --mcu rp2040 \
+                    --mcu "$mcu_type" \
                     --mcu-ref U1 \
                     --out-root . \
                     --mermaid

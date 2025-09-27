@@ -24,11 +24,21 @@ if ($hardwareChanged) {
             foreach ($csvFile in $csvFiles) {
                 Write-Host "📋 Processing $($csvFile.FullName)..." -ForegroundColor Yellow
                 
+                # Detect MCU type from filename or default to rp2040
+                $mcuType = "rp2040"
+                if ($csvFile.Name -match "stm32") {
+                    $mcuType = "stm32g0"
+                } elseif ($csvFile.Name -match "esp32") {
+                    $mcuType = "esp32"
+                }
+                
+                Write-Host "🔍 Detected MCU type: $mcuType" -ForegroundColor Cyan
+                
                 try {
                     # Run the generator
                     $result = python -m tools.pinmapgen.cli `
                         --csv $csvFile.FullName `
-                        --mcu rp2040 `
+                        --mcu $mcuType `
                         --mcu-ref U1 `
                         --out-root . `
                         --mermaid
