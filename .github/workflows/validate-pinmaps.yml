@@ -1,0 +1,147 @@
+name: Validate Pinmaps
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-pinmaps:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # No external dependencies - using stdlib only
+        
+    - name: Generate pinmaps from sample netlist
+      run: |
+        echo "🔄 Generating pinmaps from sample data..."
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --out-root . \
+          --mermaid
+          
+    - name: Check for uncommitted changes
+      run: |
+        echo "🔍 Checking if generated files are up to date..."
+        
+        # Check if there are any uncommitted changes to generated files
+        if ! git diff --quiet -- pinmaps/ firmware/; then
+          echo "❌ Generated pinmap files are out of date!"
+          echo ""
+          echo "The following files have uncommitted changes:"
+          git diff --name-only -- pinmaps/ firmware/
+          echo ""
+          echo "Diff of changes:"
+          git diff -- pinmaps/ firmware/
+          echo ""
+          echo "💡 To fix this:"
+          echo "1. Run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid"
+          echo "2. Commit the updated files"
+          echo "3. Or install the pre-commit hook: bash .githooks/install-hooks.sh"
+          exit 1
+        else
+          echo "✅ All generated files are up to date!"
+        fi
+        
+    - name: Validate Python modules
+      run: |
+        echo "🐍 Validating Python modules..."
+        
+        # Test that all modules can be imported
+        python -c "import tools.pinmapgen.cli; print('✅ CLI module OK')"
+        python -c "import tools.pinmapgen.bom_csv; print('✅ CSV parser OK')"
+        python -c "import tools.pinmapgen.eagle_sch; print('✅ EAGLE parser OK')"
+        python -c "import tools.pinmapgen.normalize; print('✅ Normalizer OK')"
+        python -c "import tools.pinmapgen.roles; print('✅ Roles OK')"
+        
+        # Test emitters
+        python -c "import tools.pinmapgen.emit_json; print('✅ JSON emitter OK')"
+        python -c "import tools.pinmapgen.emit_micropython; print('✅ MicroPython emitter OK')"
+        python -c "import tools.pinmapgen.emit_arduino; print('✅ Arduino emitter OK')"
+        python -c "import tools.pinmapgen.emit_markdown; print('✅ Markdown emitter OK')"
+        python -c "import tools.pinmapgen.emit_mermaid; print('✅ Mermaid emitter OK')"
+        
+    - name: Test CLI help
+      run: |
+        echo "📋 Testing CLI functionality..."
+        python -m tools.pinmapgen.cli --help
+        
+    - name: Validate generated outputs
+      run: |
+        echo "🔍 Validating generated file structure..."
+        
+        # Check that all expected files exist
+        required_files=(
+          "pinmaps/pinmap.json"
+          "firmware/micropython/pinmap_micropython.py"  
+          "firmware/include/pinmap_arduino.h"
+          "firmware/docs/PINOUT.md"
+          "firmware/docs/pinout.mmd"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file is missing!"
+            exit 1
+          fi
+        done
+        
+        # Validate JSON structure
+        echo "🔍 Validating JSON structure..."
+        python -c "
+import json
+with open('pinmaps/pinmap.json', 'r') as f:
+    data = json.load(f)
+    
+required_keys = ['mcu', 'pins', 'differential_pairs', 'metadata']
+for key in required_keys:
+    assert key in data, f'Missing key: {key}'
+    
+print('✅ JSON structure is valid')
+"
+
+        # Check that generated files contain expected content
+        echo "🔍 Checking generated file content..."
+        
+        # MicroPython should have pin constants
+        if grep -q "^[A-Z_]* = " firmware/micropython/pinmap_micropython.py; then
+          echo "✅ MicroPython constants found"
+        else
+          echo "❌ MicroPython constants missing"
+          exit 1
+        fi
+        
+        # Arduino should have #define statements  
+        if grep -q "#define [A-Z_]* " firmware/include/pinmap_arduino.h; then
+          echo "✅ Arduino defines found"
+        else
+          echo "❌ Arduino defines missing"  
+          exit 1
+        fi
+        
+        # Markdown should have tables
+        if grep -q "| Net Name | Pin |" firmware/docs/PINOUT.md; then
+          echo "✅ Markdown tables found"
+        else
+          echo "❌ Markdown tables missing"
+          exit 1
+        fi
+        
+        echo "🎉 All validations passed!"

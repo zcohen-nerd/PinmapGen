@@ -1,0 +1,7 @@
+Part,Designator,Footprint,Quantity,Designation,Supplier and ref,Pin,Net
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP0,I2C0_SDA
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP1,I2C0_SCL
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP4,LED_DATA
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP5,BUTTON
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP24,USB_DP
+Pico,U1,RP2040,1,RP2040 Microcontroller,,GP25,USB_DN

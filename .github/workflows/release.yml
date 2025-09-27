@@ -1,0 +1,173 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for changelog
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Get version from tag or input
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=${{ github.event.inputs.version }}
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+    - name: Validate version format
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "❌ Invalid version format: $VERSION (expected: v0.1.0)"
+          exit 1
+        fi
+        echo "✅ Version format is valid: $VERSION"
+        
+    - name: Generate release artifacts
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        
+        # Generate pinmaps with current sample data
+        echo "📦 Generating sample pinmaps for release..."
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --out-root . \
+          --mermaid
+          
+        # Create release package
+        mkdir -p release_artifacts
+        
+        # Create source archive
+        git archive --format=tar.gz --prefix=pinmapgen-${VERSION#v}/ HEAD > release_artifacts/pinmapgen-${VERSION#v}-source.tar.gz
+        
+        # Create example project package
+        tar -czf release_artifacts/pinmapgen-${VERSION#v}-example.tar.gz \
+          hardware/exports/sample_netlist.csv \
+          pinmaps/ \
+          firmware/ \
+          README.md \
+          LICENSE \
+          pyproject.toml
+          
+    - name: Generate changelog
+      id: changelog
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        
+        # Get the previous tag
+        PREV_TAG=$(git tag --sort=-version:refname | grep -v "^$VERSION$" | head -n1 || echo "")
+        
+        echo "📝 Generating changelog..."
+        if [ -n "$PREV_TAG" ]; then
+          echo "Changes from $PREV_TAG to $VERSION:"
+          echo ""
+          git log --oneline --no-merges $PREV_TAG..HEAD
+        else
+          echo "Initial release $VERSION"
+        fi > CHANGELOG.md
+        
+        # Set output for use in release
+        echo 'CHANGELOG<<EOF' >> $GITHUB_OUTPUT
+        cat CHANGELOG.md >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        release_name: PinmapGen ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## PinmapGen Release ${{ steps.version.outputs.VERSION }}
+          
+          A Python toolchain that bridges Fusion Electronics (EAGLE) exports to firmware projects.
+          
+          ### 🚀 Features
+          - Multi-format input (EAGLE .sch, CSV exports)  
+          - RP2040 pin normalization and validation
+          - Multiple output formats (JSON, MicroPython, Arduino, Markdown, Mermaid)
+          - File watching for automatic regeneration
+          - VS Code integration with tasks and snippets
+          
+          ### 📋 What's Changed
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ### 📦 Installation
+          
+          ```bash
+          # Download and extract the source
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
+          tar -xzf pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
+          cd pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}
+          
+          # Install in development mode
+          pip install -e .
+          ```
+          
+          ### 🎯 Quick Start
+          
+          ```bash
+          # Generate from CSV
+          python -m tools.pinmapgen.cli \
+            --csv hardware/exports/sample_netlist.csv \
+            --mcu rp2040 \
+            --mcu-ref U1 \
+            --out-root . \
+            --mermaid
+          ```
+          
+          ### 📁 Files
+          - `pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz` - Complete source code
+          - `pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz` - Example project with generated outputs
+          
+          Full documentation available in the repository README.
+        draft: false
+        prerelease: false
+        
+    - name: Upload source archive
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: release_artifacts/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
+        asset_name: pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-source.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: Upload example archive  
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: release_artifacts/pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz
+        asset_name: pinmapgen-${{ steps.version.outputs.VERSION_NUMBER }}-example.tar.gz
+        asset_content_type: application/gzip

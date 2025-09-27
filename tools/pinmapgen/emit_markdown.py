@@ -80,13 +80,23 @@ def generate_pinout_documentation(canonical_dict: Dict[str, Any]) -> str:
         
         lines.extend(['', '---', ''])
     
-    # Main pinout table
+    # Single-ended pins table
     lines.extend([
-        '## Pin Assignments',
+        '## Single-Ended Pin Assignments',
         '',
-        generate_pinout_table(canonical_dict),
+        generate_single_ended_table(canonical_dict),
         '',
     ])
+    
+    # Differential pairs table (if any exist)
+    diff_pairs = canonical_dict.get('differential_pairs', [])
+    if diff_pairs:
+        lines.extend([
+            '## Differential Pair Assignments',
+            '',
+            generate_differential_pairs_table(canonical_dict),
+            '',
+        ])
     
     # Differential pairs section
     diff_pairs = canonical_dict.get('differential_pairs', [])
@@ -175,32 +185,30 @@ def generate_pinout_documentation(canonical_dict: Dict[str, Any]) -> str:
     return '\n'.join(lines)
 
 
-def generate_pinout_table(canonical_dict: Dict[str, Any]) -> str:
+def generate_single_ended_table(canonical_dict: Dict[str, Any]) -> str:
     """
-    Generate Markdown table of pinout mappings from canonical dictionary.
+    Generate Markdown table of single-ended pin mappings.
     
     Args:
         canonical_dict: Canonical pinmap dictionary
         
     Returns:
-        Markdown table string
+        Markdown table string for single-ended pins
     """
     lines = []
     pins = canonical_dict.get('pins', {})
     
-    if not pins:
-        return '*No pin assignments found.*'
+    # Get differential pair net names to exclude them
+    diff_pair_nets = set()
+    diff_pairs = canonical_dict.get('differential_pairs', [])
+    for pair in diff_pairs:
+        diff_pair_nets.add(pair.get('positive', ''))
+        diff_pair_nets.add(pair.get('negative', ''))
     
-    # Table header
-    lines.extend([
-        '| Net Name | Pin | Function | Notes |',
-        '|----------|-----|----------|-------|',
-    ])
-    
-    # Collect and sort pin data
+    # Collect single-ended pins only
     pin_data = []
     for net_name, pin_list in pins.items():
-        if len(pin_list) == 1:  # Single pin nets only
+        if len(pin_list) == 1 and net_name not in diff_pair_nets:
             pin = pin_list[0]
             match = re.match(r'GP(\d+)', pin)
             if match:
@@ -208,6 +216,15 @@ def generate_pinout_table(canonical_dict: Dict[str, Any]) -> str:
                 function = _get_special_function(pin)
                 notes = _get_pin_notes(net_name, pin, canonical_dict)
                 pin_data.append((pin_num, net_name, pin, function, notes))
+    
+    if not pin_data:
+        return '*No single-ended pin assignments found.*'
+    
+    # Table header
+    lines.extend([
+        '| Net Name | Pin | Function | Notes |',
+        '|----------|-----|----------|-------|',
+    ])
     
     # Sort by pin number
     pin_data.sort(key=lambda x: x[0])
@@ -220,6 +237,56 @@ def generate_pinout_table(canonical_dict: Dict[str, Any]) -> str:
         notes = notes.replace('|', '\\|')
         
         lines.append(f'| `{net_name}` | `{pin}` | {function} | {notes} |')
+    
+    return '\n'.join(lines)
+
+
+def generate_differential_pairs_table(canonical_dict: Dict[str, Any]) -> str:
+    """
+    Generate Markdown table of differential pair assignments.
+    
+    Args:
+        canonical_dict: Canonical pinmap dictionary
+        
+    Returns:
+        Markdown table string for differential pairs
+    """
+    lines = []
+    pins = canonical_dict.get('pins', {})
+    diff_pairs = canonical_dict.get('differential_pairs', [])
+    
+    if not diff_pairs:
+        return '*No differential pairs found.*'
+    
+    # Table header
+    lines.extend([
+        '| Signal | Positive Pin | Negative Pin | Function | Notes |',
+        '|--------|--------------|--------------|----------|-------|',
+    ])
+    
+    # Generate table rows for each differential pair
+    for pair in diff_pairs:
+        pos_net = pair.get('positive', '')
+        neg_net = pair.get('negative', '')
+        
+        # Get pin assignments
+        pos_pin = pins.get(pos_net, [''])[0] if pos_net in pins else ''
+        neg_pin = pins.get(neg_net, [''])[0] if neg_net in pins else ''
+        
+        # Determine signal type and function
+        signal_name = _get_differential_signal_name(pos_net, neg_net)
+        function = _get_differential_function(pos_net, neg_net)
+        notes = _get_differential_notes(pos_net, neg_net)
+        
+        # Escape pipe characters
+        signal_name = signal_name.replace('|', '\\|')
+        function = function.replace('|', '\\|')
+        notes = notes.replace('|', '\\|')
+        
+        lines.append(
+            f'| `{signal_name}` | `{pos_pin}` | `{neg_pin}` | '
+            f'{function} | {notes} |'
+        )
     
     return '\n'.join(lines)
 
@@ -255,16 +322,8 @@ def _get_special_function(pin: str) -> str:
 
 
 def _get_pin_notes(net_name: str, pin: str, canonical_dict: Dict[str, Any]) -> str:
-    """Get additional notes for a pin."""
+    """Get additional notes for a pin (excluding differential pair info)."""
     notes = []
-    
-    # Check if part of differential pair
-    diff_pairs = canonical_dict.get('differential_pairs', [])
-    for pair in diff_pairs:
-        if net_name in [pair.get('positive'), pair.get('negative')]:
-            partner = pair.get('negative') if net_name == pair.get('positive') else pair.get('positive')
-            notes.append(f'Differential pair with `{partner}`')
-            break
     
     # Add function-specific notes
     if 'USB' in net_name.upper():
@@ -281,3 +340,58 @@ def _get_pin_notes(net_name: str, pin: str, canonical_dict: Dict[str, Any]) -> s
         notes.append('CAN bus')
     
     return ' • '.join(notes) if notes else '-'
+
+
+def _get_differential_signal_name(pos_net: str, neg_net: str) -> str:
+    """Extract signal name from differential pair net names."""
+    # Common patterns for differential signals
+    if 'USB' in pos_net.upper() or 'USB' in neg_net.upper():
+        return 'USB'
+    elif 'CAN' in pos_net.upper() or 'CAN' in neg_net.upper():
+        return 'CAN'
+    elif 'UART' in pos_net.upper() or 'UART' in neg_net.upper():
+        return 'UART'
+    elif 'ETH' in pos_net.upper() or 'ETH' in neg_net.upper():
+        return 'Ethernet'
+    else:
+        # Try to extract common prefix
+        common_prefix = ''
+        for i, (c1, c2) in enumerate(zip(pos_net, neg_net)):
+            if c1 == c2:
+                common_prefix += c1
+            else:
+                break
+        
+        # Clean up common prefix
+        common_prefix = common_prefix.rstrip('_-+')
+        return common_prefix if common_prefix else f'{pos_net}/{neg_net}'
+
+
+def _get_differential_function(pos_net: str, neg_net: str) -> str:
+    """Get function description for differential pair."""
+    signal_name = _get_differential_signal_name(pos_net, neg_net).upper()
+    
+    if 'USB' in signal_name:
+        return 'USB 2.0 Data'
+    elif 'CAN' in signal_name:
+        return 'CAN Bus'
+    elif 'UART' in signal_name:
+        return 'UART Differential'
+    elif 'ETH' in signal_name:
+        return 'Ethernet Pair'
+    else:
+        return 'Differential Signal'
+
+
+def _get_differential_notes(pos_net: str, neg_net: str) -> str:
+    """Get notes for differential pair."""
+    signal_name = _get_differential_signal_name(pos_net, neg_net).upper()
+    
+    if 'USB' in signal_name:
+        return 'Route with 90Ω differential impedance'
+    elif 'CAN' in signal_name:
+        return 'Route with 120Ω differential impedance'
+    elif 'ETH' in signal_name:
+        return 'Route with 100Ω differential impedance'
+    else:
+        return 'Match trace lengths and controlled impedance'

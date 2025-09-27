@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# PinmapGen Pre-commit Hook
+#
+# This hook automatically regenerates pinmap files when source files change.
+# It ensures that generated outputs stay in sync with input files.
+
+set -e
+
+echo "🔧 PinmapGen pre-commit hook running..."
+
+# Check if we have any changes in hardware/exports/
+HARDWARE_CHANGED=$(git diff --cached --name-only | grep -E '^hardware/exports/' || true)
+
+if [ -n "$HARDWARE_CHANGED" ]; then
+    echo "📁 Hardware export files changed:"
+    echo "$HARDWARE_CHANGED"
+    
+    # Check if we have a Python environment
+    if command -v python >/dev/null 2>&1; then
+        echo "🔄 Regenerating pinmaps..."
+        
+        # Find CSV files in hardware/exports/
+        CSV_FILES=$(find hardware/exports/ -name "*.csv" 2>/dev/null || true)
+        
+        if [ -n "$CSV_FILES" ]; then
+            for csv_file in $CSV_FILES; do
+                echo "📋 Processing $csv_file..."
+                
+                # Run the generator
+                python -m tools.pinmapgen.cli \
+                    --csv "$csv_file" \
+                    --mcu rp2040 \
+                    --mcu-ref U1 \
+                    --out-root . \
+                    --mermaid
+            done
+            
+            # Stage the regenerated files
+            echo "📤 Staging regenerated pinmap files..."
+            git add pinmaps/
+            git add firmware/micropython/
+            git add firmware/include/
+            git add firmware/docs/
+            
+            echo "✅ Pinmaps regenerated and staged successfully!"
+        else
+            echo "⚠️  No CSV files found in hardware/exports/"
+        fi
+    else
+        echo "❌ Python not found! Please install Python to use auto-regeneration."
+        echo "   You can manually regenerate with:"
+        echo "   python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid"
+        exit 1
+    fi
+else
+    echo "📋 No hardware export changes detected, skipping regeneration."
+fi
+
+echo "🎉 Pre-commit hook completed successfully!"

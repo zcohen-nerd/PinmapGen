@@ -381,6 +381,10 @@ def analyze_roles(canonical_pinmap: Dict) -> Tuple[List[PinInfo], Dict[str, List
     return pin_infos, bus_groups, diff_pairs
 
 
+# Alias for backward compatibility and MCU profiles
+PinRoleInferrer = RoleInferencer
+
+
 if __name__ == "__main__":
     # Test with sample data
     sample_pinmap = {

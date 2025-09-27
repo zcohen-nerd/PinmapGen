@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any
 
-# Import parser modules
+# Import parser and MCU profile modules
 from . import bom_csv
 from . import eagle_sch
 from . import normalize
@@ -20,6 +20,18 @@ from . import emit_micropython
 from . import emit_arduino
 from . import emit_markdown
 from . import emit_mermaid
+from .mcu_profiles import MCUProfile
+from .rp2040_profile import RP2040Profile
+from .stm32g0_profile import STM32G0Profile
+from .esp32_profile import ESP32Profile
+
+
+# MCU Profile Registry
+MCU_PROFILES = {
+    "rp2040": RP2040Profile,
+    "stm32g0": STM32G0Profile,
+    "esp32": ESP32Profile,
+}
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -51,8 +63,8 @@ Examples:
     parser.add_argument(
         "--mcu",
         required=True,
-        choices=["rp2040"],
-        help="MCU profile (currently supports: rp2040)"
+        choices=list(MCU_PROFILES.keys()),
+        help=f"MCU profile (supports: {', '.join(MCU_PROFILES.keys())})"
     )
     parser.add_argument(
         "--mcu-ref",
@@ -119,13 +131,22 @@ def parse_input_file(args: argparse.Namespace) -> Dict[str, List[str]]:
     return nets
 
 
-def create_canonical_pinmap(nets: Dict[str, List[str]], mcu_name: str, verbose: bool = False) -> Dict[str, Any]:
+def create_canonical_pinmap(nets: Dict[str, List[str]], mcu_name: str, 
+                           verbose: bool = False) -> Dict[str, Any]:
     """Create canonical pinmap dictionary with normalization and validation."""
     if verbose:
         print(f"Normalizing pins for {mcu_name}")
     
     try:
-        canonical_dict = normalize.normalize_pinmap(nets, mcu_name)
+        # Get MCU profile
+        if mcu_name not in MCU_PROFILES:
+            raise ValueError(f"Unknown MCU profile: {mcu_name}")
+        
+        profile_class = MCU_PROFILES[mcu_name]
+        profile = profile_class()
+        
+        # Create canonical pinmap using profile
+        canonical_dict = profile.create_canonical_pinmap(nets)
         
         if verbose:
             metadata = canonical_dict.get('metadata', {})
@@ -136,7 +157,9 @@ def create_canonical_pinmap(nets: Dict[str, List[str]], mcu_name: str, verbose: 
             if diff_pairs:
                 print(f"  - Detected {len(diff_pairs)} differential pairs:")
                 for pair in diff_pairs:
-                    print(f"    • {pair.get('positive')} / {pair.get('negative')}")
+                    pos = pair.get('positive')
+                    neg = pair.get('negative')
+                    print(f"    • {pos} / {neg}")
             
             special_pins = metadata.get('special_pins_used', [])
             if special_pins:

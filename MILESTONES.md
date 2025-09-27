@@ -66,13 +66,13 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 
 ---
 
-## 📍 Milestone 5: Multi-MCU Support
+## 📍 Milestone 5: Multi-MCU Support ✅ **COMPLETE**
 **Goal:** Extend beyond RP2040 to STM32/ESP32.
 
-- [ ] Create MCU profile registry
-- [ ] Add STM32G0 profile with AF mux validation
-- [ ] Add ESP32 profile with IO matrix validation
-- [ ] Per-MCU emitter tweaks (e.g., Arduino cores differ)
+- [x] Create MCU profile registry
+- [x] Add STM32G0 profile with AF mux validation
+- [x] Add ESP32 profile with IO matrix validation
+- [x] Per-MCU emitter tweaks (e.g., Arduino cores differ)
 - [ ] Role-aware warnings: "UART2_TX not valid on this pin"
 
 ---
@@ -113,11 +113,11 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 
 ## 📊 Current Status
 
-**Completed Milestones:** 2/8 (25%)
+**Completed Milestones:** 4/8 (50%)
 
 **Key Achievements:**
 - ✅ Complete CLI toolchain with dual input support (CSV/EAGLE)
-- ✅ RP2040 pin normalization with differential pair detection
+- ✅ Multi-MCU support: RP2040, STM32G0, ESP32 with extensible profile system
 - ✅ Five output formats: JSON, MicroPython, Arduino, Markdown, Mermaid
 - ✅ File watcher for automatic regeneration
 - ✅ VS Code integration with tasks and code snippets
@@ -125,9 +125,12 @@ This document tracks the staged development of **PinmapGen**, from a simple CLI 
 - ✅ Enhanced JSON output with bus groups and role metadata
 - ✅ MicroPython helpers: pin_in(), pin_out(), pwm(), setup_i2c0(), USBPins class
 - ✅ Arduino helpers: DiffPair structs, PIN_INPUT/OUTPUT macros, SETUP_I2C0 macros
-- ✅ Sample data and comprehensive documentation
+- ✅ GitHub Actions CI/CD with validation and testing workflows
+- ✅ Pre-commit hooks for automatic pinmap regeneration
+- ✅ Comprehensive unit tests and contributing guidelines
+- ✅ Sample data for all supported MCU families
 
-**Next Priority:** Milestone 3 (Developer Experience) - Add GitHub Actions, pre-commit hooks, unit tests, and CONTRIBUTING.md.
+**Next Priority:** Milestone 4 (Fusion Add-in Prototype) - Create Fusion integration for one-click pinmap generation.
 
 **Development Notes:**
 - Project built with Python 3.11, stdlib-only (no external dependencies)

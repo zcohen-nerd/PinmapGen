@@ -1,0 +1,181 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC to catch any issues
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12']
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+      
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # No external dependencies - stdlib only project
+        
+    - name: Test module imports
+      run: |
+        # Test all modules can be imported without errors
+        python -c "import tools.pinmapgen.cli"
+        python -c "import tools.pinmapgen.bom_csv"
+        python -c "import tools.pinmapgen.eagle_sch" 
+        python -c "import tools.pinmapgen.normalize"
+        python -c "import tools.pinmapgen.roles"
+        python -c "import tools.pinmapgen.emit_json"
+        python -c "import tools.pinmapgen.emit_micropython"
+        python -c "import tools.pinmapgen.emit_arduino"
+        python -c "import tools.pinmapgen.emit_markdown"
+        python -c "import tools.pinmapgen.emit_mermaid"
+        python -c "import tools.pinmapgen.watch"
+        
+    - name: Test CLI help
+      run: |
+        python -m tools.pinmapgen.cli --help
+        
+    - name: Test generation from CSV
+      run: |
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --out-root test_output \
+          --mermaid
+          
+    - name: Validate generated files (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        # Check all expected files were created
+        test -f test_output/pinmaps/pinmap.json
+        test -f test_output/firmware/micropython/pinmap_micropython.py
+        test -f test_output/firmware/include/pinmap_arduino.h
+        test -f test_output/firmware/docs/PINOUT.md
+        test -f test_output/firmware/docs/pinout.mmd
+        
+    - name: Validate generated files (Windows)  
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Check all expected files were created
+        if (!(Test-Path "test_output/pinmaps/pinmap.json")) { exit 1 }
+        if (!(Test-Path "test_output/firmware/micropython/pinmap_micropython.py")) { exit 1 }
+        if (!(Test-Path "test_output/firmware/include/pinmap_arduino.h")) { exit 1 }
+        if (!(Test-Path "test_output/firmware/docs/PINOUT.md")) { exit 1 }
+        if (!(Test-Path "test_output/firmware/docs/pinout.mmd")) { exit 1 }
+        
+    - name: Test JSON output validity
+      run: |
+        python -c "
+import json
+with open('test_output/pinmaps/pinmap.json', 'r') as f:
+    data = json.load(f)
+print('JSON is valid')
+print(f'MCU: {data[\"mcu\"]}')  
+print(f'Pins: {len(data[\"pins\"])}')
+print(f'Differential pairs: {len(data[\"differential_pairs\"])}')
+"
+
+    - name: Test file watcher (Unix only)
+      if: runner.os == 'Linux'
+      timeout-minutes: 2
+      run: |
+        # Test the file watcher functionality
+        mkdir -p test_watch_input test_watch_output
+        cp hardware/exports/sample_netlist.csv test_watch_input/
+        
+        # Start watcher in background
+        python -m tools.pinmapgen.watch test_watch_input/ \
+          --out-root test_watch_output \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --interval 0.5 &
+        WATCHER_PID=$!
+        
+        # Give it time to start
+        sleep 2
+        
+        # Touch the input file to trigger regeneration
+        touch test_watch_input/sample_netlist.csv
+        
+        # Give it time to regenerate
+        sleep 3
+        
+        # Kill the watcher
+        kill $WATCHER_PID || true
+        
+        # Check if files were generated
+        if [ -f "test_watch_output/pinmaps/pinmap.json" ]; then
+          echo "✅ File watcher worked correctly"
+        else
+          echo "❌ File watcher failed"
+          exit 1
+        fi
+
+  # Separate job for more intensive validation
+  validate-comprehensive:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Test with different MCU references
+      run: |
+        # Test with different MCU reference designators
+        for ref in U1 IC1 MCU1; do
+          echo "Testing with MCU ref: $ref"
+          python -m tools.pinmapgen.cli \
+            --csv hardware/exports/sample_netlist.csv \
+            --mcu rp2040 \
+            --mcu-ref $ref \
+            --out-root "test_$ref" \
+            --mermaid
+        done
+        
+    - name: Test error handling
+      run: |
+        # Test with non-existent file (should fail gracefully)
+        if python -m tools.pinmapgen.cli --csv nonexistent.csv --mcu rp2040 --mcu-ref U1 --out-root test_error; then
+          echo "❌ Should have failed with non-existent file"
+          exit 1
+        else
+          echo "✅ Correctly handled non-existent file"
+        fi
+        
+    - name: Performance test
+      run: |
+        # Time the generation process
+        echo "Performance testing..."
+        time python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --out-root perf_test \
+          --mermaid

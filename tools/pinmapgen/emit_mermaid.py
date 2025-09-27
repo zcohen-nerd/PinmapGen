@@ -101,22 +101,32 @@ def generate_mermaid_graph(canonical_dict: Dict[str, Any]) -> str:
             
             lines.append('')
     
-    # Add differential pair connections
+    # Add differential pair subgraphs
     diff_pairs = canonical_dict.get('differential_pairs', [])
     if diff_pairs:
         lines.extend([
-            '    %% Differential pair connections',
+            '    %% Differential pairs as subgraphs',
         ])
         
-        for pair in diff_pairs:
+        for i, pair in enumerate(diff_pairs):
             pos_net = pair.get('positive', '')
             neg_net = pair.get('negative', '')
             
             pos_id = _sanitize_node_id(pos_net)
             neg_id = _sanitize_node_id(neg_net)
             
-            # Create bidirectional connection between differential pairs
-            lines.append(f'    {pos_id} <--> {neg_id}')
+            # Determine signal type for subgraph name
+            signal_type = _get_diff_signal_type(pos_net, neg_net)
+            
+            # Create subgraph for differential pair
+            lines.extend([
+                f'    subgraph DIFF{i}["{signal_type} Differential Pair"]',
+                f'        direction LR',
+                f'        {pos_id} -.->|"differential"| {neg_id}',
+                f'        {neg_id} -.->|"pair"| {pos_id}',
+                f'    end',
+                ''
+            ])
         
         lines.append('')
     
@@ -143,20 +153,28 @@ def _group_pins_by_function(pin_data: List[tuple], canonical_dict: Dict[str, Any
     """Group pins by their function for better diagram layout."""
     groups = {
         'Power': [],
-        'USB': [],
         'Analog': [],
         'Communication': [],
         'Digital I/O': []
     }
     
+    # Get differential pair net names to exclude them from groups
+    diff_pair_nets = set()
+    diff_pairs = canonical_dict.get('differential_pairs', [])
+    for pair in diff_pairs:
+        diff_pair_nets.add(pair.get('positive', ''))
+        diff_pair_nets.add(pair.get('negative', ''))
+    
     for pin_num, net_name, pin in pin_data:
+        # Skip differential pair nets (they'll be in subgraphs)
+        if net_name in diff_pair_nets:
+            continue
+            
         # Categorize by net name patterns
         net_upper = net_name.upper()
         
         if any(keyword in net_upper for keyword in ['VCC', 'VDD', 'GND', 'POWER', '3V3', '5V']):
             groups['Power'].append((pin_num, net_name, pin))
-        elif 'USB' in net_upper:
-            groups['USB'].append((pin_num, net_name, pin))
         elif any(keyword in net_upper for keyword in ['ADC', 'ANALOG', 'AIN']) or pin in ['GP26', 'GP27', 'GP28', 'GP29']:
             groups['Analog'].append((pin_num, net_name, pin))
         elif any(keyword in net_upper for keyword in ['I2C', 'SPI', 'UART', 'CAN', 'SDA', 'SCL', 'MOSI', 'MISO']):
@@ -225,3 +243,21 @@ def _get_node_style(net_name: str, pin: str, canonical_dict: Dict[str, Any]) -> 
         return 'special'
     else:
         return 'digital'
+
+
+def _get_diff_signal_type(pos_net: str, neg_net: str) -> str:
+    """Get signal type name for differential pair."""
+    # Check for common differential signal patterns
+    for net in [pos_net, neg_net]:
+        net_upper = net.upper()
+        if 'USB' in net_upper:
+            return 'USB'
+        elif 'CAN' in net_upper:
+            return 'CAN'
+        elif 'UART' in net_upper or 'RS485' in net_upper:
+            return 'UART'
+        elif 'ETH' in net_upper or 'ETHERNET' in net_upper:
+            return 'Ethernet'
+    
+    # If no specific type found, use generic name
+    return 'Signal'

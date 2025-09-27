@@ -5,7 +5,7 @@ A Python 3.11 toolchain that bridges Fusion Electronics (EAGLE) exports to firmw
 ## Features
 
 - **Multi-format Input**: Parse EAGLE `.sch` XML files or CSV exports
-- **MCU Profiles**: Currently supports RP2040 with GPIO normalization
+- **Multi-MCU Support**: RP2040, STM32G0, ESP32 with extensible profile system
 - **Multiple Output Formats**:
   - `pinmaps/pinmap.json` - Canonical pinmap data
   - `firmware/micropython/pinmap_micropython.py` - MicroPython constants
@@ -36,11 +36,14 @@ pip install -e .
 ### Basic Usage
 
 ```bash
-# Generate from CSV export
+# Generate from CSV export (RP2040)
 python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
 
-# Generate from EAGLE schematic
-python -m tools.pinmapgen.cli --sch hardware/exports/project.sch --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
+# Generate for STM32G0 
+python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu stm32g0 --mcu-ref U1 --out-root .
+
+# Generate for ESP32 with Mermaid diagrams
+python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root . --mermaid
 
 # Watch for changes and auto-regenerate
 python -m tools.pinmapgen.watch hardware/exports/
@@ -131,16 +134,65 @@ Fusion_PinMapGen/
 
 ## MCU Support
 
-### RP2040
+### RP2040 ✅
 - **Pin Normalization**: `GPIOxx`/`IOxx` → `GPxx`
 - **Differential Pairs**: Detects `_P`/`_N`, `DP`/`DM`, `CANH`/`CANL` patterns
 - **Validation**: Duplicate pin usage, multi-pin nets, lonely differential pairs
 - **Special Pins**: USB D+/D-, ADC channels, SPI/I2C functions
 
-### Future MCUs (Roadmap)
-- **STM32**: Port/pin notation, alternate functions
-- **ESP32**: GPIO matrix, ADC/DAC channels
-- **Custom**: User-defined MCU profiles
+### STM32G0 ✅
+- **Pin Normalization**: Port-based GPIO (PA0-PA15, PB0-PB15, PC13-PC15, etc.)
+- **Alternate Functions**: PWM, ADC, DAC, I2C, SPI, UART capability validation
+- **Special Features**: Clock output pins, boot pins, low-power wake-up sources
+- **Validation**: STM32-specific pin constraints and alternate function conflicts
+
+### ESP32 ✅
+- **Pin Normalization**: `GPIOxx` format with input-only pin detection
+- **GPIO Matrix**: Flexible peripheral assignment validation
+- **Strapping Pins**: Boot mode and configuration pin warnings
+- **Special Features**: ADC1/ADC2 channels, DAC, Touch sensors, WiFi constraints
+
+### Adding Custom MCUs
+The MCU profile system is designed to be extensible. To add a new MCU:
+
+1. Create a new profile class inheriting from `MCUProfile`
+2. Implement pin normalization and validation methods
+3. Register the profile in `cli.py` MCU_PROFILES dictionary
+4. Add sample netlist and test cases
+
+## Multi-MCU Examples
+
+### RP2040 Project
+```csv
+Net,Pin,Component,RefDes
+I2C0_SDA,GP0,RP2040,U1
+I2C0_SCL,GP1,RP2040,U1
+LED_DATA,GP4,RP2040,U1
+USB_DP,GP24,RP2040,U1
+USB_DN,GP25,RP2040,U1
+```
+
+### STM32G0 Project  
+```csv
+Net,Pin,Component,RefDes
+UART1_TX,PA0,MCU,U1
+UART1_RX,PA1,MCU,U1
+SPI1_SCK,PA5,MCU,U1
+I2C1_SCL,PB6,MCU,U1
+I2C1_SDA,PB7,MCU,U1
+USER_LED,PC13,MCU,U1
+```
+
+### ESP32 Project
+```csv
+Net,Pin,Component,RefDes
+UART_TX,GPIO1,MCU,U1
+UART_RX,GPIO3,MCU,U1
+I2C_SDA,GPIO21,MCU,U1
+I2C_SCL,GPIO22,MCU,U1
+SPI_MOSI,GPIO23,MCU,U1
+DAC_OUT,GPIO25,MCU,U1
+```
 
 ## Command Line Reference
 
@@ -150,7 +202,7 @@ python -m tools.pinmapgen.cli [OPTIONS]
 Options:
   --sch PATH              EAGLE schematic file (.sch)
   --csv PATH              CSV netlist export  
-  --mcu {rp2040}          MCU profile (required)
+  --mcu {rp2040,stm32g0,esp32}  MCU profile (required)
   --mcu-ref TEXT          MCU reference designator (e.g., U1)
   --out-root PATH         Output root directory (default: .)
   --mermaid              Generate Mermaid diagrams
