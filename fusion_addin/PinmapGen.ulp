@@ -314,7 +314,7 @@ if (result) {
         int mkdirResult = system("mkdir \"" + fullOutputDir + "\" 2>nul");
         int pathOk = 1;
         if (mkdirResult != 0) {
-            string pathTest = system("dir \"" + fullOutputDir + "\" >nul 2>&1");
+            int pathTest = system("dir \"" + fullOutputDir + "\" >nul 2>&1");
             if (pathTest != 0) {
                 dlgMessageBox("Could not create or access project directory:\n" + fullOutputDir + "\n\nPlease check the path and permissions.", "Directory Error");
                 pathOk = 0;
