@@ -10,7 +10,7 @@ int generateArduino = 1;
 int generateMarkdown = 1;
 int generateMermaid = 1;
 
-// Settings file path
+// Settings file path (basic save only due to ULP limitations)
 string settingsFile = "C:/Users/ZCohe/AppData/Local/PinmapGen_ULP_Settings.txt";
 
 // Function to generate timestamped project name
@@ -20,41 +20,19 @@ string generateProjectName(string baseName) {
     return baseName + "_" + timestamp;
 }
 
-// Function to load settings from file
+// Function to load settings from file (simplified for ULP compatibility)
 void loadSettings() {
-    string line;
-    if (filesize(settingsFile) > 0) {
-        output("", "wt") {
-            printf("");  // Create empty file to test write permissions
-        }
-        
-        string tmpFile = "C:/Users/ZCohe/AppData/Local/temp_settings.txt";
-        if (system("type \"" + settingsFile + "\" > \"" + tmpFile + "\" 2>nul") == 0) {
-            if (filesize(tmpFile) > 0) {
-                input(tmpFile) {
-                    while ((line = input) != "") {
-                        if (strstr(line, "mcuRef=") == 0) mcuRef = strsub(line, 7);
-                        else if (strstr(line, "outputDir=") == 0) outputDir = strsub(line, 10);
-                        else if (strstr(line, "projectName=") == 0) projectName = strsub(line, 12);
-                        else if (strstr(line, "mcuType=") == 0) mcuType = strsub(line, 8);
-                        else if (strstr(line, "generateMicroPython=") == 0) generateMicroPython = strtol(strsub(line, 20));
-                        else if (strstr(line, "generateArduino=") == 0) generateArduino = strtol(strsub(line, 16));
-                        else if (strstr(line, "generateMarkdown=") == 0) generateMarkdown = strtol(strsub(line, 17));
-                        else if (strstr(line, "generateMermaid=") == 0) generateMermaid = strtol(strsub(line, 16));
-                    }
-                }
-            }
-            system("del \"" + tmpFile + "\" 2>nul");
-        }
-    }
+    // For ULP compatibility, we'll use a simpler approach
+    // Settings persistence will be minimal due to ULP file I/O limitations
+    // Default values are already set above, so this function is a placeholder
+    // for future enhancement when better ULP file handling is needed
 }
 
-// Function to save settings to file
+// Function to save settings to file (simplified for ULP compatibility)
 void saveSettings() {
-    // Ensure directory exists
-    system("mkdir \"C:/Users/ZCohe/AppData/Local\" 2>nul");
-    
+    // Basic settings save using ULP output function
     output(settingsFile) {
+        printf("# PinmapGen Settings - Last used on: %u\n", time());
         printf("mcuRef=%s\n", mcuRef);
         printf("outputDir=%s\n", outputDir);
         printf("projectName=%s\n", projectName);
@@ -229,9 +207,6 @@ int generateNetlistCSV(string netlistPath) {
     
     return success ? 1 : 0;
 }
-
-// Load settings from previous run
-loadSettings();
 
 // Main execution
 int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
