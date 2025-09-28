@@ -16,9 +16,7 @@ string settingsFile = "C:/Users/ZCohe/AppData/Local/PinmapGen_ULP_Settings.txt";
 // Function to generate timestamped project name
 string generateProjectName(string baseName) {
     string timestamp;
-    sprintf(timestamp, "%04d%02d%02d_%02d%02d%02d", 
-            t_year(time()), t_month(time()), t_day(time()),
-            t_hour(time()), t_minute(time()), t_second(time()));
+    sprintf(timestamp, "%u", time());
     return baseName + "_" + timestamp;
 }
 
@@ -75,7 +73,7 @@ string analyzeSchematic(string targetMcuRef) {
     int componentCount = 0;
     int netCount = 0;
     
-    string pinUsage[];  // Track which pins are used
+    string pinUsage[256];  // Track which pins are used (max 256 pins)
     int pinCount = 0;
     
     if (!schematic) {
@@ -101,18 +99,20 @@ string analyzeSchematic(string targetMcuRef) {
                                     break;
                                 }
                                 
-                                // Track pin usage for conflict detection
-                                int found = 0;
-                                for (int i = 0; i < pinCount; i++) {
-                                    if (pinUsage[i] == pinNum) {
-                                        warnings += "⚠️ Pin " + pinNum + " used multiple times\n";
-                                        found = 1;
-                                        break;
+                                // Track pin usage for conflict detection (if not too many pins)
+                                if (pinCount < 256) {
+                                    int found = 0;
+                                    for (int i = 0; i < pinCount; i++) {
+                                        if (pinUsage[i] == pinNum) {
+                                            warnings += "⚠️ Pin " + pinNum + " used multiple times\n";
+                                            found = 1;
+                                            break;
+                                        }
                                     }
-                                }
-                                if (!found) {
-                                    pinUsage[pinCount] = pinNum;
-                                    pinCount++;
+                                    if (!found) {
+                                        pinUsage[pinCount] = pinNum;
+                                        pinCount++;
+                                    }
                                 }
                             }
                         }
