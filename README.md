@@ -1,5 +1,12 @@
 # 🏆 PinmapGen - Complete Automated Solution
 
+[![License: Custom](https://img.shields.io/badge/License-PinmapGen%20Community-blue.svg)](LICENSE)
+[![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](README.md)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/zcohen-nerd/PinmapGen/ci.yml?branch=main&label=CI%2FCD)](https://github.com/zcohen-nerd/PinmapGen/actions)
+[![Issues](https://img.shields.io/github/issues/zcohen-nerd/PinmapGen)](https://github.com/zcohen-nerd/PinmapGen/issues)
+[![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen.svg)](docs/)
+
 ## 🎉 SUCCESS: Working Solution Deployed!
 
 **Mission Accomplished!** PinmapGen is now a **fully functional, production-ready** toolchain that automatically transforms Fusion 360 Electronics schematics into firmware-ready pinmaps with **complete one-click automation**.
@@ -236,5 +243,9 @@ up to date.
 
 ## License
 
-PinmapGen is released under the MIT License. See [`LICENSE`](LICENSE) for the 
-full text.
+PinmapGen is released under the **PinmapGen Community License** with dual-licensing:
+
+- **Free for Non-Commercial Use** - Personal projects, education, open source
+- **Commercial License Required** - Business use, client work, commercial products
+
+See [`LICENSE`](LICENSE) for complete terms and commercial licensing information.

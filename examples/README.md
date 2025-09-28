@@ -1,18 +1,29 @@
 # PinmapGen Examples
 
-This directory contains practical examples showing how to use PinmapGen in different scenarios and integrate it with various tools and workflows.
+This directory contains comprehensive examples demonstrating PinmapGen's capabilities across different project types and complexity levels.
 
-## Directory Structure
+## Example Projects
 
-```
-examples/
-├── basic_usage/              # Simple CLI usage examples
-├── integration/              # Framework and tool integrations
-├── custom_profiles/          # Example MCU profile implementations
-├── automation/               # CI/CD and workflow automation
-├── templates/                # Project templates and starter files
-└── advanced/                 # Complex multi-board and enterprise setups
-```
+### 1. Simple LED (`simple_led/`)
+**Complexity**: Beginner | **Focus**: Basic GPIO usage with LEDs and buttons
+
+A straightforward example perfect for learning PinmapGen basics. Shows simple digital outputs (LEDs), digital inputs (buttons), clean minimal netlist structure, and all generated output file types.
+
+**Use Case**: Learning PinmapGen, simple blinky projects, educational workshops
+
+### 2. Sensor Hub (`sensor_hub/`)
+**Complexity**: Intermediate | **Focus**: Mixed I/O types and sensor integration
+
+A typical IoT sensor project with temperature/humidity sensor (DHT22), I2C communication (MPU6050 accelerometer), analog input (light sensor), and mixed digital I/O (LED, button).
+
+**Use Case**: IoT projects, environmental monitoring, sensor data collection
+
+### 3. Communication Module (`communication_module/`)
+**Complexity**: Advanced | **Focus**: Multiple communication protocols
+
+A complex communication hub with multiple UART interfaces (debug, WiFi), shared SPI bus with chip selects (LoRa, SD Card), multiple status indicators, and professional protocol organization.
+
+**Use Case**: Communication gateways, data loggers, wireless sensor networks
 
 ## Quick Start Examples
 
