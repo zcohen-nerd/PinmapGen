@@ -309,83 +309,85 @@ if (result) {
     
     // Validate inputs first
     string validationErrors = validateInputs(mcuRef, fullOutputDir, mcuType);
-    if (strlen(validationErrors) > 0) {
-        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "Input Validation Failed");
-        return;
-    }
-    
-    // Create project output directory with error handling
-    int mkdirResult = system("mkdir \"" + fullOutputDir + "\" 2>nul");
-    if (mkdirResult != 0) {
-        string pathTest = system("dir \"" + fullOutputDir + "\" >nul 2>&1");
-        if (pathTest != 0) {
-            dlgMessageBox("Could not create or access project directory:\n" + fullOutputDir + "\n\nPlease check the path and permissions.", "Directory Error");
-            return;
-        }
-    }
-    
-    // Generate netlist automatically from schematic
-    string netlistFile = fullOutputDir + "/auto_netlist.csv";
-    int netlistResult = generateNetlistCSV(netlistFile);
-    
-    if (netlistResult == 1) {
-        // Use PowerShell to run PinmapGen CLI
-        string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + fullOutputDir + "'";
-        
-        // Add mermaid flag if selected
-        if (generateMermaid) {
-            pinmapCmd += " --mermaid";
+    if (strlen(validationErrors) == 0) {
+        // Create project output directory with error handling
+        int mkdirResult = system("mkdir \"" + fullOutputDir + "\" 2>nul");
+        int pathOk = 1;
+        if (mkdirResult != 0) {
+            string pathTest = system("dir \"" + fullOutputDir + "\" >nul 2>&1");
+            if (pathTest != 0) {
+                dlgMessageBox("Could not create or access project directory:\n" + fullOutputDir + "\n\nPlease check the path and permissions.", "Directory Error");
+                pathOk = 0;
+            }
         }
         
-        pinmapCmd += " --verbose\"";
-        
-        int cliResult = system(pinmapCmd);
-        
-        if (cliResult == 0) {
-            // Success!
-            string successMsg = "✅ Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
-            if (generateMicroPython) successMsg += "- MicroPython module\n";
-            if (generateArduino) successMsg += "- Arduino headers\n";
-            if (generateMarkdown) successMsg += "- Documentation\n";
-            if (generateMermaid) successMsg += "- Mermaid diagrams\n";
-            successMsg += "\nLocation: " + fullOutputDir;
+        if (pathOk) {
+            // Generate netlist automatically from schematic
+            string netlistFile = fullOutputDir + "/auto_netlist.csv";
+            int netlistResult = generateNetlistCSV(netlistFile);
             
-            // Clean up temp netlist
-            system("del \"" + netlistFile + "\" 2>nul");
-            
-            dlgMessageBox(successMsg, "Generation Successful");
-            system("explorer \"" + fullOutputDir + "\"");
-        } else {
-            // CLI failed - show helpful error message
-            string errorMsg = "The PinmapGen CLI encountered an error.\n\n";
-            errorMsg += "Possible causes:\n";
-            errorMsg += "- Python not installed or not in PATH\n";
-            errorMsg += "- Invalid netlist format\n";
-            errorMsg += "- MCU reference '" + mcuRef + "' not found in netlist\n\n";
-            errorMsg += "Check the generated netlist at:\n" + netlistFile;
-            
-            dlgMessageBox(errorMsg, "CLI Error");
-            system("explorer \"" + fullOutputDir + "\"");
+            if (netlistResult == 1) {
+                // Use PowerShell to run PinmapGen CLI
+                string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + fullOutputDir + "'";
+                
+                // Add mermaid flag if selected
+                if (generateMermaid) {
+                    pinmapCmd += " --mermaid";
+                }
+                
+                pinmapCmd += " --verbose\"";
+                
+                int cliResult = system(pinmapCmd);
+                
+                if (cliResult == 0) {
+                    // Success!
+                    string successMsg = "✅ Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
+                    if (generateMicroPython) successMsg += "- MicroPython module\n";
+                    if (generateArduino) successMsg += "- Arduino headers\n";
+                    if (generateMarkdown) successMsg += "- Documentation\n";
+                    if (generateMermaid) successMsg += "- Mermaid diagrams\n";
+                    successMsg += "\nLocation: " + fullOutputDir;
+                    
+                    // Clean up temp netlist
+                    system("del \"" + netlistFile + "\" 2>nul");
+                    
+                    dlgMessageBox(successMsg, "Generation Successful");
+                    system("explorer \"" + fullOutputDir + "\"");
+                } else {
+                    // CLI failed - show helpful error message
+                    string errorMsg = "The PinmapGen CLI encountered an error.\n\n";
+                    errorMsg += "Possible causes:\n";
+                    errorMsg += "- Python not installed or not in PATH\n";
+                    errorMsg += "- Invalid netlist format\n";
+                    errorMsg += "- MCU reference '" + mcuRef + "' not found in netlist\n\n";
+                    errorMsg += "Check the generated netlist at:\n" + netlistFile;
+                    
+                    dlgMessageBox(errorMsg, "CLI Error");
+                    system("explorer \"" + fullOutputDir + "\"");
+                }
+            } else {
+                // Handle specific netlist generation errors
+                string errorMsg = "";
+                string errorTitle = "Netlist Generation Failed";
+                
+                if (netlistResult == -1) {
+                    errorMsg = "No schematic is currently open.\n\nPlease:\n1. Open a schematic in Fusion Electronics\n2. Make sure it contains components\n3. Run this ULP again";
+                    errorTitle = "No Schematic Available";
+                } else if (netlistResult == -2) {
+                    errorMsg = "No components found in the schematic.\n\nPlease:\n1. Add components to your schematic\n2. Make sure they have reference designators\n3. Connect them with nets";
+                    errorTitle = "No Components Found";
+                } else if (netlistResult == -3) {
+                    errorMsg = "No nets found in the schematic.\n\nPlease:\n1. Connect your components with wires/nets\n2. Make sure nets have names\n3. Check that components are properly placed";
+                    errorTitle = "No Nets Found";
+                } else {
+                    errorMsg = "Unknown error during netlist generation.\n\nPlease check that:\n1. Schematic has components with pins\n2. Components are connected with nets\n3. You have write permissions to:\n   " + fullOutputDir;
+                    errorTitle = "Unknown Netlist Error";
+                }
+                
+                dlgMessageBox(errorMsg, errorTitle);
+            }
         }
     } else {
-        // Handle specific netlist generation errors
-        string errorMsg = "";
-        string errorTitle = "Netlist Generation Failed";
-        
-        if (netlistResult == -1) {
-            errorMsg = "No schematic is currently open.\n\nPlease:\n1. Open a schematic in Fusion Electronics\n2. Make sure it contains components\n3. Run this ULP again";
-            errorTitle = "No Schematic Available";
-        } else if (netlistResult == -2) {
-            errorMsg = "No components found in the schematic.\n\nPlease:\n1. Add components to your schematic\n2. Make sure they have reference designators\n3. Connect them with nets";
-            errorTitle = "No Components Found";
-        } else if (netlistResult == -3) {
-            errorMsg = "No nets found in the schematic.\n\nPlease:\n1. Connect your components with wires/nets\n2. Make sure nets have names\n3. Check that components are properly placed";
-            errorTitle = "No Nets Found";
-        } else {
-            errorMsg = "Unknown error during netlist generation.\n\nPlease check that:\n1. Schematic has components with pins\n2. Components are connected with nets\n3. You have write permissions to:\n   " + fullOutputDir;
-            errorTitle = "Unknown Netlist Error";
-        }
-        
-        dlgMessageBox(errorMsg, errorTitle);
+        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "Input Validation Failed");
     }
 }
