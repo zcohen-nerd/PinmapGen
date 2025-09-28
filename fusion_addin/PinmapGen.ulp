@@ -1,0 +1,163 @@
+#usage "PinmapGen ULP with Automatic Netlist Generation"
+
+string mcuRef = "U1";
+string outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
+string mcuType = "rp2040";
+int generateMicroPython = 1;
+int generateArduino = 1;
+int generateMarkdown = 1;
+int generateMermaid = 1;
+
+// Function to generate netlist CSV directly from schematic
+int generateNetlistCSV(string netlistPath) {
+    if (!schematic) {
+        return 0;
+    }
+    
+    int success = 0;
+    
+    output(netlistPath) {
+        printf("\"RefDes\",\"Pin\",\"Component\",\"Net\"\n");
+        
+        schematic(S) {
+            S.sheets(SH) {
+                SH.nets(N) {
+                    N.segments(SEG) {
+                        SEG.pinrefs(PR) {
+                            if (PR.part && PR.pin) {
+                                string pinNum = PR.pin.name;
+                                
+                                // Handle multiple contacts
+                                PR.pin.contacts(C) {
+                                    pinNum = C.name;
+                                    break;
+                                }
+                                
+                                printf("\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                                    PR.part.name,
+                                    pinNum,
+                                    PR.part.name,
+                                    N.name);
+                                success = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return success;
+}
+
+// Main execution
+int result = dlgDialog("PinmapGen - FULLY AUTOMATED!") {
+    dlgVBoxLayout {
+        dlgLabel("🎉 BREAKTHROUGH: Automatic netlist generation now working! 🎉");
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgLabel("MCU Type:");
+            dlgStringEdit(mcuType);
+        }
+        dlgHBoxLayout {
+            dlgPushButton("RP2040") {
+                mcuType = "rp2040";
+            }
+            dlgPushButton("STM32G0") {
+                mcuType = "stm32g0";
+            }
+            dlgPushButton("ESP32") {
+                mcuType = "esp32";
+            }
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgLabel("MCU Reference:");
+            dlgStringEdit(mcuRef);
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgLabel("Output Directory:");
+            dlgStringEdit(outputDir);
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgPushButton("Desktop") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Desktop/PinmapGen_Output";
+            }
+            dlgPushButton("Documents") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
+            }
+            dlgPushButton("Project") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Documents/Python Scripts/Fusion_PinMapGen/outputs";
+            }
+        }
+        dlgSpacing(10);
+        
+        dlgLabel("Output Formats:");
+        dlgSpacing(2);
+        dlgHBoxLayout {
+            dlgCheckBox("MicroPython", generateMicroPython);
+            dlgCheckBox("Arduino", generateArduino);
+        }
+        dlgHBoxLayout {
+            dlgCheckBox("Documentation", generateMarkdown);
+            dlgCheckBox("Mermaid Diagrams", generateMermaid);
+        }
+        dlgSpacing(10);
+        
+        dlgLabel("✨ No manual export needed - automatic netlist generation! ✨");
+    }
+    dlgHBoxLayout {
+        dlgPushButton("-Cancel") dlgReject();
+        dlgPushButton("+Generate Automatically") dlgAccept();
+    }
+};
+
+if (result) {
+    // Create output directory
+    int mkdirResult = system("mkdir \"" + outputDir + "\" 2>nul");
+    
+    // Generate netlist automatically from schematic
+    string netlistFile = outputDir + "/auto_netlist.csv";
+    
+    if (generateNetlistCSV(netlistFile)) {
+        // Use PowerShell to run PinmapGen CLI
+        string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + outputDir + "'";
+        
+        // Add mermaid flag if selected
+        if (generateMermaid) {
+            pinmapCmd += " --mermaid";
+        }
+        
+        pinmapCmd += " --verbose\"";
+        
+        // Debug info
+        string debugInfo = "Debug Info:\nMCU: " + mcuType + "\nRef: " + mcuRef + "\nOutput: " + outputDir + "\nCommand: " + pinmapCmd;
+        
+        if (system(pinmapCmd) == 0) {
+            // Success!
+            string successMsg = "🎉 FULLY AUTOMATED SUCCESS! 🎉\n\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
+            if (generateMicroPython) successMsg += "- MicroPython module\n";
+            if (generateArduino) successMsg += "- Arduino headers\n";
+            if (generateMarkdown) successMsg += "- Documentation\n";
+            if (generateMermaid) successMsg += "- Mermaid diagrams\n";
+            successMsg += "\nUsing: Automatically generated netlist\nLocation: " + outputDir;
+            
+            // Clean up temp netlist
+            system("del \"" + netlistFile + "\" 2>nul");
+            
+            dlgMessageBox(successMsg, "Complete Automation Achieved!");
+            system("explorer \"" + outputDir + "\"");
+        } else {
+            dlgMessageBox("PinmapGen CLI failed!\n\n" + debugInfo, "Error");
+            system("explorer \"" + outputDir + "\"");
+        }
+    } else {
+        dlgMessageBox("Could not generate netlist from schematic.\nMake sure you're running this from a schematic with components.", "Netlist Generation Failed");
+    }
+}

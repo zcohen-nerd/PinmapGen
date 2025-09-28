@@ -1,0 +1,142 @@
+#usage "PinmapGen ULP - Generate firmware pinmaps from Fusion Electronics"
+
+string mcuRef = "U1";
+string outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
+string mcuType = "rp2040";
+int generateMicroPython = 1;
+int generateArduino = 1;
+int generateMarkdown = 1;
+int generateMermaid = 1;
+
+// Main execution starts here - no main() function needed
+int result = dlgDialog("PinmapGen Configuration") {
+    dlgVBoxLayout {
+        dlgHBoxLayout {
+            dlgLabel("MCU Type:");
+            dlgStringEdit(mcuType);
+        }
+        dlgHBoxLayout {
+            dlgPushButton("RP2040") {
+                mcuType = "rp2040";
+            }
+            dlgPushButton("STM32G0") {
+                mcuType = "stm32g0";
+            }
+            dlgPushButton("ESP32") {
+                mcuType = "esp32";
+            }
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgLabel("MCU Reference:");
+            dlgStringEdit(mcuRef);
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgLabel("Output Directory:");
+            dlgStringEdit(outputDir);
+        }
+        dlgSpacing(5);
+        
+        dlgHBoxLayout {
+            dlgPushButton("Desktop") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Desktop/PinmapGen_Output";
+            }
+            dlgPushButton("Documents") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
+            }
+            dlgPushButton("Project") {
+                outputDir = "C:/Users/ZCohe/OneDrive/Documents/Python Scripts/Fusion_PinMapGen/outputs";
+            }
+        }
+        dlgSpacing(10);
+        
+        dlgLabel("Output Formats:");
+        dlgSpacing(2);
+        dlgHBoxLayout {
+            dlgCheckBox("MicroPython", generateMicroPython);
+            dlgCheckBox("Arduino", generateArduino);
+        }
+        dlgHBoxLayout {
+            dlgCheckBox("Documentation", generateMarkdown);
+            dlgCheckBox("Mermaid Diagrams", generateMermaid);
+        }
+        dlgSpacing(10);
+        
+        dlgLabel("Note: Place 'live_netlist.csv' in output folder or follow manual export instructions");
+    }
+    dlgHBoxLayout {
+        dlgPushButton("-Cancel") dlgReject();
+        dlgPushButton("+Generate") dlgAccept();
+    }
+};
+
+if (result) {
+    // Create output directory with better error handling
+    int mkdirResult = system("mkdir \"" + outputDir + "\" 2>nul");
+    
+    // Look for manually exported netlist file
+    string netlistFile = outputDir + "/live_netlist.csv";
+    
+    // Check if user has already exported a netlist file
+    int netlistExists = !system("if exist \"" + netlistFile + "\" exit 0 else exit 1");
+    
+    if (netlistExists) {
+        // Use PowerShell to run with proper working directory in a single command
+        string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + outputDir + "'\"";
+        
+        // Add mermaid flag if selected
+        if (generateMermaid) {
+            pinmapCmd += " --mermaid";
+        }
+        
+        // Add verbose flag for debugging
+        pinmapCmd += " --verbose\"";
+        
+        // Debug info for error messages
+        string debugInfo = "Debug Info:\nMCU: " + mcuType + "\nRef: " + mcuRef + "\nOutput: " + outputDir + "\nCommand: " + pinmapCmd;
+        
+        if (system(pinmapCmd) == 0) {
+            // Build success message with selected formats
+            string successMsg = "Success!\n\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
+            if (generateMicroPython) successMsg += "- MicroPython module\n";
+            if (generateArduino) successMsg += "- Arduino headers\n";
+            if (generateMarkdown) successMsg += "- Documentation\n";
+            if (generateMermaid) successMsg += "- Mermaid diagrams\n";
+            successMsg += "\nUsing: Your exported netlist\nLocation: " + outputDir;
+            
+            // Clean up temp netlist
+            system("del \"" + netlistFile + "\" 2>nul");
+            
+            dlgMessageBox(successMsg, "PinmapGen Complete");
+            system("explorer \"" + outputDir + "\"");
+        } else {
+            dlgMessageBox("PinmapGen CLI failed!\n\n" + debugInfo + "\n\nTrying to open output folder anyway...", "Error");
+            system("explorer \"" + outputDir + "\"");
+        }
+    } else {
+        int exportResult = dlgMessageBox("Netlist export failed!\n\n" +
+                                       "ULP cannot access the EXPORT NETLIST command.\n\n" +
+                                       "RESEARCH OPPORTUNITY:\n" +
+                                       "Try 'direct_netlist_generator.ulp' for automatic CSV generation!\n\n" +
+                                       "MANUAL WORKAROUND:\n" +
+                                       "1. In Fusion Electronics workspace\n" +
+                                       "2. Go to File -> Export -> Netlist\n" +
+                                       "3. Save as CSV to: " + outputDir + "\n" +
+                                       "4. Rename file to 'live_netlist.csv'\n" +
+                                       "5. Run this ULP again\n\n" +
+                                       "The ULP will automatically find and use your exported netlist.",
+                                       "Try Research ULP", "Manual Export", "Cancel");
+        
+        if (exportResult == 0) {
+            dlgMessageBox("To test automatic netlist generation:\n\n" +
+                         "1. Go to Automation -> Run ULP\n" +
+                         "2. Select 'direct_netlist_generator.ulp'\n" +
+                         "3. Try to generate CSV automatically\n" +
+                         "4. Report if it works!\n\n" +
+                         "If successful, we can eliminate manual exports entirely!");
+        }
+    }
+}

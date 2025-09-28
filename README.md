@@ -2,8 +2,8 @@
 
 PinmapGen is a Python 3.11 toolchain that turns Fusion Electronics (EAGLE) 
 designs into firmware-ready pinmaps. It provides both a command-line workflow 
-for firmware engineers and a Fusion 360 add-in for PCB designers who prefer a 
-graphical experience.
+for firmware engineers and a Fusion 360 ULP (User Language Program) for PCB 
+designers who prefer a graphical experience directly in the Electronics workspace.
 
 ---
 
@@ -34,7 +34,7 @@ graphical experience.
   MCU-specific hazards (strapping pins, input-only pads, etc.).
 - **Two entry points**:
   - A CLI that integrates into existing firmware toolchains
-  - A Fusion 360 add-in with a point-and-click UI for non-programmers
+  - A Fusion 360 ULP with a point-and-click UI that works directly in Electronics workspace
 - **Automation friendly** thanks to VS Code tasks, a file watcher, pre-commit 
   hooks and GitHub Actions workflows.
 
@@ -44,7 +44,7 @@ graphical experience.
 
 | Role | What you get | Key docs |
 |------|--------------|----------|
-| PCB designer (Fusion) | One-click pinmap export directly from Electronics workspace | [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) |
+| PCB designer (Fusion) | One-click pinmap export directly from Electronics workspace via ULP | [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) |
 | Firmware engineer | CLI for generating and validating pinmaps from CAD exports | [Command-line reference](docs/cli.md) |
 | Educator / Lab lead | Repeatable workflows, warnings, classroom-ready outputs | [Team workflows](docs/workflows.md) |
 
@@ -68,14 +68,17 @@ python -m venv .venv
 pip install -e .
 ```
 
-### Fusion 360 add-in (designers)
+### Fusion 360 ULP (designers)
 
+1. Copy the ULP file to Fusion's ULP directory:
 ```bash
-python fusion_addin/install.py
+copy fusion_addin/Working.ulp "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-> This copies the add-in into your Fusion add-ins directory. Launch Fusion 
-> 360 and enable **PinmapGen** from **Tools → ADD-INS**.
+2. In Fusion Electronics workspace: **Automation → Run ULP → Working**
+
+> ULPs (User Language Programs) work directly in the Electronics workspace 
+> without requiring add-in installation or permissions.
 
 ---
 
@@ -95,17 +98,17 @@ python -m tools.pinmapgen.cli \
 python -m tools.pinmapgen.watch hardware/exports --mermaid
 ```
 
-### PCB designer (Fusion add-in)
+### PCB designer (Fusion ULP)
 
 1. Open your design in the **Electronics** workspace
-2. Click **PinmapGen** in the ADD-INS toolbar
-3. Pick the MCU type and reference designator (auto-suggested when possible)
-4. Choose the output formats (MicroPython, Arduino, Docs, Mermaid)
-5. Click **Generate** and hand the output folder to your programmer
+2. Click **Automation → Run ULP → Working**
+3. Configure project name, MCU reference, and output directory
+4. Click **Generate Pinmaps** to export netlist and create all output formats
+5. Files open automatically in Explorer for easy handoff to firmware team
 
-The add-in produces the same outputs as the CLI without requiring command-line 
-knowledge. See the [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) for 
-screen captures and detailed instructions.
+The ULP produces the same outputs as the CLI without requiring command-line 
+knowledge and works directly in Electronics workspace. See the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for 
+detailed instructions.
 
 ---
 
@@ -151,18 +154,18 @@ Additional examples, including STM32G0 and ESP32 workflows, are documented in
 
 ---
 
-## Fusion 360 add-in workflow
+## Fusion 360 ULP workflow
 
-The add-in bundles the PinmapGen toolchain, so designers do not need Python or 
-Git installed. After installation:
+The ULP (User Language Program) integrates PinmapGen directly into the Electronics 
+workspace without requiring add-in installation. After copying the ULP file:
 
-- The command appears under **Tools → ADD-INS** and can be promoted to the 
-  toolbar.
-- Output folders default to a `pinmaps` directory adjacent to the Fusion 
-  design, but can be browsed to network drives or shared folders.
-- Warnings and errors are presented in plain language with suggested fixes.
+- Access via **Automation → Run ULP → Working** in Electronics workspace
+- Configure project name, MCU reference designator, and output directory  
+- Choose from quick location buttons (Desktop, Documents, Project Root)
+- Output includes organized folder structure with all formats
+- File Explorer opens automatically to show generated files
 
-Refer to the [Fusion add-in user guide](fusion_addin/USER_GUIDE.md) for 
+Refer to the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for 
 step-by-step walkthroughs, troubleshooting and handoff best practices.
 
 ---
@@ -190,8 +193,8 @@ Common issues and solutions are documented in [`docs/troubleshooting.md`]
 - **"Input-only pin used as output"** → Adjust assignment or choose another 
   pin supported by the MCU profile
 - **"Cannot write output"** → Pick a writable folder and close open files
-- **Fusion add-in missing** → Re-run `python fusion_addin/install.py` and 
-  enable the add-in from the ADD-INS dialog
+- **ULP not found** → Re-copy `Working.ulp` to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` 
+  and restart Fusion 360
 
 ---
 
