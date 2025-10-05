@@ -1,4 +1,4 @@
-# 🏆 PinmapGen - Complete Automated Solution
+# 🏆 PinmapGen - Fusion Electronics Pinmap Toolchain
 
 [![License: Custom](https://img.shields.io/badge/License-PinmapGen%20Community-blue.svg)](LICENSE)
 [![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](README.md)
@@ -7,22 +7,22 @@
 [![Issues](https://img.shields.io/github/issues/zcohen-nerd/PinmapGen)](https://github.com/zcohen-nerd/PinmapGen/issues)
 [![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen.svg)](docs/)
 
-## 🎉 SUCCESS: Working Solution Deployed!
+## 🎉 Project status
 
-**Mission Accomplished!** PinmapGen is now a **fully functional, production-ready** toolchain that automatically transforms Fusion 360 Electronics schematics into firmware-ready pinmaps with **complete one-click automation**.
+PinmapGen is an actively developed toolchain that transforms Fusion 360 Electronics or EAGLE designs into firmware-ready pinmaps. The CLI and emitters are stable for CSV exports, while schematic parsing, Fusion automation, and expanded MCU support continue to evolve.
 
-### 🚀 What Works Now
-- ✅ **ULP Integration** - Runs directly in Fusion 360 Electronics workspace
-- ✅ **Automatic Netlist Generation** - No manual CSV exports needed
-- ✅ **All Output Formats** - MicroPython, Arduino, JSON, Markdown, Mermaid  
-- ✅ **Production Tested** - Validated with real schematics and confirmed working
-- ✅ **Complete Documentation** - Full user guides and troubleshooting
+### 🚀 What works today
+- ✅ **Fusion ULP helpers** – `PinmapGen.ulp` guides designers through exporting netlists without leaving the workspace
+- ✅ **CSV & schematic ingestion** – CLI accepts Fusion CSV exports and EAGLE `.sch` files
+- ✅ **Multiple output formats** – MicroPython, Arduino, JSON, Markdown, and optional Mermaid artifacts
+- ✅ **MCU profile library** – RP2040, STM32G0, and ESP32 normalization with validation warnings
+- ✅ **Comprehensive docs** – User guide, troubleshooting, and workflows maintained under `docs/`
 
 ---
 
 ## About PinmapGen
 
-PinmapGen is a production-ready Python 3.11 toolchain that automatically transforms Fusion 360 Electronics schematics into firmware-ready pinmaps with **breakthrough one-click automation**. No manual exports required!
+PinmapGen is a Python 3.11 toolchain that converts Fusion 360 Electronics exports into consistent firmware assets. Designers run a ULP to package project metadata and netlists; firmware engineers use the CLI to normalize pins, validate assignments, and generate libraries for their target platform.
 
 ---
 
@@ -43,21 +43,13 @@ PinmapGen is a production-ready Python 3.11 toolchain that automatically transfo
 
 ---
 
-## 🚀 Highlights - Production Ready!
+## 🚀 Highlights
 
-- ✅ **COMPLETE AUTOMATION** - One-click generation from Fusion 360 Electronics schematics
-- ✅ **NO MANUAL EXPORT** - ULP automatically extracts netlist data from live schematics
-- ✅ **WORKING SOLUTION** - Tested and validated with real schematics generating all output formats
-- **Multi-MCU aware** profiles for RP2040, STM32G0 and ESP32, with a registry designed for rapid expansion
-- **Multiple output formats** (JSON, MicroPython, Arduino, Markdown and 
-  Mermaid) generated in a single run.
-- **Rich validation** that flags duplicate nets, lonely differential pairs and 
-  MCU-specific hazards (strapping pins, input-only pads, etc.).
-- **Two entry points**:
-  - A CLI that integrates into existing firmware toolchains
-  - A Fusion 360 ULP with a point-and-click UI that works directly in Electronics workspace
-- **Automation friendly** thanks to VS Code tasks, a file watcher, pre-commit 
-  hooks and GitHub Actions workflows.
+- ✅ **Streamlined exports** – Fusion ULP prompts for metadata, runs the netlist export, and launches the CLI
+- ✅ **MCU-aware validation** – Detects conflicting pin assignments, special-function usage, and likely differential pairs
+- ✅ **Multiple entry points** – Command-line automation plus Fusion workspace integration via ULP
+- ✅ **Automation friendly** – VS Code tasks, a polling watcher, and pytest suite for regression coverage
+- **Extensible profiles** – Add new MCUs by subclassing `MCUProfile` and registering with the CLI
 
 ---
 
@@ -65,8 +57,8 @@ PinmapGen is a production-ready Python 3.11 toolchain that automatically transfo
 
 | Role | What you get | Key docs |
 |------|--------------|----------|
-| PCB designer (Fusion) | One-click pinmap export directly from Electronics workspace via ULP | [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) |
-| Firmware engineer | CLI for generating and validating pinmaps from CAD exports | [Command-line reference](docs/cli.md) |
+| PCB designer (Fusion) | Guided pinmap export directly from the Electronics workspace via ULP | [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) |
+| Firmware engineer | CLI for generating and validating pinmaps from CAD exports | [Usage guide](docs/usage.md) |
 | Educator / Lab lead | Repeatable workflows, warnings, classroom-ready outputs | [Team workflows](docs/workflows.md) |
 
 ---
@@ -91,15 +83,14 @@ pip install -e .
 
 ### Fusion 360 ULP (designers)
 
-1. Copy the ULP file to Fusion's ULP directory:
+1. Copy the production ULP to Fusion's ULP directory:
 ```bash
-copy fusion_addin/Working.ulp "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
+copy fusion_addin/PinmapGen.ulp "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-2. In Fusion Electronics workspace: **Automation → Run ULP → Working**
+2. In Fusion Electronics workspace: **Automation → Run ULP → PinmapGen**
 
-> ULPs (User Language Programs) work directly in the Electronics workspace 
-> without requiring add-in installation or permissions.
+`PinmapGen_Manual.ulp` is available when file dialogs are restricted or you prefer to launch the CLI manually.
 
 ---
 
@@ -127,9 +118,7 @@ python -m tools.pinmapgen.watch hardware/exports --mermaid
 4. Click **Generate Pinmaps** to export netlist and create all output formats
 5. Files open automatically in Explorer for easy handoff to firmware team
 
-The ULP produces the same outputs as the CLI without requiring command-line 
-knowledge and works directly in Electronics workspace. See the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for 
-detailed instructions.
+The ULP orchestrates the same CLI workflow without requiring command-line knowledge. See the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for detailed instructions and screenshots.
 
 ---
 
@@ -171,23 +160,20 @@ Useful flags:
 ```
 
 Additional examples, including STM32G0 and ESP32 workflows, are documented in 
-[`docs/cli.md`](docs/cli.md).
+[`docs/usage.md`](docs/usage.md).
 
 ---
 
 ## Fusion 360 ULP workflow
 
-The ULP (User Language Program) integrates PinmapGen directly into the Electronics 
-workspace without requiring add-in installation. After copying the ULP file:
+The ULP (User Language Program) integrates PinmapGen directly into the Electronics workspace without requiring add-in installation. After copying the ULP file:
 
-- Access via **Automation → Run ULP → Working** in Electronics workspace
-- Configure project name, MCU reference designator, and output directory  
-- Choose from quick location buttons (Desktop, Documents, Project Root)
-- Output includes organized folder structure with all formats
-- File Explorer opens automatically to show generated files
+- Access via **Automation → Run ULP → PinmapGen** in the Electronics workspace
+- Confirm project metadata, MCU reference designator, and output directory  
+- Trigger the export; the ULP invokes the CLI and streams warnings back into Fusion
+- Open the generated folder for quick review or firmware handoff
 
-Refer to the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for 
-step-by-step walkthroughs, troubleshooting and handoff best practices.
+Refer to the [Fusion ULP user guide](fusion_addin/ULP_GUIDE.md) for step-by-step walkthroughs, troubleshooting, and handoff best practices.
 
 ---
 
@@ -195,7 +181,7 @@ step-by-step walkthroughs, troubleshooting and handoff best practices.
 
 | MCU | Highlights | Notes |
 |-----|------------|-------|
-| RP2040 | GPIO normalization, USB diff pair detection, ADC role hints | Original reference implementation |
+| RP2040 | GPIO normalization, USB diff pair detection, ADC role hints | Reference implementation used in automated tests |
 | STM32G0 | Port-based pin naming, alternate function validation, boot pin warnings | Modelled on STM32G071 reference design |
 | ESP32 | GPIO matrix awareness, strapping pin warnings, ADC2 Wi-Fi guard rails | Based on ESP32-WROOM-32 module |
 
@@ -207,14 +193,13 @@ walkthrough.
 
 ## Troubleshooting
 
-Common issues and solutions are documented in [`docs/troubleshooting.md`]
-(docs/troubleshooting.md). Highlights:
+Common issues and solutions are documented in [`docs/troubleshooting.md`](docs/troubleshooting.md). Highlights:
 
 - **"MCU 'U1' not found"** → Confirm the reference designator in your CAD
 - **"Input-only pin used as output"** → Adjust assignment or choose another 
   pin supported by the MCU profile
 - **"Cannot write output"** → Pick a writable folder and close open files
-- **ULP not found** → Re-copy `Working.ulp` to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` 
+- **ULP not found** → Re-copy `PinmapGen.ulp` to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` 
   and restart Fusion 360
 
 ---

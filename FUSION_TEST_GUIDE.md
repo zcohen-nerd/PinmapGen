@@ -6,64 +6,51 @@ This guide walks through comprehensive testing of the PinmapGen Fusion 360 add-i
 
 ## 🛠️ Pre-Testing Setup
 
-### **Step 1: Install the Add-in**
+### **Step 1: Deploy the ULP**
 
-**🎯 Quick Install (Recommended)**:
+**🎯 Recommended:** Copy the production ULP into Fusion's ULP directory.
 ```bash
-# Navigate to the fusion add-in directory
-cd fusion_addin
-
-# Try development mode first (usually works without admin)
-python install.py --dev
+# From the repository root (PowerShell example)
+Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-**🔧 If You Get Permission Errors**:
-```bash
-# Option 1: Run PowerShell as Administrator, then:
-python install.py
+**🔧 Alternative locations:**
+- `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` (default Windows install)
+- `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/ULPs/` (macOS)
 
-# Option 2: Force copy method
-python install.py --force-copy
+**Expected Results:**
+- ✅ `PinmapGen.ulp` appears in the Fusion ULP directory
+- ✅ Optional: `PinmapGen_Manual.ulp` copied for manual CLI launches
 
-# Option 3: Get help for admin installation
-python install.py --admin
-```
+### **Step 2: Launch the ULP in Fusion**
+1. Open Fusion 360 and switch to the **Electronics** workspace.
+2. Navigate to **Automation → Run ULP…**.
+3. Select **PinmapGen.ulp** from the list (use **Browse** if necessary).
+4. Click **Open** to display the PinmapGen dialog.
 
-**Expected Results**:
-- ✅ Files copied to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\PinmapGen\` (normal install)
-- ✅ Files copied to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\PinmapGen_Dev\` (dev mode)
-
-### **Step 2: Enable the Add-in in Fusion**
-1. Open Fusion 360
-2. Go to **Utilities** → **Add-ins**
-3. Find **PinmapGen** or **PinmapGen_Dev** in the list (depending on install method)
-4. Click **Run** to enable it
-5. Verify the **PinmapGen** panel appears in the toolbar
-
-**🚨 Troubleshooting**: If you don't see the add-in:
-- Check the "My Add-ins" tab in the Add-ins dialog
-- Look for error messages in Fusion's Text Commands panel
-- Try refreshing the add-ins list or restarting Fusion
+**🚨 Troubleshooting**: If the ULP is missing:
+- Confirm the `.ulp` file exists in the Fusion ULP directory.
+- Restart Fusion 360 after copying new scripts.
+- Use **Browse** to select the full path manually.
 
 ---
 
 ## 🧪 Fusion Add-in Test Suite
 
-### **Test F1: Add-in Installation & Loading**
+### **Test F1: ULP Deployment & Launch**
 
-**Objective**: Verify the add-in installs and loads without errors
+**Objective**: Verify the ULP is visible to Fusion and opens without errors.
 
 **Steps**:
-1. Install add-in using `python install.py`
-2. Open Fusion 360
-3. Enable PinmapGen add-in
-4. Check for any error messages in Fusion's Text Commands panel
+1. Copy `PinmapGen.ulp` into the Fusion ULP directory.
+2. Launch Fusion 360 → **Electronics** workspace → **Automation → Run ULP…**.
+3. Select **PinmapGen.ulp** and confirm the dialog appears.
+4. Check Fusion's Text Commands panel for any error messages.
 
 **Expected Results**:
-- ✅ Add-in appears in Utilities → Add-ins list
-- ✅ Add-in runs without errors
-- ✅ PinmapGen toolbar/panel is visible
-- ✅ No error messages in console
+- ✅ ULP listed in the Run ULP dialog (or loads via Browse).
+- ✅ Dialog opens with project name, MCU, and output options.
+- ✅ No error messages in the Text Commands console.
 
 ---
 
@@ -267,9 +254,9 @@ Components needed in Fusion Electronics:
 ## 📋 **Fusion Testing Checklist**
 
 ### **Installation & Setup**
-- [ ] Add-in installs without errors using install.py
-- [ ] Add-in loads successfully in Fusion 360
-- [ ] UI elements display correctly
+- [ ] `PinmapGen.ulp` copied into the Fusion ULP directory
+- [ ] ULP appears in **Automation → Run ULP…**
+- [ ] Dialog opens and UI elements render correctly
 - [ ] No console errors during startup
 
 ### **Basic Functionality**
@@ -333,28 +320,21 @@ This will help prioritize any fixes needed before public release!
 
 ## 🚨 **Installation Troubleshooting**
 
-### **"Access Denied" Errors**
+### **"Access Denied" or Copy Failures**
 ```
-❌ [WinError 5] Access is denied: 'C:\Users\...\API\AddIns\PinmapGen\commands'
+❌ Access is denied: 'C:\Users\...\API\ULPs\PinmapGen.ulp'
 ```
 
 **Solutions**:
-1. **Try Development Mode**: `python install.py --dev` (recommended)
-2. **Run as Administrator**: Right-click PowerShell → "Run as Administrator"
-3. **Close Fusion First**: Make sure Fusion 360 is completely closed
-4. **Manual Installation**: Copy files manually (installer will show instructions)
+1. Ensure Fusion 360 is closed before copying files.
+2. Copy into a user-writable folder first, then move into the ULP directory with elevated permissions.
+3. Verify the destination path exists; create missing folders if necessary.
 
-### **Add-in Not Appearing in Fusion**
-- ✅ Check "My Add-ins" tab in Utilities → Add-ins
-- ✅ Look for "PinmapGen" or "PinmapGen_Dev" 
-- ✅ Check Text Commands panel for error messages
-- ✅ Try restarting Fusion 360
-- ✅ Reinstall with: `python install.py --dev`
-
-### **Permission vs. Admin Mode**
-- **Development Mode** (`--dev`): Usually works without admin rights
-- **Normal Install**: May require administrator permissions on some systems
-- **Manual Install**: Always works but requires copy/paste
+### **ULP Not Appearing in Fusion**
+- ✅ Confirm the `.ulp` file exists in the Fusion ULP directory.
+- ✅ Restart Fusion 360 after copying new scripts.
+- ✅ Use **Automation → Run ULP… → Browse** to select the script manually.
+- ✅ Check the Text Commands panel for syntax errors when loading the ULP.
 
 ---
 

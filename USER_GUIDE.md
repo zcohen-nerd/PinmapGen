@@ -77,10 +77,11 @@ source .venv/bin/activate          # macOS/Linux
 pip install -e .
 ```
 
-If you plan to use the Fusion add-in, run the installer once:
+If you plan to use the Fusion add-in, copy the `PinmapGen.ulp` script into Fusion's ULP directory. On Windows the default path is `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`.
 
 ```bash
-python fusion_addin/install.py
+# Example PowerShell copy
+Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
 ---
@@ -146,13 +147,13 @@ Key takeaways:
 
 ### 5.2 PCB designer (Fusion add-in)
 
-1. Install the add-in (`python fusion_addin/install.py`).
+1. Copy `fusion_addin/PinmapGen.ulp` into Fusion's ULP folder (e.g., `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`).
 2. Open your design in **Fusion 360 → Electronics** workspace.
 3. Click **Add-Ins → PinmapGen** and choose your MCU/profile options.
 4. Pick output formats (MicroPython, Arduino, docs, diagrams) and a folder.
 5. Review any warnings, then share the resulting output folder with your programmer.
 
-The full add-in walkthrough (screenshots, troubleshooting) lives in `fusion_addin/USER_GUIDE.md`.
+The full add-in walkthrough (screenshots, troubleshooting) lives in `fusion_addin/ULP_GUIDE.md`.
 
 ---
 
@@ -233,7 +234,7 @@ python -m tools.pinmapgen.watch hardware/exports --mermaid --interval 1.0
 
 ### 8.1 Installation recap
 
-- Run `python fusion_addin/install.py` once per workstation.
+- Copy `fusion_addin/PinmapGen.ulp` into Fusion's ULP directory (e.g., `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`).
 - Enable the add-in from **Tools → ADD-INS → Scripts and Add-Ins → PinmapGen**.
 
 ### 8.2 Generating outputs inside Fusion
@@ -250,7 +251,7 @@ python -m tools.pinmapgen.watch hardware/exports --mermaid --interval 1.0
 - Rapid iteration while wiring the schematic; results update in seconds.
 - Classrooms where students are more familiar with Fusion than the command line.
 
-Refer to `fusion_addin/USER_GUIDE.md` for screenshots, installer logging, and detailed troubleshooting tips.
+Refer to `fusion_addin/ULP_GUIDE.md` for screenshots, configuration tips, and detailed troubleshooting steps.
 
 ---
 
@@ -349,7 +350,7 @@ The `validate-pinmaps.yml` workflow regenerates outputs on every push and pull r
 ### 12.3 Packaging for teams
 
 - Bundle CLI usage into shell scripts or Make targets.
-- Distribute Fusion installer scripts to designers (`fusion_addin/install.py`).
+- Share instructions for copying `fusion_addin/PinmapGen.ulp` into the Fusion ULP directory.
 - Publish internal how-to guides referencing this user guide and the README.
 
 ---
@@ -358,7 +359,7 @@ The `validate-pinmaps.yml` workflow regenerates outputs on every push and pull r
 
 - **README.md** — High-level project overview, installation, and highlights.
 - **MILESTONES.md** — Roadmap with current priorities (Classroom readiness & documentation sprint).
-- **fusion_addin/USER_GUIDE.md** — Detailed Fusion workflow with screenshots.
+- **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow with screenshots.
 - **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
 

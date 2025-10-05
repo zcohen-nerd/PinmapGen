@@ -1,4 +1,4 @@
-I l# Fusion 360 ULP User Guide
+# Fusion 360 ULP User Guide
 
 This guide shows how to use the PinmapGen ULP (User Language Program) to generate firmware pinmaps directly from Fusion 360 Electronics workspace.
 
@@ -14,16 +14,16 @@ A ULP (User Language Program) is a powerful automation script that runs directly
 
 ### 1. Copy the ULP file
 
-Copy `Working.ulp` to your Fusion 360 ULPs directory:
+Copy `PinmapGen.ulp` to your Fusion 360 ULPs directory:
 
 **Windows:**
 ```cmd
-copy "Working.ulp" "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
+copy "PinmapGen.ulp" "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
 **Alternative method:**
 1. Navigate to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`
-2. Copy the `Working.ulp` file into this directory
+2. Copy the `PinmapGen.ulp` file into this directory
 
 ### 2. Restart Fusion 360
 
@@ -37,7 +37,7 @@ Make sure you're in the **Electronics** workspace with your schematic open.
 
 ### 2. Run the ULP
 
-Navigate to: **Automation → Run ULP → Working**
+Navigate to: **Automation → Run ULP → PinmapGen**
 
 ### 3. Configure Settings
 
@@ -147,7 +147,7 @@ To test these ULPs:
 ## Troubleshooting
 
 ### ULP Not Found
-- Verify `Working.ulp` is in the correct ULPs directory
+- Verify `PinmapGen.ulp` is in the correct ULPs directory
 - Restart Fusion 360 after copying the file
 - Check that you're in Electronics workspace, not Design workspace
 

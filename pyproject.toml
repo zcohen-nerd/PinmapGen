@@ -5,15 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pinmapgen"
 version = "0.1.0"
-description = "Toolchain that bridges Fusion Electronics to firmware projects"
-authors = [{name = "Your Name", email = "your.email@example.com"}]
-license = {text = "MIT"}
+description = "Toolchain that bridges Fusion Electronics exports to firmware projects"
+authors = [{name = "Zachary Cohen"}]
+license = {file = "LICENSE"}
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: Free To Use But Restricted",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
 ]

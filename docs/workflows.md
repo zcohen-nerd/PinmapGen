@@ -383,11 +383,12 @@ def hardware_report():
     with open('pinmaps/pinmap.json', 'r') as f:
         pinmap = json.load(f)
     
+    metadata = pinmap.get("metadata", {})
     report = {
-        "mcu_type": pinmap["mcu"]["type"],  
-        "mcu_package": pinmap["mcu"]["package"],
-        "pin_count": len(pinmap["pins"]),
-        "capabilities": []
+        "mcu": pinmap.get("mcu", "unknown"),
+        "pin_count": len(pinmap.get("pins", {})),
+        "differential_pairs": metadata.get("differential_pairs_count", 0),
+        "warnings": metadata.get("validation_warnings", []),
     }
     
     # Test critical functions

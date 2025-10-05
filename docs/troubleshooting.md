@@ -56,9 +56,6 @@ which python  # Should point to .venv
 ```bash
 # Install test dependencies
 pip install pytest ruff
-
-# Or install all at once
-pip install -e .[dev]  # If pyproject.toml includes dev dependencies
 ```
 
 ---
@@ -129,20 +126,20 @@ python -m tools.pinmapgen.cli --csv ... --out-root /tmp/pinmaps
 **Problem:** PinmapGen button missing from Fusion toolbar.
 
 **Solution:**
-1. Re-run installer: `python fusion_addin/install.py`
-2. Restart Fusion 360 completely
-3. Check **Tools → ADD-INS → Scripts and Add-Ins → PinmapGen → Run**
-4. Verify you're in **Electronics** workspace, not **Design**
+1. Copy `fusion_addin/PinmapGen.ulp` into `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`.
+2. Restart Fusion 360 completely.
+3. Check **Tools → ADD-INS → Scripts and Add-Ins → PinmapGen → Run**.
+4. Verify you're in **Electronics** workspace, not **Design**.
 
 ### Python runtime errors in Fusion
 
 **Problem:** Add-in crashes with Python import errors.
 
 **Solution:**
-1. Ensure Fusion 360 has Python enabled (usually automatic)
-2. Try other Python add-ins to test Fusion's Python environment
-3. Reinstall add-in to refresh file copies
-4. Check Fusion logs: **Help → Show Data Panel → Text Commands → Show Data Panel**
+1. Ensure Fusion 360 has Python enabled (usually automatic).
+2. Try other Python add-ins to test Fusion's Python environment.
+3. Re-copy the ULP scripts to refresh the deployment.
+4. Check Fusion logs: **Help → Show Data Panel → Text Commands → Show Data Panel**.
 
 ### Electronics workspace errors
 
@@ -224,9 +221,9 @@ grep -E '^[^A-Za-z_]' firmware/include/pinmap_arduino.h
 **Interpretation:** You're using USB pins for general GPIO, which conflicts with USB operation.
 
 **Action:**
-- If you need USB, reassign the net to a different pin
-- If no USB needed, acknowledge the warning and continue
-- Consider adding `--ignore-usb-warnings` flag (if available)
+- If you need USB, reassign the net to a different pin.
+- If no USB needed, acknowledge the warning and continue.
+- Document the design decision for firmware and validation reviews.
 
 ### Strapping pin warnings (ESP32)
 

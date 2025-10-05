@@ -105,15 +105,6 @@ Each run generates separate pin definitions for each MCU in the same project.
 python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root ./output --verbose
 ```
 
-**Generate Only Specific Formats:**
-```bash
-# Only MicroPython
-python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root ./output --format micropython
-
-# Only Arduino headers  
-python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root ./output --format arduino
-```
-
 **Include Visual Diagrams:**
 ```bash
 python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root ./output --mermaid
@@ -137,10 +128,10 @@ Ctrl+Shift+P → "Tasks: Run Task" → "Watch Pinmap"
 
 **Adding new MCU support:**
 
-1. Create profile in `tools/pinmapgen/profiles/`
-2. Define pin mappings and validation rules
-3. Add to registry in `tools/pinmapgen/normalize.py`
-4. Test with sample netlist
+1. Create a profile module alongside the existing profiles (e.g., `tools/pinmapgen/newchip_profile.py`).
+2. Implement the class by subclassing `MCUProfile` from `tools.pinmapgen.mcu_profiles` and defining pin mappings plus validation rules.
+3. Register the profile in `MCU_PROFILES` inside `tools/pinmapgen/cli.py` so the CLI exposes it via `--mcu`.
+4. Add fixtures and tests under `tests/` to validate normalization and emitter outputs.
 
 ---
 
