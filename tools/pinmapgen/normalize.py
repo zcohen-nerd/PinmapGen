@@ -6,6 +6,7 @@ Currently supports RP2040 profile with GPIO aliases.
 """
 
 import re
+import sys
 from typing import Any
 
 
@@ -246,8 +247,8 @@ class RP2040Profile:
 
         # Validate the normalized pinmap
         validation_errors = self.validate_pinmap(normalized_nets)
-        if validation_errors:
-            pass
+        for err in validation_errors:
+            print(f"Validation error: {err}", file=sys.stderr)
 
         # Detect differential pairs
         diff_pairs = self.detect_differential_pairs(normalized_nets)

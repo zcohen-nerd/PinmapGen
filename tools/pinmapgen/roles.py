@@ -121,16 +121,17 @@ class RoleInferencer:
             PinRole.USB_DN: [
                 r"(?i).*usb.*d-.*",
                 r"(?i).*usb.*dn.*",
+                r"(?i).*usb.*dm.*",
                 r"(?i).*usb.*minus.*",
             ],
             # CAN patterns
             PinRole.CAN_H: [
-                r"(?i).*can.*h.*",
-                r"(?i).*canh.*",
+                r"(?i).*(?<![a-zA-Z])can[_]?h(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])canh(?![a-zA-Z]).*",
             ],
             PinRole.CAN_L: [
-                r"(?i).*can.*l.*",
-                r"(?i).*canl.*",
+                r"(?i).*(?<![a-zA-Z])can[_]?l(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])canl(?![a-zA-Z]).*",
             ],
             # Analog patterns
             PinRole.ADC: [

@@ -43,17 +43,21 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
 
         pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
 
-        # Enhance pin data with role information
+        # Enhance pin data with role information while preserving list format
         enhanced_pins = {}
         for pin_info in pin_infos:
-            enhanced_pins[pin_info.net_name] = {
-                "pins": canonical_dict["pins"][pin_info.net_name],
+            enhanced_pins[pin_info.net_name] = canonical_dict["pins"][pin_info.net_name]
+
+        output_data["pins"] = enhanced_pins
+
+        # Add role metadata separately so canonical pins schema is preserved
+        output_data["pin_roles"] = {}
+        for pin_info in pin_infos:
+            output_data["pin_roles"][pin_info.net_name] = {
                 "role": pin_info.role.value,
                 "bus_group": pin_info.bus_group,
                 "description": pin_info.description,
             }
-
-        output_data["pins"] = enhanced_pins
 
         # Add bus groupings
         output_data["bus_groups"] = {}

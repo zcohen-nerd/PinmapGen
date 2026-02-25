@@ -61,6 +61,12 @@ ignore = [
     "T201",    # print — CLI entry point uses print intentionally
     "BLE001",  # blind-except — top-level CLI handler needs broad catch
 ]
+"tools/pinmapgen/mcu_profiles.py" = [
+    "T201",    # print — validation errors printed to stderr
+]
+"tools/pinmapgen/normalize.py" = [
+    "T201",    # print — validation errors printed to stderr
+]
 "tools/pinmapgen/watch.py" = [
     "T201",    # print — watch mode uses print for status
     "BLE001",  # blind-except — watcher needs broad catch

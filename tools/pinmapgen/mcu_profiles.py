@@ -6,6 +6,7 @@ validation logic, and MCU-specific capabilities for different microcontroller fa
 """
 
 import re
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -331,8 +332,8 @@ class MCUProfile(ABC):
 
         # Validate the normalized pinmap
         validation_errors = self.validate_pinmap(normalized_nets)
-        if validation_errors:
-            pass
+        for err in validation_errors:
+            print(f"Validation error: {err}", file=sys.stderr)
 
         # Detect differential pairs
         diff_pairs = self.detect_differential_pairs(normalized_nets)
