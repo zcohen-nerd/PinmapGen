@@ -102,7 +102,7 @@ class SimpleFileWatcher:
 
                 time.sleep(self.poll_interval)
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             print("\nStopping file watcher...")
             self.stop()
 
@@ -140,18 +140,19 @@ def watch_and_regenerate(
         print(f"ERROR: Watch directory does not exist: {watch_dir}")
         return
 
-    # Find watchable files
-    watch_files = set()
+    # Verify the directory has watchable files at startup
+    initial_files = set()
     for pattern in ["*.csv", "*.sch"]:
-        watch_files.update(watch_dir.glob(pattern))
+        initial_files.update(watch_dir.glob(pattern))
 
-    if not watch_files:
+    if not initial_files:
         print(f"ERROR: No .csv or .sch files found in {watch_dir}")
         return
 
-    print(f"Found {len(watch_files)} files to watch:")
-    for file_path in sorted(watch_files):
+    print(f"Found {len(initial_files)} files to watch:")
+    for file_path in sorted(initial_files):
         print(f"  - {file_path.name}")
+    print("(New files added to the directory will also be detected)")
 
     def regenerate_callback(changed_file: Path) -> None:
         """Callback to regenerate pinmaps when files change."""
@@ -200,9 +201,9 @@ def watch_and_regenerate(
         except Exception as e:
             print(f"ERROR: {e!s}")
 
-    # Create and start watcher
+    # Create and start watcher — pass directory so new files are detected
     watcher = SimpleFileWatcher(
-        watch_paths=watch_files,
+        watch_paths={watch_dir},
         callback=regenerate_callback,
         poll_interval=poll_interval,
     )

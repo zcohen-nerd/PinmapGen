@@ -207,8 +207,11 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
     # Collect single-ended pins only
     mcu = canonical_dict.get("mcu", "unknown")
     pin_data = []
+    multi_pin_nets: list[tuple[str, list[str]]] = []
     for net_name, pin_list in pins.items():
-        if len(pin_list) == 1 and net_name not in diff_pair_nets:
+        if net_name in diff_pair_nets:
+            continue
+        if len(pin_list) == 1:
             pin = pin_list[0]
             num_match = re.search(r"\d+", pin)
             if num_match:
@@ -216,8 +219,10 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
                 function = _get_special_function(pin, mcu)
                 notes = _get_pin_notes(net_name, pin, canonical_dict)
                 pin_data.append((pin_num, net_name, pin, function, notes))
+        elif len(pin_list) > 1:
+            multi_pin_nets.append((net_name, pin_list))
 
-    if not pin_data:
+    if not pin_data and not multi_pin_nets:
         return "*No single-ended pin assignments found.*"
 
     # Table header
@@ -239,6 +244,20 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
         escaped_notes = notes.replace("|", "\\|")
 
         lines.append(f"| `{escaped_name}` | `{pin}` | {escaped_func} | {escaped_notes} |")
+
+    # Multi-pin nets section (power rails, etc.)
+    if multi_pin_nets:
+        lines.extend([
+            "",
+            "### Multi-Pin Nets",
+            "",
+            "| Net Name | Pins | Notes |",
+            "|----------|------|-------|",
+        ])
+        for net_name, pin_list in sorted(multi_pin_nets):
+            escaped_name = net_name.replace("|", "\\|")
+            pins_str = ", ".join(sorted(pin_list))
+            lines.append(f"| `{escaped_name}` | {pins_str} | Multi-pin net |")
 
     return "\n".join(lines)
 

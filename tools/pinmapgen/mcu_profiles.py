@@ -234,10 +234,10 @@ class MCUProfile(ABC):
         # Check for multi-pin nets on single-pin resources
         for net_name, pins in nets.items():
             if len(pins) > 1 and not self._is_valid_multipin_net(net_name, pins):
-                    errors.append(
-                        f"Net '{net_name}' connects to multiple pins {pins} - "
-                        f"may indicate routing error"
-                    )
+                errors.append(
+                    f"Net '{net_name}' connects to multiple pins {pins} - "
+                    f"may indicate routing error"
+                )
 
         # Check for lonely differential pairs
         diff_pairs = self.detect_differential_pairs(nets)

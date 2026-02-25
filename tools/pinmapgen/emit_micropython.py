@@ -258,14 +258,18 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
         Enhanced MicroPython code string.
     """
     lines = []
-    lines.extend(_render_file_header(canonical_dict))
 
     if "pins" not in canonical_dict:
+        lines.extend(_render_file_header(canonical_dict, set()))
         lines.extend(_render_no_pin_data())
         return "\n".join(lines)
 
     pins_for_analysis = _prepare_pins_for_analysis(canonical_dict)
     pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
+
+    # Determine which machine imports are actually needed
+    needed_imports = _determine_machine_imports(bus_groups)
+    lines.extend(_render_file_header(canonical_dict, needed_imports))
 
     lines.extend(_render_pin_constants(bus_groups))
     lines.extend(
@@ -275,9 +279,32 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_file_header(canonical_dict: dict[str, Any]) -> list[str]:
+def _determine_machine_imports(bus_groups: dict[str, list[Any]]) -> set[str]:
+    """Determine which ``machine`` module imports are actually needed."""
+    imports: set[str] = {"Pin"}  # Pin is always needed
+    group_to_import = {
+        "I2C": "I2C",
+        "SPI": "SPI",
+        "PWM": "PWM",
+        "Analog": "ADC",
+    }
+    for group_name, pins in bus_groups.items():
+        if pins and group_name in group_to_import:
+            imports.add(group_to_import[group_name])
+    return imports
+
+
+def _render_file_header(
+    canonical_dict: dict[str, Any],
+    needed_imports: set[str] | None = None,
+) -> list[str]:
     mcu = canonical_dict.get("mcu", "unknown").upper()
     timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
+    if needed_imports is None:
+        needed_imports = {"Pin", "I2C", "SPI", "PWM", "ADC"}
+    # Stable import order
+    ordered = [m for m in ("Pin", "I2C", "SPI", "PWM", "ADC") if m in needed_imports]
+    import_line = f"from machine import {', '.join(ordered)}"
     return [
         '"""',
         f"Auto-generated MicroPython pinmap for {mcu}.",
@@ -288,7 +315,7 @@ def _render_file_header(canonical_dict: dict[str, Any]) -> list[str]:
         "Use them to quickly access hardware in MicroPython.",
         '"""',
         "",
-        "from machine import Pin, I2C, SPI, PWM, ADC",
+        import_line,
         "",
     ]
 

@@ -68,13 +68,16 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
     pins = canonical_dict.get("pins", {})
     pin_data = []
 
+    multi_pin_nets: list[tuple[str, list[str]]] = []
     for net_name, pin_list in pins.items():
-        if len(pin_list) == 1:  # Single pin nets only
+        if len(pin_list) == 1:
             pin = pin_list[0]
             num_match = re.search(r"\d+", pin)
             if num_match:
                 pin_num = int(num_match.group())
                 pin_data.append((pin_num, net_name, pin))
+        elif len(pin_list) > 1:
+            multi_pin_nets.append((net_name, pin_list))
 
     # Sort by pin number
     pin_data.sort(key=lambda x: x[0])
@@ -139,6 +142,18 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
                 ]
             )
 
+        lines.append("")
+
+    # Add multi-pin nets (power rails, etc.)
+    if multi_pin_nets:
+        lines.append("    %% Multi-pin nets")
+        for net_name, pin_list in sorted(multi_pin_nets):
+            node_id = _sanitize_node_id(net_name)
+            pins_str = ", ".join(sorted(pin_list))
+            lines.append(
+                f'    MCU --> {node_id}["{net_name}<br/>{pins_str}"]'
+            )
+            lines.append(f"    class {node_id} power")
         lines.append("")
 
     # Define styles
