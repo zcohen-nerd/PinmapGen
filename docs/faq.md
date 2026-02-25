@@ -1,315 +1,182 @@
-# Frequently Asked Questions
+# FAQ
 
-Answers to common questions about PinmapGen workflows, design decisions, and best practices.
-
----
-
-## General concepts
-
-### Why not just name nets GPx in the schematic?
-
-**Short answer:** PinmapGen supports both approaches but encourages semantic naming.
-
-**Long answer:** 
-- **Semantic names** (`I2C0_SDA`, `LED_DATA`) are self-documenting and survive schematic changes
-- **Pin-based names** (`GP0`, `GP4`) break when you move nets to different pins
-- **Role inference** works better with descriptive names, enabling validation warnings
-- **Team collaboration** benefits from meaningful names that explain function
-- **Fusion integration** becomes more powerful when nets describe intent, not just connectivity
-
-### How does PinmapGen compare to manual pinout management?
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Manual spreadsheets** | Simple, universal tool | Error-prone, no validation, hard to sync |
-| **Hardcoded constants** | Fast to write | Brittle, no traceability to hardware |
-| **PinmapGen** | Automated, validated, multiple formats | Learning curve, toolchain dependency |
-
-PinmapGen shines when:
-- Multiple people work on hardware and firmware
-- You need consistent outputs across MicroPython and Arduino
-- Pin assignments change frequently during development
-- Validation (USB pairs, strapping pins) prevents costly mistakes
-
-### What MCUs will be supported in the future?
-
-Current support: **RP2040, STM32G0, ESP32**
-
-Likely additions based on demand:
-- **STM32G4** (higher performance STM32)
-- **ESP32-S3** (dual-core with camera support)
-- **nRF52** (Bluetooth Low Energy)
-- **SAMD21** (Arduino Zero family)
-
-Community contributions welcome! Adding MCU profiles involves implementing pin normalization, capabilities, and validation rules. See [`docs/extending.md`](extending.md) (planned).
+Frequently asked questions about PinmapGen.
 
 ---
 
-## Workflow questions
+## General
 
-### Should I commit generated files to version control?
+### What does PinmapGen do?
 
-**Recommended approach:** Yes, commit generated outputs.
+It reads netlist data exported from Fusion 360 Electronics (or EAGLE) and
+generates firmware-ready pin definitions for MicroPython, Arduino, JSON,
+Markdown, and Mermaid. MCU profiles normalize pin names and flag common design
+issues.
 
-**Benefits:**
-- Firmware developers see exactly what changed between commits
-- CI/CD can validate that generated files stay in sync with CAD exports
-- Rollbacks work cleanly without regenerating from old CAD files
-- Team members without CAD tools can still build firmware
+### Which MCUs are supported?
 
-**Implementation:**
+RP2040, STM32G0 (STM32G071), and ESP32 (ESP32-WROOM-32). Adding a new MCU
+means subclassing `MCUProfile` and registering it in the CLI. See
+[extending.md](extending.md).
+
+### Does it need internet access?
+
+No. PinmapGen is stdlib-only and runs entirely offline.
+
+### Can I use it commercially?
+
+Non-commercial use is free. Commercial use requires a license. See the
+[LICENSE](../LICENSE) file.
+
+---
+
+## Workflow
+
+### ULP or CLI — which should I use?
+
+- **ULP**: Best for designers who work inside Fusion and want one-click
+  generation without touching the command line.
+- **CLI**: Best for firmware engineers, CI pipelines, and anyone who already
+  has a terminal-based workflow.
+
+Both produce the same output.
+
+### How do I update pin assignments after a schematic change?
+
+Re-export the CSV (or rerun the ULP) and regenerate. The output files are
+overwritten in place — there's no merge step. If you use the file watcher
+(`tools.pinmapgen.watch`), regeneration happens automatically when the CSV
+changes.
+
+### Can I generate for more than one MCU from the same schematic?
+
+Yes. Run the CLI once per MCU reference designator:
+
 ```bash
-# Add to .gitignore (don't commit these)
-hardware/exports/*.bak
-*.tmp
-
-# Do commit these
-git add pinmaps/ firmware/
+python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root out/rp2040
+python -m tools.pinmapgen.cli --csv netlist.csv --mcu esp32  --mcu-ref U2 --out-root out/esp32
 ```
 
-**Alternative:** Use CI/CD to generate on demand, but requires all contributors to have access to CAD exports.
+### What CSV columns does the parser expect?
 
-### How do I handle multiple board revisions?
+`Net`, `Pin`, `Component`, `RefDes`. Column order doesn't matter (parsed with
+`csv.DictReader`). Extra columns are ignored.
 
-**Option 1: Separate output directories**
-```bash
-# Generate for each revision
-python -m tools.pinmapgen.cli --csv rev_a.csv --mcu rp2040 --mcu-ref U1 --out-root build/rev_a
-python -m tools.pinmapgen.cli --csv rev_b.csv --mcu rp2040 --mcu-ref U1 --out-root build/rev_b
+### Can I use KiCad / Altium / other CAD tool exports?
 
-# Firmware code can select at compile time
-#ifdef BOARD_REV_A
-#include "rev_a/pinmap_arduino.h"
-#endif
-```
-
-**Option 2: Version-controlled branches**
-```bash
-# Hardware changes on hardware branch
-git checkout hardware_rev_b
-# Update CAD files and regenerate
-git commit -am "Rev B: Move I2C to different pins"
-
-# Merge to firmware when stable
-git checkout main
-git merge hardware_rev_b
-```
-
-**Option 3: Runtime board detection**
-```python
-# MicroPython example
-board_rev = detect_board_revision()  # Read GPIO, ADC, etc.
-if board_rev == "A":
-    from pinmap_rev_a import *
-elif board_rev == "B":
-    from pinmap_rev_b import *
-```
-
-### Can I use PinmapGen with KiCad or other EDA tools?
-
-**Current status:** PinmapGen expects Fusion Electronics or EAGLE formats.
-
-**Workarounds:**
-- **Export to CSV:** Most EDA tools can export netlists as CSV with columns for Part, Designator, Pin, Net
-- **Format conversion:** Write scripts to convert from your EDA's native format to PinmapGen-compatible CSV
-- **Manual CSV:** For small projects, hand-write the CSV netlist
-
-**Future plans:** Community interest in KiCad support is noted. Parsers for other formats could be added following the same pattern as `eagle_sch.py` and `bom_csv.py`.
+Not directly. If you can produce a CSV with the four required columns, the CLI
+will accept it. Native KiCad `.net` or Altium NetList support would require a
+new parser module.
 
 ---
 
 ## Technical details
 
-### What happens during "normalization"?
+### What is the "canonical dict"?
 
-**Pin name normalization** converts various ways of referring to pins into canonical form:
+The single data structure that all emitters consume. It looks like:
 
-**RP2040 examples:**
-- `GPIO0` → `GP0`
-- `IO15` → `GP15`
-- `USB_DP` → `GP25`
-- `ADC0` → `GP26`
+```python
+{
+    "mcu": "rp2040",
+    "pins": { "I2C0_SDA": ["GP0"], ... },
+    "differential_pairs": [ {"positive": "USB_DP", "negative": "USB_DM"} ],
+    "metadata": { "total_nets": 12, "total_pins": 18, ... }
+}
+```
 
-**STM32G0 examples:**
-- `PA0` → `PA0` (already canonical)
-- `PORTA_0` → `PA0`
-- `GPIO_A_0` → `PA0`
+Parsers produce raw net data; `MCUProfile.create_canonical_pinmap()` normalizes
+it into this shape; emitters read from it.
 
-**ESP32 examples:**
-- `IO2` → `GPIO2`
-- `GPIO_02` → `GPIO2`
+### How does role inference work?
 
-This handles schematic symbol variations and alternate naming conventions from different CAD libraries.
+`roles.py` matches net names against regex patterns. For example, a net named
+`I2C0_SDA` is assigned the `I2C_SDA` role, which affects how it appears in
+documentation and whether the emitter generates helper code.
 
-### How does differential pair detection work?
+### Are the outputs deterministic?
 
-PinmapGen looks for **naming patterns** that indicate differential signals:
+Mostly. Pin ordering and content are deterministic for a given input. However,
+timestamps in file headers change on each run, so byte-for-byte reproducibility
+requires stripping or fixing the timestamp.
 
-**Detected patterns:**
-- `USB_DP` / `USB_DM`
-- `CAN_H` / `CAN_L`
-- `SIGNAL_P` / `SIGNAL_N`
-- `DATA_DP` / `DATA_DN`
+### How does validation work?
 
-**Not detected:**
-- Arbitrary pin pairs without naming convention
-- Differential pairs split across multiple nets in unusual ways
+Each MCU profile defines pin capabilities (GPIO, ADC, PWM, etc.) and
+constraints (input-only, strapping, boot). During `create_canonical_pinmap()`,
+the profile checks every net assignment against these rules and emits warnings.
+Warnings appear in CLI output and in the `metadata.validation_warnings` field
+of `pinmap.json`.
 
-**Validation rules:**
-- Warns if only one half of a pair is found
-- Checks that both pins are capable of the detected signal type
-- Suggests impedance control requirements in generated documentation
+### Why are there two RP2040 profiles?
 
-### Why are some pins marked as "input-only"?
-
-**ESP32 specifics:** GPIO34-GPIO39 are input-only due to silicon design.
-
-**Validation purpose:** 
-- Prevents assigning output signals (LEDs, motor control) to input-only pins
-- Suggests alternative pins that support bidirectional operation
-- Warns about pull-up resistor limitations on input-only pins
-
-**Override behavior:** PinmapGen warns but doesn't block generation, allowing for external buffers or level shifters.
+`normalize.py` contains a legacy `RP2040Profile` from before the `MCUProfile`
+ABC was introduced. The CLI uses the profile from `rp2040_profile.py`. The
+legacy copy is kept for backward compatibility but should not be used for new
+work.
 
 ---
 
-## Classroom and educational use
+## Classroom and education
 
-### How do I set up PinmapGen for a lab environment?
+### How can I use PinmapGen in a lab setting?
 
-**Recommended setup:**
-1. **Install on lab machines:** Use `pip install -e .` in shared directory
-2. **Pre-created templates:** Provide starter CSV files with common RP2040 configurations
-3. **File watcher demo:** Show `python -m tools.pinmapgen.watch` for instant feedback
-4. **VS Code tasks:** Configure lab machines with PinmapGen tasks pre-loaded
+1. Prepare template CSVs for each lab exercise.
+2. Students modify pin assignments and run the CLI (or ULP).
+3. Validation warnings give immediate feedback on design issues.
+4. Generated `PINOUT.md` serves as a starting point for lab reports.
 
-**Student workflow:**
-1. Design circuit and schematic in Fusion 360
-2. Export CSV netlist to `hardware/exports/`
-3. Run PinmapGen via VS Code task or Fusion add-in
-4. Copy generated MicroPython constants to firmware project
-5. Test with actual hardware
+### What can I assess with PinmapGen outputs?
 
-### What validation rules help students avoid common mistakes?
-
-**RP2040-specific:**
-- **USB pin usage:** Warns when GP24/GP25 used for GPIO instead of USB
-- **Power pin detection:** Flags VCC/GND nets that connect to GPIO pins (usually wrong)
-- **ADC pin optimization:** Suggests using ADC-capable pins for sensor inputs
-
-**General validation:**
-- **Duplicate pin usage:** Catches copy-paste errors in netlists
-- **Unconnected nets:** Identifies nets that don't connect to the specified MCU
-- **Naming consistency:** Warns about unusual pin name patterns
-
-### How do I grade or assess PinmapGen outputs?
-
-**Automated checking:**
-```bash
-# Verify students generated outputs
-test -f pinmaps/pinmap.json && echo "JSON OK"
-test -f firmware/micropython/pinmap_micropython.py && echo "MicroPython OK"
-
-# Check for expected pin usage
-grep "I2C.*SDA" firmware/docs/PINOUT.md && echo "I2C found"
-grep "LED" firmware/micropython/pinmap_micropython.py && echo "LED constant found"
-```
-
-**Manual review points:**
-- Semantic net naming (not just GP0, GP1, etc.)
-- Appropriate pin choices for function (ADC for sensors, PWM-capable for LEDs)
-- Proper differential pair usage for high-speed signals
-- Documentation completeness in generated PINOUT.md
+- Semantic net naming (descriptive names vs generic `GP0`, `NET1`)
+- Appropriate pin selection (ADC-capable pins for analog, PWM for LEDs)
+- Differential pair handling
+- Documentation completeness
 
 ---
 
 ## Integration and automation
 
-### How do I integrate PinmapGen with CI/CD?
+### How do I integrate with CI/CD?
 
-**GitHub Actions example:**
+Example GitHub Actions snippet:
+
 ```yaml
-name: Validate Pinmaps
-on: [push, pull_request]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install PinmapGen
-      run: pip install -e .
-    - name: Regenerate pinmaps
-      run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-    - name: Check for changes
-      run: git diff --exit-code pinmaps/ firmware/
+- name: Regenerate pinmaps
+  run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
+- name: Fail if outputs drifted
+  run: git diff --exit-code pinmaps/ firmware/
 ```
 
-**Pre-commit hook:**
-```bash
-# Install pre-commit hook
-bash .githooks/install-hooks.sh
+### Can I customize the output formats?
 
-# Now commits automatically regenerate if hardware/ changes
-```
+Modify the emitter modules in `tools/pinmapgen/emit_*.py`. Each emitter is a
+standalone function that accepts the canonical dict and an output path. You can
+also create new emitters following the same pattern. See [extending.md](extending.md).
 
-### Can I customize the generated output formats?
+### How do I add support for a custom MCU?
 
-**Current approach:** Modify emitter modules in `tools/pinmapgen/emit_*.py`.
+1. Subclass `MCUProfile` in a new `tools/pinmapgen/<mcu>_profile.py`.
+2. Implement pin definitions, normalization, and peripheral metadata.
+3. Register in `cli.py` → `MCU_PROFILES`.
+4. Add tests and a sample netlist.
 
-**Customization examples:**
-- **Add company header:** Modify `emit_arduino.py` to include copyright notice
-- **Change naming conventions:** Update identifier generation in emitters
-- **Additional file formats:** Create new `emit_custom.py` following existing patterns
-- **Filter outputs:** Skip certain nets or pins based on custom logic
-
-**Future plans:** Template-based generation system for easier customization without code changes.
-
-### How do I add support for my company's custom MCU?
-
-**Process overview:**
-1. **Subclass MCUProfile:** Create new profile class in `tools/pinmapgen/`
-2. **Implement pin definitions:** Map physical pins to capabilities and alternate names
-3. **Add normalization rules:** Handle your MCU's pin naming conventions
-4. **Register profile:** Add to CLI's `MCU_PROFILES` dictionary
-5. **Test and validate:** Create test cases and sample netlists
-
-**Detailed guide:** See [`docs/extending.md`](extending.md) (planned) for step-by-step instructions.
-
-**Community contributions:** Pull requests welcome for popular MCU families!
+Detailed walkthrough: [extending.md](extending.md).
 
 ---
 
-## Troubleshooting and support
+## Troubleshooting
 
-### What information should I include when reporting bugs?
+### Where can I get help?
 
-**Essential information:**
-1. **Complete command line:** Full `python -m tools.pinmapgen.cli` command that failed
-2. **Error message:** Full Python traceback, not just the summary line
-3. **Input data:** Minimal CSV file that reproduces the problem
-4. **Environment:** OS, Python version, PinmapGen version/commit
-5. **Expected vs actual:** What you expected to happen vs what actually happened
+- [Troubleshooting guide](troubleshooting.md)
+- [GitHub Issues](https://github.com/zcohen-nerd/PinmapGen/issues)
+- Sample projects in `examples/` for reference
 
-**Helpful extras:**
-- Generated `pinmaps/pinmap.json` content (if any)
-- Screenshots for Fusion add-in issues
-- Output of `python -m tools.pinmapgen.cli --help`
+### What should I include in a bug report?
 
-### Where can I get help with complex workflows?
-
-**Community resources:**
-- **GitHub Discussions:** Ask questions and share solutions
-- **Issue tracker:** Report bugs and request features  
-- **Documentation:** User guide, troubleshooting, examples
-- **Sample projects:** Use provided examples as starting points
-
-**Professional support:**
-For commercial or mission-critical usage, consider:
-- Maintaining internal forks with your specific requirements
-- Contributing improvements back to the community
-- Training multiple team members on the toolchain
-- Documenting your organization's specific workflows and conventions
+1. Full CLI command
+2. Complete traceback
+3. Minimal CSV that reproduces the problem
+4. OS and Python version
+5. Expected vs actual behavior

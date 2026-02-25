@@ -35,7 +35,7 @@ After running PinmapGen, you'll get:
 python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root generated --mermaid
 ```
 
-This example shows how PinmapGen handles:
+This example covers:
 - Mixed I/O types (analog, digital, I2C)
 - Component references and net names
 - Real-world sensor integration patterns

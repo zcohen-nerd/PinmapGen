@@ -363,4 +363,4 @@ The `validate-pinmaps.yml` workflow regenerates outputs on every push and pull r
 - **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
 
-If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide. Happy mapping!
+If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide.

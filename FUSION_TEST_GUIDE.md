@@ -1,290 +1,226 @@
-# 🎯 Fusion 360 Add-in Testing Guide
+# Fusion 360 ULP Testing Guide
 
-This guide walks through comprehensive testing of the PinmapGen Fusion 360 add-in to ensure it works correctly in the real Fusion environment.
+Test plan for verifying the PinmapGen ULP inside Fusion 360. Work through
+tests F1–F8 in order; earlier tests are prerequisites for later ones.
+
+Estimated total time: ~2.5 hours.
 
 ---
 
-## 🛠️ Pre-Testing Setup
+## Pre-testing setup
 
-### **Step 1: Deploy the ULP**
+### Step 1: Deploy the ULP
 
-**🎯 Recommended:** Copy the production ULP into Fusion's ULP directory.
-```bash
-# From the repository root (PowerShell example)
+Copy the production ULP into Fusion's ULP directory:
+
+```powershell
 Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-**🔧 Alternative locations:**
-- `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` (default Windows install)
-- `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/ULPs/` (macOS)
+Alternative paths:
+- Windows default: `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`
+- macOS: `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/ULPs/`
 
-**Expected Results:**
-- ✅ `PinmapGen.ulp` appears in the Fusion ULP directory
-- ✅ Optional: `PinmapGen_Manual.ulp` copied for manual CLI launches
+Verify:
+- `PinmapGen.ulp` appears in the Fusion ULP directory
+- Optionally copy `PinmapGen_Manual.ulp` as well
 
-### **Step 2: Launch the ULP in Fusion**
+### Step 2: Launch the ULP
+
 1. Open Fusion 360 and switch to the **Electronics** workspace.
-2. Navigate to **Automation → Run ULP…**.
-3. Select **PinmapGen.ulp** from the list (use **Browse** if necessary).
-4. Click **Open** to display the PinmapGen dialog.
+2. **Automation → Run ULP…** → select **PinmapGen.ulp**.
+3. Click **Open** to display the dialog.
 
-**🚨 Troubleshooting**: If the ULP is missing:
-- Confirm the `.ulp` file exists in the Fusion ULP directory.
-- Restart Fusion 360 after copying new scripts.
+If the ULP is missing:
+- Confirm the `.ulp` file exists in the correct directory.
+- Restart Fusion 360 after copying.
 - Use **Browse** to select the full path manually.
 
 ---
 
-## 🧪 Fusion Add-in Test Suite
+## Test F1: ULP deployment and launch
 
-### **Test F1: ULP Deployment & Launch**
+**Objective:** Verify the ULP loads without errors.
 
-**Objective**: Verify the ULP is visible to Fusion and opens without errors.
-
-**Steps**:
+**Steps:**
 1. Copy `PinmapGen.ulp` into the Fusion ULP directory.
-2. Launch Fusion 360 → **Electronics** workspace → **Automation → Run ULP…**.
-3. Select **PinmapGen.ulp** and confirm the dialog appears.
-4. Check Fusion's Text Commands panel for any error messages.
+2. **Electronics** workspace → **Automation → Run ULP…** → select it.
+3. Check the Text Commands panel for errors.
 
-**Expected Results**:
-- ✅ ULP listed in the Run ULP dialog (or loads via Browse).
-- ✅ Dialog opens with project name, MCU, and output options.
-- ✅ No error messages in the Text Commands console.
-
----
-
-### **Test F2: User Interface Validation**
-
-**Objective**: Verify all UI elements work correctly
-
-**Steps**:
-1. Click the PinmapGen button/panel
-2. Verify all UI elements are present:
-   - MCU selection dropdown (RP2040, STM32G0, ESP32)
-   - Output format checkboxes (JSON, MicroPython, Arduino, Markdown, Mermaid)
-   - Generate button
-   - Output directory selection
-3. Test dropdown functionality
-4. Test checkbox toggling
-
-**Expected Results**:
-- ✅ All UI elements display correctly
-- ✅ Dropdown shows all MCU options
-- ✅ Checkboxes toggle properly
-- ✅ UI is responsive and intuitive
+**Pass criteria:**
+- ULP listed in the Run ULP dialog (or loadable via Browse)
+- Dialog opens with project name, MCU, and output options
+- No errors in the Text Commands console
 
 ---
 
-### **Test F3: Electronics Data Extraction**
+## Test F2: UI validation
 
-**Objective**: Test the add-in's ability to extract data from Fusion Electronics
+**Objective:** All UI elements render and respond correctly.
 
-**Prerequisites**: 
-- Create a simple test circuit in Fusion Electronics with:
-  - RP2040 component (named U1)
-  - At least 5-10 nets connected to different pins
-  - Mix of I2C, SPI, GPIO connections
+**Steps:**
+1. Open the PinmapGen dialog.
+2. Verify: MCU dropdown (RP2040, STM32G0, ESP32), output format checkboxes,
+   generate button, output directory selector.
+3. Toggle each checkbox; change the dropdown.
 
-**Steps**:
-1. Open the test Electronics design
-2. Run PinmapGen add-in
-3. Select RP2040 as MCU
-4. Set MCU reference to "U1"
-5. Click Generate
-6. Monitor Fusion's Text Commands for any errors
-
-**Expected Results**:
-- ✅ Add-in successfully extracts component data
-- ✅ Nets are identified and parsed correctly
-- ✅ Pin assignments are detected
-- ✅ No extraction errors reported
+**Pass criteria:**
+- All elements display
+- Dropdown lists all MCU options
+- Checkboxes toggle
+- UI is responsive
 
 ---
 
-### **Test F4: Pinmap Generation Integration**
+## Test F3: Electronics data extraction
 
-**Objective**: Verify the add-in generates files correctly
+**Objective:** The ULP reads net/pin data from a live schematic.
 
-**Steps**:
-1. Use the same test circuit from F3
-2. Select all output formats (JSON, MicroPython, Arduino, Markdown, Mermaid)
-3. Choose an output directory
-4. Click Generate
-5. Check the output directory for generated files
+**Prerequisites:** Create a simple test circuit with an RP2040 (U1), 5–10
+named nets, and a mix of I2C/SPI/GPIO connections.
 
-**Expected Results**:
-- ✅ All selected output files are created
-- ✅ Files contain correct pin mappings from the Electronics design
-- ✅ Generated code matches the actual component connections
-- ✅ Success message displayed in Fusion
+**Steps:**
+1. Open the test design.
+2. Run PinmapGen, select RP2040 / U1, click Generate.
+3. Watch the Text Commands panel.
 
----
-
-### **Test F5: Error Handling in Fusion**
-
-**Objective**: Test error scenarios within Fusion environment
-
-**Test Cases**:
-
-**F5a: No Electronics Design**
-1. Open Fusion with no active Electronics design
-2. Run PinmapGen
-3. Try to generate pinmap
-
-**Expected**: Clear error message about missing Electronics design
-
-**F5b: Invalid MCU Reference**
-1. Open Electronics design with components
-2. Set MCU reference to non-existent component (e.g., "U99")
-3. Try to generate
-
-**Expected**: Error message about MCU component not found
-
-**F5c: No Output Directory**
-1. Run generation without selecting output directory
-2. Try to generate
-
-**Expected**: Error message or default directory used
-
-**F5d: No Pin Connections**
-1. Open Electronics design with MCU but no connections
-2. Try to generate
-
-**Expected**: Warning about no nets found, but should not crash
+**Pass criteria:**
+- Component data extracted without errors
+- Nets identified and parsed
+- Pin assignments detected
 
 ---
 
-### **Test F6: Real-World Circuit Testing**
+## Test F4: File generation
 
-**Objective**: Test with a complex, realistic Electronics design
+**Objective:** Output files are created with correct content.
 
-**Create Test Circuit**:
-```
-Components needed in Fusion Electronics:
-- RP2040 microcontroller (U1)
-- I2C sensor (U2) - connected to GP0 (SDA), GP1 (SCL)
-- SPI display (U3) - connected to GP2 (MOSI), GP3 (MISO), GP4 (SCK), GP5 (CS)
-- UART module (U4) - connected to GP6 (TX), GP7 (RX)
-- LEDs (D1, D2) - connected to GP10, GP11
-- Buttons (SW1, SW2) - connected to GP12, GP13
-- USB connector - connected to USB_DP, USB_DN
+**Steps:**
+1. Use the same circuit from F3.
+2. Select all output formats, choose an output directory, click Generate.
+3. Inspect the output directory.
+
+**Pass criteria:**
+- All selected files created (JSON, MicroPython, Arduino, Markdown, Mermaid)
+- Pin mappings match the schematic connections
+- Success message displayed in Fusion
+
+---
+
+## Test F5: Error handling
+
+Run each sub-test and verify the ULP reports a clear message without crashing.
+
+| Sub-test | Scenario | Expected |
+|----------|----------|----------|
+| F5a | No active Electronics design | Error: missing Electronics design |
+| F5b | MCU ref set to `U99` (doesn't exist) | Error: MCU component not found |
+| F5c | No output directory selected | Error or sensible default used |
+| F5d | Schematic has MCU but zero connections | Warning about no nets; no crash |
+
+---
+
+## Test F6: Real-world circuit
+
+**Objective:** Process a complex, realistic design.
+
+**Suggested circuit:**
+- RP2040 (U1)
+- I2C sensor on GP0/GP1
+- SPI display on GP2–GP5
+- UART module on GP6/GP7
+- 2 LEDs on GP10/GP11
+- 2 buttons on GP12/GP13
+- USB connector (DP/DM)
 - Power connections (VCC, GND)
-```
 
-**Steps**:
-1. Create the above circuit in Fusion Electronics
-2. Ensure all nets are properly named and connected
-3. Run PinmapGen add-in
-4. Generate all output formats
-5. Verify the generated files match the actual circuit
-
-**Expected Results**:
-- ✅ All 15+ nets detected correctly
-- ✅ Bus groups identified (I2C, SPI, UART)
-- ✅ Differential pair detected (USB_DP/USB_DN)
-- ✅ Pin roles inferred correctly (I2C SDA/SCL, SPI MOSI/MISO/etc.)
-- ✅ Generated MicroPython code has proper pin constants
-- ✅ Generated Arduino code has correct #define statements
-- ✅ Documentation shows proper pin assignments
+**Pass criteria:**
+- 15+ nets detected
+- Bus groups identified (I2C, SPI, UART)
+- USB differential pair detected
+- Pin roles inferred correctly
+- MicroPython and Arduino output have correct constants
 
 ---
 
-### **Test F7: Multi-MCU Testing in Fusion**
+## Test F7: Multi-MCU profiles
 
-**Objective**: Test different MCU profiles within Fusion
+**Objective:** Different profiles produce appropriate warnings.
 
-**Steps**:
-1. Create the same basic circuit
-2. Test with RP2040 profile - should work perfectly
-3. Test with STM32G0 profile - should show warnings about invalid pin names
-4. Test with ESP32 profile - should show similar warnings
-5. Verify warnings are displayed clearly in Fusion interface
+**Steps:**
+1. Use the basic circuit from F3/F6.
+2. Generate with RP2040, then STM32G0, then ESP32.
 
-**Expected Results**:
-- ✅ RP2040: Clean generation with GP pin names
-- ✅ STM32G0: Warnings about invalid GP pins, suggests PA/PB format
-- ✅ ESP32: Warnings about invalid pins, suggests GPIO format
-- ✅ All profiles generate output files even with warnings
+**Pass criteria:**
+- RP2040: clean generation with `GPxx` names
+- STM32G0: warnings about invalid GP pins, suggests `PA`/`PB` format
+- ESP32: warnings about invalid pins, suggests `GPIO` format
+- All three profiles produce output files
 
 ---
 
-### **Test F8: Performance & Usability**
+## Test F8: Performance and usability
 
-**Objective**: Evaluate real-world usability
+**Metrics:**
+- Generation completes in < 5 seconds for typical circuits
+- Fusion remains responsive during processing
+- Generated files < 100 KB for typical designs
+- Errors are recoverable without restarting the ULP
 
-**Metrics to Test**:
-- **Speed**: Time from clicking Generate to completion
-- **Responsiveness**: Does Fusion remain responsive during generation?
-- **File Size**: Are generated files reasonable sizes?
-- **Error Recovery**: Can user fix errors and re-generate easily?
-
-**Steps**:
-1. Time several generation cycles
-2. Test with increasingly complex circuits (10, 20, 50+ nets)
-3. Intentionally create errors and test recovery
-4. Test multiple rapid generations
-
-**Expected Results**:
-- ✅ Generation completes in <5 seconds for typical circuits
-- ✅ Fusion remains responsive during processing
-- ✅ Generated files are appropriately sized (<100KB typically)
-- ✅ Errors are recoverable without restarting add-in
+Test with increasing complexity (10, 20, 50+ nets) and intentionally create
+errors to confirm recovery.
 
 ---
 
-## 🚨 **Critical Issues That Block Release**
+## Release-blocking issues
 
-**Immediate fix required if:**
-- Add-in fails to install or load in Fusion
-- Electronics data extraction fails silently
+Anything in this list must be fixed before shipping:
+
+- ULP fails to install or load
+- Data extraction fails silently
 - Generated files are corrupt or empty
-- Add-in crashes Fusion 360
-- UI is unresponsive or broken
-- Error messages are unclear or missing
+- ULP crashes Fusion 360
+- UI is unresponsive
+- Error messages are missing or misleading
 
-**Can be addressed post-launch:**
-- Minor UI polish improvements
-- Additional validation warnings
-- Performance optimizations
-- Enhanced error messages
+Post-launch fixes are acceptable for minor UI polish, extra validation
+warnings, performance tuning, and enhanced messages.
 
 ---
 
-## 📋 **Fusion Testing Checklist**
+## Testing checklist
 
-### **Installation & Setup**
-- [ ] `PinmapGen.ulp` copied into the Fusion ULP directory
+### Installation and setup
+- [ ] `PinmapGen.ulp` copied into Fusion ULP directory
 - [ ] ULP appears in **Automation → Run ULP…**
-- [ ] Dialog opens and UI elements render correctly
-- [ ] No console errors during startup
+- [ ] Dialog opens and renders correctly
+- [ ] No console errors on startup
 
-### **Basic Functionality**
-- [ ] MCU dropdown works and shows all options
-- [ ] Output format checkboxes toggle correctly
-- [ ] File directory selection works
+### Basic functionality
+- [ ] MCU dropdown works
+- [ ] Output format checkboxes toggle
+- [ ] Directory selection works
 - [ ] Generate button triggers processing
 
-### **Data Extraction**
-- [ ] Electronics design data extracted correctly
+### Data extraction
 - [ ] Component references resolved (U1, U2, etc.)
 - [ ] Net names captured accurately
-- [ ] Pin assignments detected properly
+- [ ] Pin assignments detected
 
-### **File Generation**
-- [ ] JSON pinmap created with correct structure
+### File generation
+- [ ] JSON pinmap has correct structure
 - [ ] MicroPython file has valid syntax and pin constants
-- [ ] Arduino header has proper #define statements
-- [ ] Markdown documentation is formatted correctly
-- [ ] Mermaid diagrams generated (if selected)
+- [ ] Arduino header has correct `#define` statements
+- [ ] Markdown documentation formatted correctly
+- [ ] Mermaid diagram generated (when selected)
 
-### **Error Handling**
+### Error handling
 - [ ] Missing Electronics design handled gracefully
-- [ ] Invalid MCU reference produces clear error
-- [ ] No nets scenario handled without crashing
-- [ ] File write permissions issues reported clearly
+- [ ] Invalid MCU ref produces clear error
+- [ ] No-nets scenario handled without crash
+- [ ] File write permission issues reported clearly
 
-### **Real-World Testing**
+### Real-world testing
 - [ ] Complex circuit (15+ nets) processes correctly
 - [ ] Bus detection works (I2C, SPI, UART groups)
 - [ ] Differential pairs identified (USB, CAN)
@@ -293,49 +229,21 @@ Components needed in Fusion Electronics:
 
 ---
 
-## 🎯 **Testing Priority Order**
+## Installation troubleshooting
 
-1. **F1-F2**: Installation and UI (15 minutes) - Must work or nothing else matters
-2. **F3-F4**: Basic functionality (30 minutes) - Core workflow validation  
-3. **F5**: Error handling (20 minutes) - Robustness verification
-4. **F6**: Real-world circuit (45 minutes) - Production readiness
-5. **F7**: Multi-MCU testing (20 minutes) - Feature completeness
-6. **F8**: Performance evaluation (15 minutes) - User experience validation
+### "Access Denied" or copy failures
 
-**Total estimated time: ~2.5 hours**
-
----
-
-## 📝 **Test Results Documentation**
-
-As you test each section, document:
-- ✅ **Pass**: Feature works as expected
-- ⚠️ **Warning**: Works but has minor issues
-- ❌ **Fail**: Blocking issue that needs immediate fix
-- 📝 **Notes**: Any observations or improvements needed
-
-This will help prioritize any fixes needed before public release!
-
----
-
-## 🚨 **Installation Troubleshooting**
-
-### **"Access Denied" or Copy Failures**
 ```
-❌ Access is denied: 'C:\Users\...\API\ULPs\PinmapGen.ulp'
+Access is denied: 'C:\Users\...\API\ULPs\PinmapGen.ulp'
 ```
 
-**Solutions**:
-1. Ensure Fusion 360 is closed before copying files.
-2. Copy into a user-writable folder first, then move into the ULP directory with elevated permissions.
-3. Verify the destination path exists; create missing folders if necessary.
+- Close Fusion 360 before copying files.
+- Copy to a user-writable folder first, then move with elevated permissions.
+- Verify the destination path exists.
 
-### **ULP Not Appearing in Fusion**
-- ✅ Confirm the `.ulp` file exists in the Fusion ULP directory.
-- ✅ Restart Fusion 360 after copying new scripts.
-- ✅ Use **Automation → Run ULP… → Browse** to select the script manually.
-- ✅ Check the Text Commands panel for syntax errors when loading the ULP.
+### ULP not appearing in Fusion
 
----
-
-**Ready to test! Your add-in is now installed. Start with F1 (installation check) and work through systematically.** 🚀
+- Confirm the `.ulp` file is in the correct directory.
+- Restart Fusion 360.
+- Use **Automation → Run ULP… → Browse** to select manually.
+- Check the Text Commands panel for syntax errors.

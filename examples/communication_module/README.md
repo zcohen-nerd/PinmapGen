@@ -36,14 +36,14 @@ This example demonstrates PinmapGen with multiple communication protocols on an 
 - **GPIO12**: SD Card status LED
 
 ## Generated Files
-PinmapGen will create organized firmware files for this complex multi-protocol setup, making it easy to manage all the communication interfaces.
+PinmapGen creates organized firmware files for this multi-protocol setup.
 
 ## Usage
 ```bash
 python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root generated --mermaid
 ```
 
-This example demonstrates PinmapGen's ability to handle:
+This example covers:
 - Multiple communication protocols
 - Shared SPI bus with chip selects
 - Complex pin relationships

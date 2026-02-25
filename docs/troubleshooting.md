@@ -1,314 +1,182 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-Common issues, solutions, and debugging techniques for PinmapGen users.
-
----
-
-## Table of contents
-
-1. [Installation issues](#installation-issues)
-2. [CLI errors](#cli-errors)
-3. [Fusion add-in problems](#fusion-add-in-problems)
-4. [Generated output issues](#generated-output-issues)
-5. [Validation warnings](#validation-warnings)
-6. [Performance and reliability](#performance-and-reliability)
-7. [Getting help](#getting-help)
+Common problems and fixes when using PinmapGen.
 
 ---
 
 ## Installation issues
 
-### Python environment conflicts
+### Python not found
 
-**Problem:** `ModuleNotFoundError` when running CLI commands.
+```
+'python' is not recognized as an internal or external command
+```
 
-**Solution:**
+- Install Python 3.11+ from <https://python.org>.
+- Add Python to the system PATH during installation.
+- On Windows, try `py` instead of `python`.
+
+### Import errors
+
+```
+ModuleNotFoundError: No module named 'tools.pinmapgen'
+```
+
+- Install in editable mode: `pip install -e .` from the repo root.
+- Make sure the virtual environment is activated.
+- Verify you are in the correct directory.
+
+### Virtual environment problems
+
 ```bash
-# Verify Python installation
-python --version  # Should be 3.11+
-
-# Check if PinmapGen is installed
-python -c "import tools.pinmapgen.cli; print('OK')"
-
-# Reinstall in development mode
+# Recreate if corrupted
+rm -rf .venv
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -e .
-```
-
-### Virtual environment issues
-
-**Problem:** Commands work in one terminal but not another.
-
-**Solution:**
-```bash
-# Activate your virtual environment consistently
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\Activate.ps1  # Windows PowerShell
-
-# Verify environment
-which python  # Should point to .venv
-```
-
-### Missing dependencies
-
-**Problem:** `ImportError` for pytest, ruff, or other development tools.
-
-**Solution:**
-```bash
-# Install test dependencies
-pip install pytest ruff
 ```
 
 ---
 
 ## CLI errors
 
-### MCU not found errors
+### "CSV file not found"
 
-**Error:** `MCU 'U1' not found in design`
+- Check the path for typos.
+- Use an absolute path if the relative one isn't resolving.
+- Confirm the file exists: `ls hardware/exports/`.
 
-**Cause:** Reference designator mismatch between CLI argument and schematic.
+### "MCU reference not found in netlist"
 
-**Solution:**
-1. Check your schematic for the actual MCU reference (U1, U2, IC1, etc.)
-2. Update the `--mcu-ref` argument to match exactly
-3. Ensure case sensitivity: `U1` ≠ `u1`
+The reference designator passed via `--mcu-ref` doesn't appear in the CSV.
 
-### Invalid pin errors
+- Open the CSV and search for the MCU component.
+- Common mismatches: `U1` vs `IC1`, or trailing whitespace.
+- Case matters: `U1` ≠ `u1`.
 
-**Error:** `Invalid GPIO pin: GP99 (RP2040 valid range: GP0-GP29)`
+### "Required columns missing"
 
-**Cause:** Pin name in netlist doesn't match MCU profile expectations.
+`bom_csv.py` expects at least: `Net`, `Pin`, `Component`, `RefDes`.
 
-**Solution:**
-1. Verify the net is connected to the correct MCU pin in your schematic
-2. Check for typos in pin names (GP4 vs G4P)
-3. Confirm MCU profile matches your actual part (RP2040 vs RP2350)
+- Open the CSV and check the header row.
+- Fusion exports sometimes use different column names (e.g., `Designator`
+  instead of `RefDes`). Rename the column or adjust the export settings.
+- Remove any BOM (byte order mark) characters at the start of the file.
 
-### File not found errors
+### Empty or partial output
 
-**Error:** `CSV file not found: hardware/exports/netlist.csv`
-
-**Cause:** Path doesn't exist or is incorrect.
-
-**Solution:**
-```bash
-# Check file exists
-ls hardware/exports/
-
-# Use absolute path if needed
-python -m tools.pinmapgen.cli --csv "C:\full\path\to\netlist.csv" --mcu rp2040 --mcu-ref U1
-
-# Re-export from Fusion if missing
-```
-
-### Permission errors
-
-**Error:** `Permission denied: Cannot write to pinmaps/`
-
-**Cause:** Output directory is read-only or files are open elsewhere.
-
-**Solution:**
-```bash
-# Check permissions
-ls -la pinmaps/
-
-# Close files in VS Code/text editors
-# Change output directory
-python -m tools.pinmapgen.cli --csv ... --out-root /tmp/pinmaps
-```
+- Verify the MCU reference designator matches the schematic exactly.
+- Check `pinmaps/pinmap.json` to see which nets were parsed.
+- If the Markdown tables are empty, the source export likely omitted nets for
+  that MCU.
 
 ---
 
-## Fusion add-in problems
+## Fusion ULP problems
 
-### Add-in not appearing
+### ULP not appearing in Fusion
 
-**Problem:** PinmapGen button missing from Fusion toolbar.
+- Confirm `PinmapGen.ulp` is in the Fusion ULP directory
+  (`%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\` on Windows).
+- Restart Fusion 360 after copying script files.
+- Use **Automation → Run ULP… → Browse** to select the file manually.
 
-**Solution:**
-1. Copy `fusion_addin/PinmapGen.ulp` into `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`.
-2. Restart Fusion 360 completely.
-3. Check **Tools → ADD-INS → Scripts and Add-Ins → PinmapGen → Run**.
-4. Verify you're in **Electronics** workspace, not **Design**.
+### ULP fails to run
 
-### Python runtime errors in Fusion
+- Check for syntax errors in the Text Commands panel.
+- Verify you are in the **Electronics** workspace, not the Design workspace.
+- Try running `PinmapGen_Manual.ulp` as a fallback.
 
-**Problem:** Add-in crashes with Python import errors.
+### Generated files not found after ULP run
 
-**Solution:**
-1. Ensure Fusion 360 has Python enabled (usually automatic).
-2. Try other Python add-ins to test Fusion's Python environment.
-3. Re-copy the ULP scripts to refresh the deployment.
-4. Check Fusion logs: **Help → Show Data Panel → Text Commands → Show Data Panel**.
+- The output folder might be on the real Desktop, not the OneDrive-redirected
+  Desktop. Check `C:\Users\<you>\Desktop`.
+- Verify the output path shown in the ULP dialog before clicking Generate.
 
-### Electronics workspace errors
+### Python / CLI errors from ULP
 
-**Error:** `Electronics workspace not active`
-
-**Cause:** Currently in Design workspace instead of Electronics.
-
-**Solution:**
-1. Click **Electronics** tab at top of Fusion window
-2. If tab is missing, check that your design has electronics data
-3. Switch to a design that includes schematic or PCB data
-
-### Output folder issues
-
-**Problem:** Generated files appear in unexpected locations.
-
-**Solution:**
-1. Use **Browse** button to select specific output folder
-2. Avoid network drives if possible (can be slow/unreliable)
-3. Choose a folder you have write permissions for
-4. Check **Recent** → **View Files** to see actual output location
+- Ensure Python 3.11+ is installed and on PATH.
+- Verify the PinmapGen project path in the ULP matches the actual location.
+- Run the equivalent CLI command manually to isolate the problem.
 
 ---
 
 ## Generated output issues
 
-### Empty or missing files
+### MicroPython file won't import
 
-**Problem:** CLI succeeds but output files are empty.
-
-**Cause:** Usually no nets found for specified MCU reference.
-
-**Debugging:**
-```bash
-# Run with verbose output
-python -m tools.pinmapgen.cli --csv ... --mcu rp2040 --mcu-ref U1 --verbose
-
-# Check JSON output for debugging info
-cat pinmaps/pinmap.json | jq '.metadata'
-
-# Verify CSV contains expected data
-head -5 hardware/exports/sample_netlist.csv
+```
+SyntaxError: invalid syntax
 ```
 
-### Incorrect pin mappings
+- Open the file and check for obvious problems.
+- Confirm Python 3.11+ was used for generation (older versions may produce
+  incompatible output in edge cases).
+- Regenerate the file from a clean CSV.
 
-**Problem:** Generated constants don't match expected pins.
+### Arduino header doesn't compile
 
-**Solution:**
-1. Check `pinmaps/pinmap.json` for raw mapping data
-2. Verify net names in original schematic
-3. Review MCU profile pin definitions for special cases
-4. Consider USB differential pairs (GP24/GP25 on RP2040)
-
-### Format-specific issues
-
-**Problem:** MicroPython imports fail or Arduino compilation errors.
-
-**Solution:**
-```bash
-# Test MicroPython syntax
-python -c "exec(open('firmware/micropython/pinmap_micropython.py').read()); print('Syntax OK')"
-
-# Test Arduino compilation with minimal sketch
-# Include generated header in simple Arduino program
-
-# Check for invalid C identifiers
-grep -E '^[^A-Za-z_]' firmware/include/pinmap_arduino.h
 ```
+error: 'PIN_XYZ' was not declared in this scope
+```
+
+- Check that `#include "pinmap_arduino.h"` uses the correct path.
+- Verify the include path in your build system (e.g., `platformio.ini`
+  `build_flags = -I firmware/include`).
+
+### Pin numbers look wrong
+
+- The emitters use the GPIO number, not the physical package pin number.
+- Compare the generated output against `pinmaps/pinmap.json` and the MCU
+  datasheet.
+
+### Mermaid diagram not generated
+
+- Pass `--mermaid` to the CLI.
+- If the diagram is empty, there may be no nets to visualize for the given MCU
+  reference.
 
 ---
 
 ## Validation warnings
 
-### USB differential pair warnings
+### "Pin GPxx is a USB pin"
 
-**Warning:** `Pin GP24 is a USB pin - consider reserving for USB functionality`
+USB differential pair pads are flagged when used for general GPIO. Either
+reserve them for USB or acknowledge the override.
 
-**Interpretation:** You're using USB pins for general GPIO, which conflicts with USB operation.
+### "Input-only pin used as output"
 
-**Action:**
-- If you need USB, reassign the net to a different pin.
-- If no USB needed, acknowledge the warning and continue.
-- Document the design decision for firmware and validation reviews.
+ESP32 pins 34–39 are input-only. Reassign the net to a different GPIO.
 
-### Strapping pin warnings (ESP32)
+### "Strapping pin used"
 
-**Warning:** `GPIO0 low at boot enters download mode`
+ESP32 pins 0, 2, 5, 12, 15 affect boot behavior. Ensure external pull-ups or
+pull-downs match the boot mode you need.
 
-**Interpretation:** ESP32 boot behavior depends on pin state at power-on.
+### "Differential pair incomplete"
 
-**Action:**
-- Add appropriate pull-up/pull-down resistors per ESP32 datasheet
-- Avoid driving these pins low during boot unless intentional
-- Document boot sequence requirements for firmware team
+Only one half of a pair (e.g., `USB_DP` without `USB_DM`) was found. Connect
+both signals or rename the net so it isn't detected as a pair.
 
-### Input-only pin warnings
+### "Duplicate pin assignment"
 
-**Warning:** `Input-only pin used as output`
-
-**Interpretation:** MCU pin physically cannot drive output.
-
-**Action:**
-- Reassign net to a bidirectional pin
-- Add external buffer/level shifter if needed
-- Update schematic to use appropriate pins
-
-### Multi-pin net warnings
-
-**Warning:** `Net 'POWER' connects to multiple pins - may indicate routing error`
-
-**Interpretation:** Single net connects to multiple MCU pins.
-
-**Action:**
-- For power/ground nets: Normal, warning can be ignored
-- For signal nets: Usually indicates schematic error, check connections
-- Split net if pins should be independent
+Two nets are connected to the same MCU pin. Fix the schematic or CSV.
 
 ---
 
-## Performance and reliability
+## Performance
 
-### Slow generation times
+### Slow generation on large netlists
 
-**Problem:** CLI takes >30 seconds to complete.
+- Use `--no-mermaid` to skip diagram generation if it isn't needed.
+- Split large CSVs into per-MCU files.
+- Close other applications if running on limited RAM.
 
-**Debugging:**
-```bash
-# Profile with timing
-time python -m tools.pinmapgen.cli --csv ... --verbose
+### File system issues
 
-# Check input file size
-wc -l hardware/exports/sample_netlist.csv
-
-# Simplify for testing
-head -20 hardware/exports/sample_netlist.csv > test_small.csv
-```
-
-**Solution:**
-- Large CSV files (>10k rows) may be slow
-- Consider filtering CSV to relevant components only
-- Upgrade to SSD storage for faster I/O
-
-### File watcher issues
-
-**Problem:** `python -m tools.pinmapgen.watch` doesn't detect changes.
-
-**Solution:**
-```bash
-# Verify file permissions
-ls -la hardware/exports/
-
-# Test manual trigger
-touch hardware/exports/sample_netlist.csv
-
-# Use shorter polling interval
-python -m tools.pinmapgen.watch hardware/exports --interval 0.5
-
-# Check for filesystem-specific issues (network drives, containers)
-```
-
-### Memory usage
-
-**Problem:** Python process uses excessive memory.
-
-**Solution:**
-- Close other applications if running on limited RAM
-- Split large CSV files into smaller chunks
-- Use `--no-mermaid` to skip diagram generation if not needed
+- Network drives and container-mounted volumes can be slow for file I/O. Use
+  a local directory for `--out-root`.
 
 ---
 
@@ -316,33 +184,17 @@ python -m tools.pinmapgen.watch hardware/exports --interval 0.5
 
 ### Self-service debugging
 
-1. **Enable verbose output** with `--verbose` flag
-2. **Check logs** in `pinmaps/pinmap.json` metadata section
-3. **Validate input** files with `head`, `wc -l`, text editor inspection
-4. **Test minimal cases** with simplified CSV data
+1. Rerun with `--verbose` to print normalization details.
+2. Inspect `pinmaps/pinmap.json` → `metadata` for warnings and errors.
+3. Validate the input file manually (`head`, `wc -l`, text editor).
+4. Test with a minimal CSV to isolate the problem.
 
 ### Reporting issues
 
-When opening issues, include:
+Include the following in bug reports:
 
-1. **PinmapGen version:** `python -m tools.pinmapgen.cli --help` (check version info)
-2. **Python version:** `python --version`
-3. **Operating system:** Windows 10, macOS 13, Ubuntu 22.04, etc.
-4. **Full command line:** Exact `python -m tools.pinmapgen.cli` command used
-5. **Error messages:** Complete error text, not just summary
-6. **Sample data:** Minimal CSV that reproduces the problem
-
-### Community resources
-
-- **GitHub Issues:** Report bugs and request features
-- **Discussions:** Ask questions and share workflows
-- **Documentation:** This troubleshooting guide, user guide, README
-- **Sample data:** Use `hardware/exports/sample_netlist.csv` for testing
-
-### Professional support
-
-For mission-critical or commercial deployments:
-- Consider maintaining internal forks for stability
-- Implement automated testing of your specific MCU/netlist patterns
-- Document organization-specific workflows and edge cases
-- Train multiple team members on both CLI and Fusion workflows
+1. Python version (`python --version`)
+2. OS (Windows 10/11, macOS, Ubuntu, etc.)
+3. Full command line used
+4. Complete error output (not just the summary)
+5. Minimal CSV or `.sch` that reproduces the problem

@@ -11,7 +11,7 @@ This example demonstrates a simple circuit with:
 - 2 push buttons with pull-up resistors
 - Power supply connections (VCC, GND)
 
-**Use case:** Perfect for learning basic pin assignments and GPIO configuration.
+**Use case:** Learning basic pin assignments and GPIO configuration.
 
 ## Component List
 
@@ -34,7 +34,7 @@ This example demonstrates a simple circuit with:
 
 ## Generated Files
 
-After running PinmapGen, you'll get:
+After running PinmapGen:
 
 ### MicroPython (`pinmap_micropython.py`)
 ```python
@@ -92,9 +92,7 @@ Check that generated files contain definitions for all expected pins:
 - BUTTON_1, BUTTON_2
 - No conflicts or duplicate assignments
 
-## Learning Objectives
-
-After studying this example, you should understand:
+## What you should understand afterward
 1. How netlist CSV format represents connections
 2. Basic GPIO pin assignment patterns  
 3. Generated code structure for different platforms
