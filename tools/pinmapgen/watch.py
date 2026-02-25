@@ -39,6 +39,9 @@ class SimpleFileWatcher:
         # Initialize file modification times
         self._update_file_times()
 
+    # File extensions relevant for pinmap generation
+    _WATCH_EXTENSIONS = ("*.csv", "*.sch")
+
     def _update_file_times(self) -> None:
         """Update stored file modification times."""
         for watch_path in self.watch_paths:
@@ -46,10 +49,12 @@ class SimpleFileWatcher:
                 if watch_path.is_file():
                     self.file_times[watch_path] = watch_path.stat().st_mtime
                 elif watch_path.is_dir():
-                    # Watch all files in directory
-                    for file_path in watch_path.rglob("*"):
-                        if file_path.is_file():
-                            self.file_times[file_path] = file_path.stat().st_mtime
+                    # Watch only relevant file types in directory
+                    for ext in self._WATCH_EXTENSIONS:
+                        for file_path in watch_path.rglob(ext):
+                            self.file_times[file_path] = (
+                                file_path.stat().st_mtime
+                            )
 
     def _check_for_changes(self) -> set[Path]:
         """Check for file changes and return set of changed files."""
@@ -69,9 +74,9 @@ class SimpleFileWatcher:
                     changed_files.add(watch_path)
 
             elif watch_path.is_dir():
-                # Check all files in directory
-                for file_path in watch_path.rglob("*"):
-                    if file_path.is_file():
+                # Check only relevant file types in directory
+                for ext in self._WATCH_EXTENSIONS:
+                    for file_path in watch_path.rglob(ext):
                         current_time = file_path.stat().st_mtime
                         if (
                             file_path not in self.file_times

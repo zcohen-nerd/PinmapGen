@@ -38,33 +38,47 @@ def emit_arduino_header(
         f.write(code)
 
 
-def _sanitize_net_name(net_name: str) -> str:
-    """
-    Sanitize net name for use as C++ macro.
+def _sanitize_net_name(
+    net_name: str, seen_names: dict[str, int] | None = None
+) -> str:
+    """Sanitize net name for use as C++ macro.
 
     Args:
-        net_name: Raw net name from netlist
+        net_name: Raw net name from netlist.
+        seen_names: Optional dict tracking previously emitted names.
+            When provided, duplicate sanitized names receive ``_2``, ``_3``,
+            etc. suffixes to avoid collisions.
 
     Returns:
-        Sanitized macro name
+        Sanitized macro name (uppercase).
     """
     # Remove invalid characters and replace with underscores
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", net_name)
 
-    # Remove leading digits
-    sanitized = re.sub(r"^[0-9]+", "", sanitized)
+    # Prefix leading digits with underscore (preserves names like 3V3)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "_" + sanitized
 
     # Remove consecutive underscores
     sanitized = re.sub(r"_{2,}", "_", sanitized)
 
-    # Remove leading/trailing underscores
-    sanitized = sanitized.strip("_")
+    # Remove trailing underscores only (keep leading _ for digit-prefixed names)
+    sanitized = sanitized.rstrip("_")
 
     # Handle empty or invalid names
     if not sanitized or sanitized == "_":
         sanitized = "UNNAMED_PIN"
 
-    return sanitized.upper()
+    result = sanitized.upper()
+
+    # Collision detection: append _2, _3, … when a tracker is provided
+    if seen_names is not None:
+        count = seen_names.get(result, 0) + 1
+        seen_names[result] = count
+        if count > 1:
+            result = f"{result}_{count}"
+
+    return result
 
 
 def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
@@ -136,6 +150,9 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
             ]
         )
 
+        # Track emitted #define names to avoid collisions
+        seen_names: dict[str, int] = {}
+
         # Group constants by bus/function
         for group_name, pins in bus_groups.items():
             if pins:
@@ -143,7 +160,9 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                 for pin_info in pins:
                     pin_num_match = re.search(r"\d+", pin_info.pin_name)
                     pin_num = pin_num_match.group() if pin_num_match else "0"
-                    const_name = _sanitize_net_name(pin_info.net_name)
+                    const_name = _sanitize_net_name(
+                        pin_info.net_name, seen_names
+                    )
                     comment = f"  // {pin_info.description}"
                     lines.append(f"#define {const_name} {pin_num}{comment}")
                 lines.append("")

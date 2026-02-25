@@ -5,7 +5,7 @@ Provides backward-compatible legacy RP2040Profile that delegates
 to the canonical rp2040_profile.RP2040Profile.
 """
 
-import sys
+import sys  # noqa: F401  # kept for backward-compat with downstream importers
 from typing import Any
 
 
@@ -57,11 +57,8 @@ class RP2040Profile:
 
     def create_canonical_pinmap(self, nets: dict[str, list[str]]) -> dict[str, Any]:
         """Create canonical pinmap dictionary."""
-        canonical = self._delegate.create_canonical_pinmap(nets)
-        # Print validation errors to stderr for legacy callers
-        for err in canonical.get("metadata", {}).get("validation_errors", []):
-            print(f"Validation error: {err}", file=sys.stderr)
-        return canonical
+        # Delegate handles all validation output; no need to re-print here.
+        return self._delegate.create_canonical_pinmap(nets)
 
 
 

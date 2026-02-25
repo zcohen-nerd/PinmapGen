@@ -79,18 +79,7 @@ class RoleInferencer:
                 r"(?i).*i2c.*scl.*",
                 r"(?i).*(?<![a-zA-Z])scl(?![a-zA-Z]).*",
             ],
-            # UART patterns
-            PinRole.UART_TX: [
-                r"(?i).*uart.*tx.*",
-                r"(?i).*(?<![a-zA-Z])tx(?![a-zA-Z]).*",
-                r"(?i).*serial.*tx.*",
-            ],
-            PinRole.UART_RX: [
-                r"(?i).*uart.*rx.*",
-                r"(?i).*(?<![a-zA-Z])rx(?![a-zA-Z]).*",
-                r"(?i).*serial.*rx.*",
-            ],
-            # SPI patterns
+            # SPI patterns (before UART so SPI_TX is not misclassified)
             PinRole.SPI_MOSI: [
                 r"(?i).*spi.*mosi.*",
                 r"(?i).*(?<![a-zA-Z])mosi(?![a-zA-Z]).*",
@@ -111,6 +100,17 @@ class RoleInferencer:
                 r"(?i).*(?<![a-zA-Z])cs(?![a-zA-Z]).*",
                 r"(?i).*spi.*ss.*",
                 r"(?i).*(?<![a-zA-Z])ss(?![a-zA-Z]).*",
+            ],
+            # UART patterns
+            PinRole.UART_TX: [
+                r"(?i).*uart.*tx.*",
+                r"(?i).*(?<![a-zA-Z])tx(?![a-zA-Z]).*",
+                r"(?i).*serial.*tx.*",
+            ],
+            PinRole.UART_RX: [
+                r"(?i).*uart.*rx.*",
+                r"(?i).*(?<![a-zA-Z])rx(?![a-zA-Z]).*",
+                r"(?i).*serial.*rx.*",
             ],
             # USB patterns
             PinRole.USB_DP: [

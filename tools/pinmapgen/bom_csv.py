@@ -34,7 +34,7 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
 
     rows = []
     try:
-        with csv_path.open(encoding="utf-8") as csvfile:
+        with csv_path.open(encoding="utf-8-sig") as csvfile:
             # Use DictReader to automatically handle headers
             reader = csv.DictReader(csvfile)
 

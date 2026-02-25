@@ -39,33 +39,47 @@ def emit_micropython(
         f.write(code)
 
 
-def _sanitize_net_name(net_name: str) -> str:
-    """
-    Sanitize net name for use as Python constant.
+def _sanitize_net_name(
+    net_name: str, seen_names: dict[str, int] | None = None
+) -> str:
+    """Sanitize net name for use as Python constant.
 
     Args:
-        net_name: Raw net name from netlist
+        net_name: Raw net name from netlist.
+        seen_names: Optional dict tracking previously emitted names.
+            When provided, duplicate sanitized names receive ``_2``, ``_3``,
+            etc. suffixes to avoid collisions.
 
     Returns:
-        Sanitized constant name
+        Sanitized constant name (uppercase).
     """
     # Remove invalid characters and replace with underscores
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", net_name)
 
-    # Remove leading digits
-    sanitized = re.sub(r"^[0-9]+", "", sanitized)
+    # Prefix leading digits with underscore (preserves names like 3V3)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "_" + sanitized
 
     # Remove consecutive underscores
     sanitized = re.sub(r"_{2,}", "_", sanitized)
 
-    # Remove leading/trailing underscores
-    sanitized = sanitized.strip("_")
+    # Remove trailing underscores only (keep leading _ for digit-prefixed names)
+    sanitized = sanitized.rstrip("_")
 
     # Handle empty or invalid names
     if not sanitized or sanitized == "_":
         sanitized = "UNNAMED_PIN"
 
-    return sanitized.upper()
+    result = sanitized.upper()
+
+    # Collision detection: append _2, _3, … when a tracker is provided
+    if seen_names is not None:
+        count = seen_names.get(result, 0) + 1
+        seen_names[result] = count
+        if count > 1:
+            result = f"{result}_{count}"
+
+    return result
 
 
 def _extract_primary_pin(pin_entry: Any) -> str | None:
@@ -230,12 +244,15 @@ def _render_pin_constants(bus_groups: dict[str, list[Any]]) -> list[str]:
         "",
     ]
 
+    # Track emitted constant names to avoid collisions
+    seen_names: dict[str, int] = {}
+
     for group_name, pins in bus_groups.items():
         if not pins:
             continue
         lines.append(f"# {group_name} Pins")
         for pin_info in pins:
-            const_name = _sanitize_net_name(pin_info.net_name)
+            const_name = _sanitize_net_name(pin_info.net_name, seen_names)
             descriptor = f"{pin_info.description} ({pin_info.pin_name})"
             literal = _micropython_pin_literal(pin_info.pin_name)
             lines.append(f"{const_name} = {literal}  # {descriptor}")

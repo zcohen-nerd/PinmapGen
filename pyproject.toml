@@ -56,6 +56,7 @@ ignore = [
     "PTH110",  # os-path-exists — acceptable in tests
     "PTH123",  # builtin-open — acceptable in tests
     "ARG002",  # unused-method-argument — setUp/tearDown signatures
+    "SLF001",  # private-member-access — tests need to verify internal methods
 ]
 "tools/pinmapgen/cli.py" = [
     "T201",    # print — CLI entry point uses print intentionally

@@ -151,8 +151,11 @@ class MCUProfile(ABC):
             "uart.rx": PinCapability.UART_RX,
             "can.tx": PinCapability.CAN_TX,
             "can.rx": PinCapability.CAN_RX,
+            "can.h": PinCapability.CAN_TX,
+            "can.l": PinCapability.CAN_RX,
             "usb.dp": PinCapability.USB_DP,
             "usb.dm": PinCapability.USB_DM,
+            "usb.dn": PinCapability.USB_DM,
         }
         return role_mappings.get(role.lower())
 
@@ -175,8 +178,8 @@ class MCUProfile(ABC):
         diff_patterns = [
             (r"(.+)_P$", r"(.+)_N$"),  # Signal_P / Signal_N
             (r"(.+)_DP$", r"(.+)_DN$"),  # Signal_DP / Signal_DN
-            (r"(.+)_DM$", r"(.+)_DP$"),  # USB style DM/DP
-            (r"(.+)DP$", r"(.+)DM$"),  # USB_DP / USB_DM
+            (r"(.+)_DP$", r"(.+)_DM$"),  # USB style DP/DM (DP=positive)
+            (r"(.+)DP$", r"(.+)DM$"),  # USBDP / USBDM
             (r"(.+)CANH$", r"(.+)CANL$"),  # CAN High/Low
             (r"(.+)_PLUS$", r"(.+)_MINUS$"),  # Signal_PLUS / Signal_MINUS
         ]
@@ -310,6 +313,8 @@ class MCUProfile(ABC):
 
         role_inferrer = PinRoleInferrer()
 
+        dropped_pins: list[dict[str, str]] = []
+
         for net_name, pins in nets.items():
             normalized_pins = []
             for pin in pins:
@@ -324,7 +329,14 @@ class MCUProfile(ABC):
                     )
                     validation_warnings.extend(pin_warnings)
 
-                except ValueError:
+                except ValueError as exc:
+                    dropped_pins.append(
+                        {"pin": pin, "net": net_name, "reason": str(exc)}
+                    )
+                    print(
+                        f"Warning: Dropped pin '{pin}' on net '{net_name}': {exc}",
+                        file=sys.stderr,
+                    )
                     continue
 
             if normalized_pins:
@@ -360,6 +372,7 @@ class MCUProfile(ABC):
                 "special_pins_used": special_pins_used,
                 "validation_warnings": validation_warnings,
                 "validation_errors": validation_errors,
+                "dropped_pins": dropped_pins,
             },
         }
 
