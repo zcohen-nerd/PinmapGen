@@ -27,7 +27,45 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "PERF", "RUF"]
-ignore = ["E501", "COM812", "ISC001"]
+ignore = [
+    "E501",    # line-too-long — handled by formatter
+    "COM812",  # missing-trailing-comma — conflicts with formatter
+    "ISC001",  # single-line-implicit-string-concatenation — conflicts with formatter
+    "C901",    # complex-structure — emitter/normalizer functions are inherently branchy
+    "PLR0912", # too-many-branches — same rationale as C901
+    "PLR0911", # too-many-return-statements — normalize_pin_name uses early returns by design
+    "PLR0915", # too-many-statements — large emitter functions are acceptable
+    "PLR0913", # too-many-arguments — watch_and_regenerate wraps CLI args
+    "PLR2004", # magic-value-comparison — GPIO pin numbers are clearer as literals
+    "FBT001",  # boolean-type-hint-positional-argument — acceptable for internal helpers
+    "FBT002",  # boolean-default-value-positional-argument — same
+    "PLC0415", # import-outside-top-level — deferred imports are intentional (tearDown, exception handler, lazy load)
+    "TRY300",  # try-consider-else — acceptable try/except structure
+    "TRY301",  # raise-within-try — acceptable try/except structure
+    "S314",    # suspicious-xml-element-tree-usage — stdlib-only project, defusedxml not available
+    "ARG001",  # unused-function-argument — signal handlers, API compatibility
+    "ARG002",  # unused-method-argument — future-proofed API (e.g., _is_valid_multipin_net)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "PT009",   # pytest-unittest-assertion — project uses unittest.TestCase
+    "PT027",   # pytest-unittest-raises — project uses unittest.TestCase
+    "S603",    # subprocess-without-shell — test integration spawns CLI
+    "PTH118",  # os-path-join — acceptable in tests
+    "PTH110",  # os-path-exists — acceptable in tests
+    "PTH123",  # builtin-open — acceptable in tests
+    "ARG002",  # unused-method-argument — setUp/tearDown signatures
+]
+"tools/pinmapgen/cli.py" = [
+    "T201",    # print — CLI entry point uses print intentionally
+    "BLE001",  # blind-except — top-level CLI handler needs broad catch
+]
+"tools/pinmapgen/watch.py" = [
+    "T201",    # print — watch mode uses print for status
+    "BLE001",  # blind-except — watcher needs broad catch
+    "S603",    # subprocess-without-shell — spawns CLI intentionally
+]
 
 [tool.ruff.format]
 quote-style = "double"

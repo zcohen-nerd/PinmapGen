@@ -13,13 +13,13 @@ from typing import Any
 def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
     """
     Parse CSV netlist export.
-    
+
     Args:
         csv_path: Path to the CSV file (Path object or string)
-        
+
     Returns:
         List of dictionaries containing net information
-        
+
     Raises:
         FileNotFoundError: If CSV file doesn't exist
         ValueError: If CSV has invalid format
@@ -29,11 +29,12 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
         csv_path = Path(csv_path)
 
     if not csv_path.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+        msg = f"CSV file not found: {csv_path}"
+        raise FileNotFoundError(msg)
 
     rows = []
     try:
-        with open(csv_path, encoding="utf-8") as csvfile:
+        with csv_path.open(encoding="utf-8") as csvfile:
             # Use DictReader to automatically handle headers
             reader = csv.DictReader(csvfile)
 
@@ -41,10 +42,13 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
             required_columns = {"Net", "Pin", "Component", "RefDes"}
             if not required_columns.issubset(set(reader.fieldnames or [])):
                 missing = required_columns - set(reader.fieldnames or [])
-                raise ValueError(f"CSV missing required columns: {missing}")
+                msg = f"CSV missing required columns: {missing}"
+                raise ValueError(msg)
 
             # Read all rows
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is line 1)
+            for row_num, row in enumerate(
+                reader, start=2
+            ):  # Start at 2 (header is line 1)
                 # Validate row has data
                 if not any(row.values()):
                     continue  # Skip empty rows
@@ -55,32 +59,38 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
                 # Validate required fields are not empty
                 for field in required_columns:
                     if not cleaned_row.get(field):
-                        raise ValueError(f"Empty {field} at line {row_num}")
+                        msg = f"Empty {field} at line {row_num}"
+                        raise ValueError(msg)
 
                 rows.append(cleaned_row)
 
     except UnicodeDecodeError:
-        raise ValueError(f"CSV file encoding error: {csv_path}")
+        msg = f"CSV file encoding error: {csv_path}"
+        raise ValueError(msg) from None
     except csv.Error as e:
-        raise ValueError(f"CSV parsing error: {e}")
+        msg = f"CSV parsing error: {e}"
+        raise ValueError(msg) from e
 
     if not rows:
-        raise ValueError("CSV file contains no valid data rows")
+        msg = "CSV file contains no valid data rows"
+        raise ValueError(msg)
 
     return rows
 
 
-def parse_netlist_tuples(csv_path: Path | str, mcu_ref: str) -> list[tuple[str, str, str]]:
+def parse_netlist_tuples(
+    csv_path: Path | str, mcu_ref: str
+) -> list[tuple[str, str, str]]:
     """
     Parse CSV netlist into (net_name, refdes, pin) tuples, filtering for the MCU ref.
-    
+
     Args:
         csv_path: Path to the CSV file
         mcu_ref: MCU reference designator to filter for (e.g., "U1")
-        
+
     Returns:
         List of (net_name, refdes, pin) tuples for the specified MCU
-        
+
     Raises:
         ValueError: If no entries found for the specified MCU reference
     """
@@ -96,19 +106,22 @@ def parse_netlist_tuples(csv_path: Path | str, mcu_ref: str) -> list[tuple[str, 
             mcu_tuples.append((net_name, refdes, pin))
 
     if not mcu_tuples:
-        raise ValueError(f"No entries found for MCU reference '{mcu_ref}'")
+        msg = f"No entries found for MCU reference '{mcu_ref}'"
+        raise ValueError(msg)
 
     return mcu_tuples
 
 
-def extract_nets(csv_data: list[dict[str, Any]], mcu_ref: str = None) -> dict[str, list[str]]:
+def extract_nets(
+    csv_data: list[dict[str, Any]], mcu_ref: str | None = None
+) -> dict[str, list[str]]:
     """
     Extract net to pin mappings from CSV data.
-    
+
     Args:
         csv_data: Parsed CSV data
         mcu_ref: Optional MCU reference to filter for. If None, processes all entries.
-        
+
     Returns:
         Dictionary mapping net names to pin lists
     """
@@ -136,11 +149,11 @@ def extract_nets(csv_data: list[dict[str, Any]], mcu_ref: str = None) -> dict[st
 def get_mcu_nets(csv_path: Path | str, mcu_ref: str) -> dict[str, list[str]]:
     """
     Convenience function to parse CSV and extract nets for a specific MCU.
-    
+
     Args:
         csv_path: Path to the CSV file
         mcu_ref: MCU reference designator (e.g., "U1")
-        
+
     Returns:
         Dictionary mapping net names to pin lists for the specified MCU
     """

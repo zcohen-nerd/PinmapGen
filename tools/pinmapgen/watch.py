@@ -16,10 +16,15 @@ from pathlib import Path
 class SimpleFileWatcher:
     """Simple polling-based file watcher."""
 
-    def __init__(self, watch_paths: set[Path], callback: Callable[[Path], None], poll_interval: float = 1.0):
+    def __init__(
+        self,
+        watch_paths: set[Path],
+        callback: Callable[[Path], None],
+        poll_interval: float = 1.0,
+    ):
         """
         Initialize file watcher.
-        
+
         Args:
             watch_paths: Set of paths to watch for changes
             callback: Function to call when files change
@@ -56,7 +61,10 @@ class SimpleFileWatcher:
 
             if watch_path.is_file():
                 current_time = watch_path.stat().st_mtime
-                if watch_path not in self.file_times or self.file_times[watch_path] != current_time:
+                if (
+                    watch_path not in self.file_times
+                    or self.file_times[watch_path] != current_time
+                ):
                     self.file_times[watch_path] = current_time
                     changed_files.add(watch_path)
 
@@ -65,7 +73,10 @@ class SimpleFileWatcher:
                 for file_path in watch_path.rglob("*"):
                     if file_path.is_file():
                         current_time = file_path.stat().st_mtime
-                        if file_path not in self.file_times or self.file_times[file_path] != current_time:
+                        if (
+                            file_path not in self.file_times
+                            or self.file_times[file_path] != current_time
+                        ):
                             self.file_times[file_path] = current_time
                             changed_files.add(file_path)
 
@@ -100,15 +111,17 @@ class SimpleFileWatcher:
         self.running = False
 
 
-def watch_and_regenerate(watch_dir: Path | str,
-                        mcu: str = "rp2040",
-                        mcu_ref: str = "U1",
-                        out_root: Path | str = ".",
-                        mermaid: bool = False,
-                        poll_interval: float = 1.0) -> None:
+def watch_and_regenerate(
+    watch_dir: Path | str,
+    mcu: str = "rp2040",
+    mcu_ref: str = "U1",
+    out_root: Path | str = ".",
+    mermaid: bool = False,
+    poll_interval: float = 1.0,
+) -> None:
     """
     Watch directory for changes and regenerate pinmaps automatically.
-    
+
     Args:
         watch_dir: Directory to watch for .sch/.csv files
         mcu: MCU profile to use
@@ -155,11 +168,7 @@ def watch_and_regenerate(watch_dir: Path | str,
             print(f"ERROR: Unsupported file type: {changed_file.suffix}")
             return
 
-        cmd.extend([
-            "--mcu", mcu,
-            "--mcu-ref", mcu_ref,
-            "--out-root", str(out_root)
-        ])
+        cmd.extend(["--mcu", mcu, "--mcu-ref", mcu_ref, "--out-root", str(out_root)])
 
         if mermaid:
             cmd.append("--mermaid")
@@ -168,9 +177,10 @@ def watch_and_regenerate(watch_dir: Path | str,
             # Run the pinmap generator
             result = subprocess.run(
                 cmd,
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
-                timeout=30  # 30 second timeout
+                timeout=30,  # 30 second timeout
             )
 
             if result.returncode == 0:
@@ -194,7 +204,7 @@ def watch_and_regenerate(watch_dir: Path | str,
     watcher = SimpleFileWatcher(
         watch_paths=watch_files,
         callback=regenerate_callback,
-        poll_interval=poll_interval
+        poll_interval=poll_interval,
     )
 
     watcher.start()
@@ -208,37 +218,31 @@ def main() -> None:
         description="Watch for changes to .sch/.csv files and regenerate pinmaps automatically"
     )
     parser.add_argument(
-        "watch_dir",
-        type=Path,
-        help="Directory to watch for .sch/.csv files"
+        "watch_dir", type=Path, help="Directory to watch for .sch/.csv files"
     )
     parser.add_argument(
         "--mcu",
         default="rp2040",
         choices=["rp2040", "stm32g0", "esp32"],
-        help="MCU profile (default: rp2040)"
+        help="MCU profile (default: rp2040)",
     )
     parser.add_argument(
-        "--mcu-ref",
-        default="U1",
-        help="MCU reference designator (default: U1)"
+        "--mcu-ref", default="U1", help="MCU reference designator (default: U1)"
     )
     parser.add_argument(
         "--out-root",
         type=Path,
         default=Path(),
-        help="Output root directory (default: current directory)"
+        help="Output root directory (default: current directory)",
     )
     parser.add_argument(
-        "--mermaid",
-        action="store_true",
-        help="Generate Mermaid diagrams"
+        "--mermaid", action="store_true", help="Generate Mermaid diagrams"
     )
     parser.add_argument(
         "--interval",
         type=float,
         default=1.0,
-        help="Polling interval in seconds (default: 1.0)"
+        help="Polling interval in seconds (default: 1.0)",
     )
 
     args = parser.parse_args()
@@ -259,7 +263,7 @@ def main() -> None:
         mcu_ref=args.mcu_ref,
         out_root=args.out_root,
         mermaid=args.mermaid,
-        poll_interval=args.interval
+        poll_interval=args.interval,
     )
 
 

@@ -5,10 +5,10 @@ Generate pinmap_micropython.py files with helper utilities.
 """
 
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from . import get_build_datetime
 from .roles import PinRole, analyze_roles
 
 
@@ -41,10 +41,10 @@ def emit_micropython(
 def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
     """
     Generate MicroPython pin constant definitions from canonical dictionary.
-    
+
     Args:
         canonical_dict: Canonical pinmap dictionary
-        
+
     Returns:
         MicroPython code string
     """
@@ -52,18 +52,20 @@ def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
 
     # File header
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
 
-    lines.extend([
-        '"""',
-        f"Auto-generated MicroPython pinmap for {mcu}.",
-        f"Generated: {timestamp}",
-        "Generator: PinmapGen",
-        "",
-        "Pin constants for easy hardware access.",
-        '"""',
-        "",
-    ])
+    lines.extend(
+        [
+            '"""',
+            f"Auto-generated MicroPython pinmap for {mcu}.",
+            f"Generated: {timestamp}",
+            "Generator: PinmapGen",
+            "",
+            "Pin constants for easy hardware access.",
+            '"""',
+            "",
+        ]
+    )
 
     # Generate pin constants
     if "pins" in canonical_dict:
@@ -106,12 +108,8 @@ def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
             pair_const = _sanitize_net_name(f"{pos_net}_{neg_net}")
             pos_literal = _micropython_pin_literal(pos_pin)
             neg_literal = _micropython_pin_literal(neg_pin)
-            lines.append(
-                f"{pair_const}_POS = {pos_literal}  # {pos_pin}"
-            )
-            lines.append(
-                f"{pair_const}_NEG = {neg_literal}  # {neg_pin}"
-            )
+            lines.append(f"{pair_const}_POS = {pos_literal}  # {pos_pin}")
+            lines.append(f"{pair_const}_NEG = {neg_literal}  # {neg_pin}")
 
         lines.append("")
 
@@ -121,10 +119,10 @@ def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
 def _sanitize_net_name(net_name: str) -> str:
     """
     Sanitize net name for use as Python constant.
-    
+
     Args:
         net_name: Raw net name from netlist
-        
+
     Returns:
         Sanitized constant name
     """
@@ -279,7 +277,7 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
 
 def _render_file_header(canonical_dict: dict[str, Any]) -> list[str]:
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
     return [
         '"""',
         f"Auto-generated MicroPython pinmap for {mcu}.",
@@ -428,20 +426,21 @@ def _i2c_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
         scl_const = _sanitize_net_name(scl_pin.net_name)
 
         helper_doc = (
-            f"Setup {i2c_name} with SDA={sda_pin.pin_name}, "
-            f"SCL={scl_pin.pin_name}."
+            f"Setup {i2c_name} with SDA={sda_pin.pin_name}, SCL={scl_pin.pin_name}."
         )
-        helpers.extend([
-            f"def {func_name}(freq=400000):",
-            f'    """{helper_doc}"""',
-            "    return I2C(",
-            f"        {i2c_num},",
-            f"        sda=Pin({sda_const}),",
-            f"        scl=Pin({scl_const}),",
-            "        freq=freq,",
-            "    )",
-            "",
-        ])
+        helpers.extend(
+            [
+                f"def {func_name}(freq=400000):",
+                f'    """{helper_doc}"""',
+                "    return I2C(",
+                f"        {i2c_num},",
+                f"        sda=Pin({sda_const}),",
+                f"        scl=Pin({scl_const}),",
+                "        freq=freq,",
+                "    )",
+                "",
+            ]
+        )
 
     return helpers
 
@@ -478,18 +477,20 @@ def _spi_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
             f"Setup {spi_name} with MOSI={mosi_pin.pin_name}, "
             f"MISO={miso_pin.pin_name}, SCK={sck_pin.pin_name}."
         )
-        helpers.extend([
-            f"def {func_name}(baudrate=1_000_000):",
-            f'    """{helper_doc}"""',
-            "    return SPI(",
-            f"        {spi_num},",
-            f"        mosi=Pin({mosi_const}),",
-            f"        miso=Pin({miso_const}),",
-            f"        sck=Pin({sck_const}),",
-            "        baudrate=baudrate,",
-            "    )",
-            "",
-        ])
+        helpers.extend(
+            [
+                f"def {func_name}(baudrate=1_000_000):",
+                f'    """{helper_doc}"""',
+                "    return SPI(",
+                f"        {spi_num},",
+                f"        mosi=Pin({mosi_const}),",
+                f"        miso=Pin({miso_const}),",
+                f"        sck=Pin({sck_const}),",
+                "        baudrate=baudrate,",
+                "    )",
+                "",
+            ]
+        )
 
     return helpers
 
@@ -503,18 +504,20 @@ def _diff_pair_helpers(diff_pairs: list[Any]) -> list[str]:
         pos_const = _sanitize_net_name(pair[0].net_name)
         neg_const = _sanitize_net_name(pair[1].net_name)
 
-        body.extend([
-            "class USBPins:",
-            '    """USB differential pair pin definitions."""',
-            f"    DP = {pos_const}  # {pair[0].description}",
-            f"    DN = {neg_const}  # {pair[1].description}",
-            "",
-            "    @classmethod",
-            "    def get_pair(cls):",
-            '        """Get USB D+/D- pin tuple."""',
-            "        return (cls.DP, cls.DN)",
-            "",
-        ])
+        body.extend(
+            [
+                "class USBPins:",
+                '    """USB differential pair pin definitions."""',
+                f"    DP = {pos_const}  # {pair[0].description}",
+                f"    DN = {neg_const}  # {pair[1].description}",
+                "",
+                "    @classmethod",
+                "    def get_pair(cls):",
+                '        """Get USB D+/D- pin tuple."""',
+                "        return (cls.DP, cls.DN)",
+                "",
+            ]
+        )
 
     if not body:
         return []

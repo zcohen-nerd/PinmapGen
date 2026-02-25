@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -42,33 +43,23 @@ def parse_arguments() -> argparse.Namespace:
 Examples:
   python -m tools.pinmapgen.cli --csv hardware/exports/netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
   python -m tools.pinmapgen.cli --sch hardware/exports/project.sch --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
-        """
+        """,
     )
 
     # Input source (mutually exclusive)
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument(
-        "--csv",
-        type=Path,
-        help="CSV netlist export file"
-    )
-    input_group.add_argument(
-        "--sch",
-        type=Path,
-        help="EAGLE schematic file (.sch)"
-    )
+    input_group.add_argument("--csv", type=Path, help="CSV netlist export file")
+    input_group.add_argument("--sch", type=Path, help="EAGLE schematic file (.sch)")
 
     # MCU configuration
     parser.add_argument(
         "--mcu",
         required=True,
         choices=list(MCU_PROFILES.keys()),
-        help=f"MCU profile (supports: {', '.join(MCU_PROFILES.keys())})"
+        help=f"MCU profile (supports: {', '.join(MCU_PROFILES.keys())})",
     )
     parser.add_argument(
-        "--mcu-ref",
-        required=True,
-        help="MCU reference designator (e.g., U1)"
+        "--mcu-ref", required=True, help="MCU reference designator (e.g., U1)"
     )
 
     # Output configuration
@@ -76,19 +67,20 @@ Examples:
         "--out-root",
         type=Path,
         default=Path(),
-        help="Output root directory (default: current directory)"
+        help="Output root directory (default: current directory)",
     )
     parser.add_argument(
-        "--mermaid",
-        action="store_true",
-        help="Generate Mermaid diagram files"
+        "--mermaid", action="store_true", help="Generate Mermaid diagram files"
     )
 
     # Optional flags
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
+    )
+    parser.add_argument(
+        "--reproducible",
         action="store_true",
-        help="Enable verbose output"
+        help="Produce reproducible output (fixed timestamps)",
     )
 
     return parser.parse_args()
@@ -130,8 +122,9 @@ def parse_input_file(args: argparse.Namespace) -> dict[str, list[str]]:
     return nets
 
 
-def create_canonical_pinmap(nets: dict[str, list[str]], mcu_name: str,
-                           verbose: bool = False) -> dict[str, Any]:
+def create_canonical_pinmap(
+    nets: dict[str, list[str]], mcu_name: str, verbose: bool = False
+) -> dict[str, Any]:
     """Create canonical pinmap dictionary with normalization and validation."""
     if verbose:
         print(f"Normalizing pins for {mcu_name}")
@@ -139,7 +132,8 @@ def create_canonical_pinmap(nets: dict[str, list[str]], mcu_name: str,
     try:
         # Get MCU profile
         if mcu_name not in MCU_PROFILES:
-            raise ValueError(f"Unknown MCU profile: {mcu_name}")
+            msg = f"Unknown MCU profile: {mcu_name}"
+            raise ValueError(msg)
 
         profile_class = MCU_PROFILES[mcu_name]
         profile = profile_class()
@@ -229,6 +223,10 @@ def main():
             print(f"Output root: {args.out_root}")
             print()
 
+        # Enable reproducible builds
+        if args.reproducible:
+            os.environ.setdefault("SOURCE_DATE_EPOCH", "0")
+
         # Parse input file and extract nets
         nets = parse_input_file(args)
 
@@ -250,6 +248,7 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         if args is not None and args.verbose:
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 

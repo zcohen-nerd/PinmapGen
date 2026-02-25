@@ -72,7 +72,7 @@ class TestNormalize(unittest.TestCase):
             "USB_DP": ["GP25"],
             "USB_DM": ["GP24"],
             "I2C_SDA": ["GP0"],
-            "I2C_SCL": ["GP1"]
+            "I2C_SCL": ["GP1"],
         }
 
         canonical = self.rp2040_profile.create_canonical_pinmap(nets)

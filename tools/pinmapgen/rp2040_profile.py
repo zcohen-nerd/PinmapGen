@@ -36,7 +36,7 @@ class RP2040Profile(MCUProfile):
             self.pins[f"GP{pin_num}"] = PinInfo(
                 name=f"GP{pin_num}",
                 capabilities=capabilities,
-                alternate_names=[f"GPIO{pin_num}", f"IO{pin_num}", str(pin_num)]
+                alternate_names=[f"GPIO{pin_num}", f"IO{pin_num}", str(pin_num)],
             )
 
         # GP23 - SMPS mode pin (limited functionality)
@@ -45,7 +45,7 @@ class RP2040Profile(MCUProfile):
             capabilities={PinCapability.GPIO},
             special_function="SMPS Power Mode",
             warnings=["GP23 controls SMPS power mode - use with caution"],
-            alternate_names=["GPIO23", "IO23", "23"]
+            alternate_names=["GPIO23", "IO23", "23"],
         )
 
         # GP24 - USB D- (differential pair)
@@ -54,7 +54,15 @@ class RP2040Profile(MCUProfile):
             capabilities={PinCapability.GPIO, PinCapability.USB_DM},
             special_function="USB D- (Data Minus)",
             warnings=["GP24 is USB D- pin - avoid for general GPIO if USB needed"],
-            alternate_names=["USB_DM", "USB_DN", "USBDM", "USBDN", "GPIO24", "IO24", "24"]
+            alternate_names=[
+                "USB_DM",
+                "USB_DN",
+                "USBDM",
+                "USBDN",
+                "GPIO24",
+                "IO24",
+                "24",
+            ],
         )
 
         # GP25 - USB D+ (differential pair)
@@ -63,7 +71,7 @@ class RP2040Profile(MCUProfile):
             capabilities={PinCapability.GPIO, PinCapability.USB_DP},
             special_function="USB D+ (Data Plus)",
             warnings=["GP25 is USB D+ pin - avoid for general GPIO if USB needed"],
-            alternate_names=["USB_DP", "USBDP", "GPIO25", "IO25", "25"]
+            alternate_names=["USB_DP", "USBDP", "GPIO25", "IO25", "25"],
         )
 
         # ADC pins (26-29)
@@ -71,7 +79,7 @@ class RP2040Profile(MCUProfile):
             ("GP26", "ADC Channel 0", "ADC0"),
             ("GP27", "ADC Channel 1", "ADC1"),
             ("GP28", "ADC Channel 2", "ADC2"),
-            ("GP29", "ADC Channel 3", "ADC3")
+            ("GP29", "ADC Channel 3", "ADC3"),
         ]
 
         for pin_name, special_func, adc_name in adc_pins:
@@ -94,62 +102,83 @@ class RP2040Profile(MCUProfile):
                 name=pin_name,
                 capabilities=capabilities,
                 special_function=special_func,
-                alternate_names=[f"GPIO{pin_num}", f"IO{pin_num}", pin_num, adc_name]
+                alternate_names=[f"GPIO{pin_num}", f"IO{pin_num}", pin_num, adc_name],
             )
 
     def _initialize_peripherals(self) -> None:
         """Initialize RP2040 peripheral definitions."""
         # I2C peripherals
-        self.peripherals.extend([
-            PeripheralInfo("I2C", 0, {"sda": "configurable", "scl": "configurable"}),
-            PeripheralInfo("I2C", 1, {"sda": "configurable", "scl": "configurable"}),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "I2C", 0, {"sda": "configurable", "scl": "configurable"}
+                ),
+                PeripheralInfo(
+                    "I2C", 1, {"sda": "configurable", "scl": "configurable"}
+                ),
+            ]
+        )
 
         # SPI peripherals
-        self.peripherals.extend([
-            PeripheralInfo("SPI", 0, {
-                "mosi": "configurable", "miso": "configurable",
-                "sck": "configurable", "cs": "configurable"
-            }),
-            PeripheralInfo("SPI", 1, {
-                "mosi": "configurable", "miso": "configurable",
-                "sck": "configurable", "cs": "configurable"
-            }),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "SPI",
+                    0,
+                    {
+                        "mosi": "configurable",
+                        "miso": "configurable",
+                        "sck": "configurable",
+                        "cs": "configurable",
+                    },
+                ),
+                PeripheralInfo(
+                    "SPI",
+                    1,
+                    {
+                        "mosi": "configurable",
+                        "miso": "configurable",
+                        "sck": "configurable",
+                        "cs": "configurable",
+                    },
+                ),
+            ]
+        )
 
         # UART peripherals
-        self.peripherals.extend([
-            PeripheralInfo("UART", 0, {"tx": "configurable", "rx": "configurable"}),
-            PeripheralInfo("UART", 1, {"tx": "configurable", "rx": "configurable"}),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo("UART", 0, {"tx": "configurable", "rx": "configurable"}),
+                PeripheralInfo("UART", 1, {"tx": "configurable", "rx": "configurable"}),
+            ]
+        )
 
         # USB peripheral
-        self.peripherals.append(
-            PeripheralInfo("USB", 0, {"dp": "GP25", "dm": "GP24"})
-        )
+        self.peripherals.append(PeripheralInfo("USB", 0, {"dp": "GP25", "dm": "GP24"}))
 
         # ADC peripheral
         self.peripherals.append(
-            PeripheralInfo("ADC", 0, {
-                "ch0": "GP26", "ch1": "GP27", "ch2": "GP28", "ch3": "GP29"
-            })
+            PeripheralInfo(
+                "ADC", 0, {"ch0": "GP26", "ch1": "GP27", "ch2": "GP28", "ch3": "GP29"}
+            )
         )
 
     def normalize_pin_name(self, pin_name: str) -> str:
         """
         Normalize pin name according to RP2040 conventions.
-        
+
         Args:
             pin_name: Raw pin name from schematic/CSV
-            
+
         Returns:
             Normalized pin name (GPxx format)
-            
+
         Raises:
             ValueError: If pin name cannot be normalized
         """
         if not pin_name:
-            raise ValueError("Pin name cannot be empty")
+            msg = "Pin name cannot be empty"
+            raise ValueError(msg)
 
         # Remove whitespace and convert to uppercase
         pin_name = pin_name.strip().upper()
@@ -170,7 +199,10 @@ class RP2040Profile(MCUProfile):
                 normalized = f"GP{pin_num}"
                 if normalized in self.pins:
                     return normalized
-                raise ValueError(f"Invalid GPIO pin: {pin_name} (RP2040 valid range: GP0-GP29)")
+                msg = f"Invalid GPIO pin: {pin_name} (RP2040 valid range: GP0-GP29)"
+                raise ValueError(
+                    msg
+                )
 
         # IOxx -> GPxx
         elif pin_name.startswith("IO"):
@@ -180,13 +212,19 @@ class RP2040Profile(MCUProfile):
                 normalized = f"GP{pin_num}"
                 if normalized in self.pins:
                     return normalized
-                raise ValueError(f"Invalid IO pin: {pin_name} (RP2040 valid range: GP0-GP29)")
+                msg = f"Invalid IO pin: {pin_name} (RP2040 valid range: GP0-GP29)"
+                raise ValueError(
+                    msg
+                )
 
         # GPxx (already normalized)
         elif pin_name.startswith("GP"):
             if pin_name in self.pins:
                 return pin_name
-            raise ValueError(f"Invalid GP pin: {pin_name} (RP2040 valid range: GP0-GP29)")
+            msg = f"Invalid GP pin: {pin_name} (RP2040 valid range: GP0-GP29)"
+            raise ValueError(
+                msg
+            )
 
         # Handle numeric-only pins (assume GPIO)
         elif pin_name.isdigit():
@@ -194,7 +232,10 @@ class RP2040Profile(MCUProfile):
             normalized = f"GP{pin_num}"
             if normalized in self.pins:
                 return normalized
-            raise ValueError(f"Invalid pin number: {pin_name} (RP2040 valid range: 0-29)")
+            msg = f"Invalid pin number: {pin_name} (RP2040 valid range: 0-29)"
+            raise ValueError(
+                msg
+            )
 
         # Handle special USB pins by name
         elif pin_name in ["USB_DP", "USB_DM", "USB_DN", "USBDP", "USBDM", "USBDN"]:
@@ -209,16 +250,17 @@ class RP2040Profile(MCUProfile):
             return f"GP{26 + adc_num}"
 
         # Unknown format
-        raise ValueError(f"Cannot normalize RP2040 pin name: {pin_name}")
+        msg = f"Cannot normalize RP2040 pin name: {pin_name}"
+        raise ValueError(msg)
 
     def validate_pin_assignment(self, pin_name: str, role: str) -> list[str]:
         """
         RP2040-specific pin assignment validation.
-        
+
         Args:
             pin_name: Normalized pin name
             role: Assigned role/function
-            
+
         Returns:
             List of validation warnings
         """
@@ -232,13 +274,17 @@ class RP2040Profile(MCUProfile):
             # This is actually good - USB pins used for USB
             pass
         elif pin_name in ["GP24", "GP25"] and not role.startswith("usb"):
-            warnings.append(f"Pin {pin_name} is a USB pin - consider reserving for USB functionality")
+            warnings.append(
+                f"Pin {pin_name} is a USB pin - consider reserving for USB functionality"
+            )
 
         # ADC-specific warnings
         if pin_name in ["GP26", "GP27", "GP28", "GP29"]:
             if role == "adc":
                 pass  # This is expected
             elif role in ["pwm", "gpio.out"]:
-                warnings.append(f"Pin {pin_name} is an ADC pin - consider using for analog input")
+                warnings.append(
+                    f"Pin {pin_name} is an ADC pin - consider using for analog input"
+                )
 
         return warnings

@@ -5,17 +5,17 @@ Generates canonical pinmap.json files with role metadata.
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from . import get_build_datetime
 from .roles import analyze_roles
 
 
 def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     """
     Generate canonical pinmap.json file from canonical dictionary with role metadata.
-    
+
     Args:
         canonical_dict: Canonical pinmap dictionary with pins and differential pairs
         output_path: Path to output JSON file
@@ -38,7 +38,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
             pins_for_analysis[net_name] = {
                 "pin": pin_list[0] if pin_list else "UNKNOWN",
                 "component": canonical_dict.get("mcu", "UNKNOWN"),
-                "ref_des": canonical_dict.get("mcu_ref", "UNKNOWN")
+                "ref_des": canonical_dict.get("mcu_ref", "UNKNOWN"),
             }
 
         pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
@@ -50,7 +50,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
                 "pins": canonical_dict["pins"][pin_info.net_name],
                 "role": pin_info.role.value,
                 "bus_group": pin_info.bus_group,
-                "description": pin_info.description
+                "description": pin_info.description,
             }
 
         output_data["pins"] = enhanced_pins
@@ -70,51 +70,56 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
             for pair in diff_pairs:
                 key = (pair[0].net_name, pair[1].net_name)
                 if key not in existing_pairs:
-                    output_data.setdefault("differential_pairs", []).append({
-                        "positive": pair[0].net_name,
-                        "negative": pair[1].net_name,
-                        "type": pair[0].role.value.split(".")[0]
-                    })
+                    output_data.setdefault("differential_pairs", []).append(
+                        {
+                            "positive": pair[0].net_name,
+                            "negative": pair[1].net_name,
+                            "type": pair[0].role.value.split(".")[0],
+                        }
+                    )
                     existing_pairs.add(key)
 
     # Add generation metadata
     output_data["generated"] = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": get_build_datetime().isoformat(),
         "generator": "PinmapGen",
         "version": "0.1.0",
-        "features": ["role_inference", "bus_groups", "differential_pairs"]
+        "features": ["role_inference", "bus_groups", "differential_pairs"],
     }
 
     # Write JSON file with pretty formatting
-    with open(output_path, "w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
         f.write("\n")  # Add trailing newline
 
 
-def create_pinmap_structure(nets: dict[str, list[str]], mcu_name: str) -> dict[str, Any]:
+def create_pinmap_structure(
+    nets: dict[str, list[str]], mcu_name: str
+) -> dict[str, Any]:
     """
     Create standardized pinmap data structure (legacy function).
-    
+
     This function is deprecated - use normalize.normalize_pinmap() instead.
-    
+
     Args:
-        nets: Net to pin mappings  
+        nets: Net to pin mappings
         mcu_name: MCU name for profile selection
-        
+
     Returns:
         Pinmap data structure
     """
     from . import normalize
+
     return normalize.normalize_pinmap(nets, mcu_name)
 
 
 def validate_canonical_dict(canonical_dict: dict[str, Any]) -> list[str]:
     """
     Validate canonical dictionary structure.
-    
+
     Args:
         canonical_dict: Canonical pinmap dictionary
-        
+
     Returns:
         List of validation error messages (empty if valid)
     """
@@ -148,6 +153,8 @@ def validate_canonical_dict(canonical_dict: dict[str, Any]) -> list[str]:
                 if not isinstance(pair, dict):
                     errors.append(f"Differential pair {i} must be a dictionary")
                 elif not all(key in pair for key in ["positive", "negative"]):
-                    errors.append(f"Differential pair {i} missing 'positive' or 'negative' key")
+                    errors.append(
+                        f"Differential pair {i} missing 'positive' or 'negative' key"
+                    )
 
     return errors

@@ -27,25 +27,21 @@ class TestEmitters(unittest.TestCase):
                 "I2C0_SCL": ["GP1"],
                 "LED_DATA": ["GP4"],
                 "USB_DP": ["GP24"],
-                "USB_DN": ["GP25"]
+                "USB_DN": ["GP25"],
             },
-            "differential_pairs": [
-                {
-                    "positive": "USB_DP",
-                    "negative": "USB_DN"
-                }
-            ],
+            "differential_pairs": [{"positive": "USB_DP", "negative": "USB_DN"}],
             "metadata": {
                 "total_nets": 5,
                 "total_pins": 5,
                 "differential_pairs_count": 1,
-                "timestamp": "2025-09-27 12:00:00"
-            }
+                "timestamp": "2025-09-27 12:00:00",
+            },
         }
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_emit_json_pinmap(self):
@@ -128,7 +124,7 @@ class TestEmitters(unittest.TestCase):
             "mcu": "test",
             "pins": {},
             "differential_pairs": [],
-            "metadata": {}
+            "metadata": {},
         }
 
         # Should not crash with empty data
@@ -146,23 +142,28 @@ class TestEmitters(unittest.TestCase):
 
     def test_emitters_deterministic_output(self):
         """Test that emitters produce deterministic output."""
-        # Generate the same data twice
-        output_path1 = os.path.join(self.temp_dir, "test1.json")
-        output_path2 = os.path.join(self.temp_dir, "test2.json")
+        import os
 
-        emit_json(self.canonical_dict, output_path1)
-        emit_json(self.canonical_dict, output_path2)
+        # Pin timestamps to epoch 0 for reproducibility
+        os.environ["SOURCE_DATE_EPOCH"] = "0"
+        try:
+            # Generate the same data twice
+            output_path1 = os.path.join(self.temp_dir, "test1.json")
+            output_path2 = os.path.join(self.temp_dir, "test2.json")
 
-        # Read both files
-        with open(output_path1, encoding="utf-8") as f:
-            content1 = f.read()
-        with open(output_path2, encoding="utf-8") as f:
-            content2 = f.read()
+            emit_json(self.canonical_dict, output_path1)
+            emit_json(self.canonical_dict, output_path2)
 
-        # Should be identical (accounting for timestamps)
-        # For this test, we'll just check that both files exist and are non-empty
-        self.assertTrue(len(content1) > 0)
-        self.assertEqual(len(content1), len(content2))
+            # Read both files
+            with open(output_path1, encoding="utf-8") as f:
+                content1 = f.read()
+            with open(output_path2, encoding="utf-8") as f:
+                content2 = f.read()
+
+            # Content should be byte-for-byte identical
+            self.assertEqual(content1, content2)
+        finally:
+            del os.environ["SOURCE_DATE_EPOCH"]
 
 
 if __name__ == "__main__":

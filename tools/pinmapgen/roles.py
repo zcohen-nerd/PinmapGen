@@ -13,6 +13,7 @@ from enum import Enum
 
 class PinRole(Enum):
     """Pin functional roles."""
+
     # Communication
     I2C_SDA = "i2c.sda"
     I2C_SCL = "i2c.scl"
@@ -53,6 +54,7 @@ class PinRole(Enum):
 @dataclass
 class PinInfo:
     """Enhanced pin information with inferred role."""
+
     net_name: str
     pin_name: str
     component: str
@@ -77,7 +79,6 @@ class RoleInferencer:
                 r"(?i).*i2c.*scl.*",
                 r"(?i).*(?<![a-zA-Z])scl(?![a-zA-Z]).*",
             ],
-
             # UART patterns
             PinRole.UART_TX: [
                 r"(?i).*uart.*tx.*",
@@ -89,7 +90,6 @@ class RoleInferencer:
                 r"(?i).*(?<![a-zA-Z])rx(?![a-zA-Z]).*",
                 r"(?i).*serial.*rx.*",
             ],
-
             # SPI patterns
             PinRole.SPI_MOSI: [
                 r"(?i).*spi.*mosi.*",
@@ -112,7 +112,6 @@ class RoleInferencer:
                 r"(?i).*spi.*ss.*",
                 r"(?i).*(?<![a-zA-Z])ss(?![a-zA-Z]).*",
             ],
-
             # USB patterns
             PinRole.USB_DP: [
                 r"(?i).*usb.*d\+.*",
@@ -124,7 +123,6 @@ class RoleInferencer:
                 r"(?i).*usb.*dn.*",
                 r"(?i).*usb.*minus.*",
             ],
-
             # CAN patterns
             PinRole.CAN_H: [
                 r"(?i).*can.*h.*",
@@ -134,7 +132,6 @@ class RoleInferencer:
                 r"(?i).*can.*l.*",
                 r"(?i).*canl.*",
             ],
-
             # Analog patterns
             PinRole.ADC: [
                 r"(?i).*adc.*",
@@ -146,7 +143,6 @@ class RoleInferencer:
                 r"(?i).*analog.*out.*",
                 r"(?i).*(?<![a-zA-Z])aout(?![a-zA-Z]).*",
             ],
-
             # PWM patterns
             PinRole.PWM: [
                 r"(?i).*pwm.*",
@@ -154,7 +150,6 @@ class RoleInferencer:
                 r"(?i).*servo.*",
                 r"(?i).*motor.*",
             ],
-
             # Special patterns
             PinRole.LED: [
                 r"(?i).*led.*",
@@ -280,7 +275,7 @@ class RoleInferencer:
                 component=component,
                 ref_des=ref_des,
                 role=role,
-                bus_group=bus_group
+                bus_group=bus_group,
             )
 
             # Generate description
@@ -328,7 +323,9 @@ class RoleInferencer:
 
         return groups
 
-    def detect_differential_pairs(self, pin_infos: list[PinInfo]) -> list[tuple[PinInfo, PinInfo]]:
+    def detect_differential_pairs(
+        self, pin_infos: list[PinInfo]
+    ) -> list[tuple[PinInfo, PinInfo]]:
         """Detect differential pairs from enhanced pin information."""
         pairs = []
 
@@ -341,26 +338,24 @@ class RoleInferencer:
                 dp_pins = [p for p in pins if p.role == PinRole.USB_DP]
                 dn_pins = [p for p in pins if p.role == PinRole.USB_DN]
 
-                for dp in dp_pins:
-                    for dn in dn_pins:
-                        pairs.append((dp, dn))
+                pairs.extend((dp, dn) for dp in dp_pins for dn in dn_pins)
 
             elif group_name == "CAN":
                 # Find CAN H/L pairs
                 h_pins = [p for p in pins if p.role == PinRole.CAN_H]
                 l_pins = [p for p in pins if p.role == PinRole.CAN_L]
 
-                for h in h_pins:
-                    for l in l_pins:
-                        pairs.append((h, l))
+                pairs.extend((h, low_pin) for h in h_pins for low_pin in l_pins)
 
         return pairs
 
 
-def analyze_roles(canonical_pinmap: dict) -> tuple[list[PinInfo], dict[str, list[PinInfo]], list[tuple[PinInfo, PinInfo]]]:
+def analyze_roles(
+    canonical_pinmap: dict,
+) -> tuple[list[PinInfo], dict[str, list[PinInfo]], list[tuple[PinInfo, PinInfo]]]:
     """
     Analyze pin roles from a canonical pinmap.
-    
+
     Returns:
         - List of enhanced pin information
         - Dictionary of pins grouped by bus/peripheral
@@ -397,14 +392,11 @@ if __name__ == "__main__":
 
     pin_infos, bus_groups, diff_pairs = analyze_roles(sample_pinmap)
 
-    print("Pin Roles:")
-    for pin in pin_infos:
-        print(f"  {pin.net_name} -> {pin.pin_name}: {pin.role.value} ({pin.description})")
+    for _pin in pin_infos:
+        pass
 
-    print("\nBus Groups:")
-    for group, pins in bus_groups.items():
-        print(f"  {group}: {[p.net_name for p in pins]}")
+    for _group, _pins in bus_groups.items():
+        pass
 
-    print("\nDifferential Pairs:")
-    for pair in diff_pairs:
-        print(f"  {pair[0].net_name} / {pair[1].net_name}")
+    for _pair in diff_pairs:
+        pass

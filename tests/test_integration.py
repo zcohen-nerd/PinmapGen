@@ -21,13 +21,17 @@ class TestIntegration(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_cli_help_works(self):
         """Test that CLI help command works."""
-        result = subprocess.run([
-            sys.executable, "-m", "tools.pinmapgen.cli", "--help"
-        ], check=False, capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "tools.pinmapgen.cli", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
 
         self.assertEqual(result.returncode, 0)
         self.assertIn("Generate pinmaps from Fusion Electronics", result.stdout)
@@ -38,14 +42,25 @@ class TestIntegration(unittest.TestCase):
         sample_csv = "hardware/exports/sample_netlist.csv"
 
         # Run the CLI to generate files in temp directory
-        result = subprocess.run([
-            sys.executable, "-m", "tools.pinmapgen.cli",
-            "--csv", sample_csv,
-            "--mcu", "rp2040",
-            "--mcu-ref", "U1",
-            "--out-root", self.temp_dir,
-            "--mermaid"
-        ], check=False, capture_output=True, text=True)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tools.pinmapgen.cli",
+                "--csv",
+                sample_csv,
+                "--mcu",
+                "rp2040",
+                "--mcu-ref",
+                "U1",
+                "--out-root",
+                self.temp_dir,
+                "--mermaid",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
 
         # Should complete successfully
         self.assertEqual(result.returncode, 0, f"CLI failed: {result.stderr}")
@@ -56,7 +71,7 @@ class TestIntegration(unittest.TestCase):
             "firmware/micropython/pinmap_micropython.py",
             "firmware/include/pinmap_arduino.h",
             "firmware/docs/PINOUT.md",
-            "firmware/docs/pinout.mmd"
+            "firmware/docs/pinout.mmd",
         ]
 
         for file_path in expected_files:
@@ -81,7 +96,7 @@ class TestIntegration(unittest.TestCase):
             "tools.pinmapgen.emit_arduino",
             "tools.pinmapgen.emit_markdown",
             "tools.pinmapgen.emit_mermaid",
-            "tools.pinmapgen.watch"
+            "tools.pinmapgen.watch",
         ]
 
         for module_name in modules_to_test:

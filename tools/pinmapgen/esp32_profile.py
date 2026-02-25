@@ -23,8 +23,34 @@ class ESP32Profile(MCUProfile):
 
         # Define all available GPIO pins
         gpio_pins = [
-            0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23,
-            25, 26, 27, 32, 33, 34, 35, 36, 37, 38, 39
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
         ]
 
         # Input-only pins (no output capability)
@@ -37,7 +63,6 @@ class ESP32Profile(MCUProfile):
         adc2_pins = {0, 2, 4, 12, 13, 14, 15, 25, 26, 27}
 
         # Touch sensor pins
-        touch_pins = {0, 2, 4, 12, 13, 14, 15, 27, 32, 33}
 
         # DAC pins
         dac_pins = {25, 26}
@@ -51,17 +76,19 @@ class ESP32Profile(MCUProfile):
             # Output capability (most pins except input-only)
             if pin_num not in input_only_pins:
                 # Most peripherals available via GPIO matrix
-                capabilities.update({
-                    PinCapability.PWM,
-                    PinCapability.I2C_SDA,
-                    PinCapability.I2C_SCL,
-                    PinCapability.SPI_MOSI,
-                    PinCapability.SPI_MISO,
-                    PinCapability.SPI_SCK,
-                    PinCapability.SPI_CS,
-                    PinCapability.UART_TX,
-                    PinCapability.UART_RX,
-                })
+                capabilities.update(
+                    {
+                        PinCapability.PWM,
+                        PinCapability.I2C_SDA,
+                        PinCapability.I2C_SCL,
+                        PinCapability.SPI_MOSI,
+                        PinCapability.SPI_MISO,
+                        PinCapability.SPI_SCK,
+                        PinCapability.SPI_CS,
+                        PinCapability.UART_TX,
+                        PinCapability.UART_RX,
+                    }
+                )
 
             # ADC capability
             if pin_num in adc1_pins or pin_num in adc2_pins:
@@ -80,7 +107,7 @@ class ESP32Profile(MCUProfile):
                 capabilities=capabilities,
                 special_function=special_function,
                 warnings=warnings,
-                alternate_names=[f"IO{pin_num}", str(pin_num)]
+                alternate_names=[f"IO{pin_num}", str(pin_num)],
             )
 
     def _get_esp32_special_function(self, pin_num: int) -> str:
@@ -100,7 +127,7 @@ class ESP32Profile(MCUProfile):
             36: "ADC1_CH0 / VP (Input Only)",
             37: "ADC1_CH1 (Input Only)",
             38: "ADC1_CH2 (Input Only)",
-            39: "ADC1_CH3 / VN (Input Only)"
+            39: "ADC1_CH3 / VN (Input Only)",
         }
         return special_functions.get(pin_num)
 
@@ -148,96 +175,166 @@ class ESP32Profile(MCUProfile):
         # These are just common/recommended assignments
 
         # I2C peripherals (can use any GPIO via matrix)
-        self.peripherals.extend([
-            PeripheralInfo("I2C", 0, {
-                "recommended_sda": ["GPIO21", "GPIO4", "GPIO15"],
-                "recommended_scl": ["GPIO22", "GPIO5", "GPIO2"]
-            }),
-            PeripheralInfo("I2C", 1, {
-                "recommended_sda": ["GPIO33", "GPIO32", "GPIO26"],
-                "recommended_scl": ["GPIO25", "GPIO27", "GPIO14"]
-            }),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "I2C",
+                    0,
+                    {
+                        "recommended_sda": ["GPIO21", "GPIO4", "GPIO15"],
+                        "recommended_scl": ["GPIO22", "GPIO5", "GPIO2"],
+                    },
+                ),
+                PeripheralInfo(
+                    "I2C",
+                    1,
+                    {
+                        "recommended_sda": ["GPIO33", "GPIO32", "GPIO26"],
+                        "recommended_scl": ["GPIO25", "GPIO27", "GPIO14"],
+                    },
+                ),
+            ]
+        )
 
         # SPI peripherals
-        self.peripherals.extend([
-            PeripheralInfo("SPI", 2, {  # HSPI
-                "default_mosi": "GPIO13", "default_miso": "GPIO12",
-                "default_sck": "GPIO14", "default_cs": "GPIO15"
-            }),
-            PeripheralInfo("SPI", 3, {  # VSPI
-                "default_mosi": "GPIO23", "default_miso": "GPIO19",
-                "default_sck": "GPIO18", "default_cs": "GPIO5"
-            }),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "SPI",
+                    2,
+                    {  # HSPI
+                        "default_mosi": "GPIO13",
+                        "default_miso": "GPIO12",
+                        "default_sck": "GPIO14",
+                        "default_cs": "GPIO15",
+                    },
+                ),
+                PeripheralInfo(
+                    "SPI",
+                    3,
+                    {  # VSPI
+                        "default_mosi": "GPIO23",
+                        "default_miso": "GPIO19",
+                        "default_sck": "GPIO18",
+                        "default_cs": "GPIO5",
+                    },
+                ),
+            ]
+        )
 
         # UART peripherals
-        self.peripherals.extend([
-            PeripheralInfo("UART", 0, {
-                "default_tx": "GPIO1", "default_rx": "GPIO3",
-                "note": "Used for programming and console"
-            }),
-            PeripheralInfo("UART", 1, {
-                "recommended_tx": ["GPIO4", "GPIO9", "GPIO10"],
-                "recommended_rx": ["GPIO5", "GPIO6", "GPIO16"]
-            }),
-            PeripheralInfo("UART", 2, {
-                "recommended_tx": ["GPIO16", "GPIO17"],
-                "recommended_rx": ["GPIO4", "GPIO9"]
-            }),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "UART",
+                    0,
+                    {
+                        "default_tx": "GPIO1",
+                        "default_rx": "GPIO3",
+                        "note": "Used for programming and console",
+                    },
+                ),
+                PeripheralInfo(
+                    "UART",
+                    1,
+                    {
+                        "recommended_tx": ["GPIO4", "GPIO9", "GPIO10"],
+                        "recommended_rx": ["GPIO5", "GPIO6", "GPIO16"],
+                    },
+                ),
+                PeripheralInfo(
+                    "UART",
+                    2,
+                    {
+                        "recommended_tx": ["GPIO16", "GPIO17"],
+                        "recommended_rx": ["GPIO4", "GPIO9"],
+                    },
+                ),
+            ]
+        )
 
         # ADC peripherals
-        self.peripherals.extend([
-            PeripheralInfo("ADC", 1, {
-                "channels": {
-                    0: "GPIO36", 1: "GPIO37", 2: "GPIO38", 3: "GPIO39",
-                    6: "GPIO34", 7: "GPIO35"
-                },
-                "note": "Always available"
-            }),
-            PeripheralInfo("ADC", 2, {
-                "channels": {
-                    1: "GPIO0", 2: "GPIO2", 3: "GPIO15", 4: "GPIO13",
-                    5: "GPIO12", 6: "GPIO14", 7: "GPIO27", 8: "GPIO25", 9: "GPIO26"
-                },
-                "note": "Not available when WiFi is active"
-            }),
-        ])
+        self.peripherals.extend(
+            [
+                PeripheralInfo(
+                    "ADC",
+                    1,
+                    {
+                        "channels": {
+                            0: "GPIO36",
+                            1: "GPIO37",
+                            2: "GPIO38",
+                            3: "GPIO39",
+                            6: "GPIO34",
+                            7: "GPIO35",
+                        },
+                        "note": "Always available",
+                    },
+                ),
+                PeripheralInfo(
+                    "ADC",
+                    2,
+                    {
+                        "channels": {
+                            1: "GPIO0",
+                            2: "GPIO2",
+                            3: "GPIO15",
+                            4: "GPIO13",
+                            5: "GPIO12",
+                            6: "GPIO14",
+                            7: "GPIO27",
+                            8: "GPIO25",
+                            9: "GPIO26",
+                        },
+                        "note": "Not available when WiFi is active",
+                    },
+                ),
+            ]
+        )
 
         # DAC peripheral
         self.peripherals.append(
-            PeripheralInfo("DAC", 0, {
-                "channel1": "GPIO25", "channel2": "GPIO26"
-            })
+            PeripheralInfo("DAC", 0, {"channel1": "GPIO25", "channel2": "GPIO26"})
         )
 
         # Touch sensor
         self.peripherals.append(
-            PeripheralInfo("TOUCH", 0, {
-                "channels": {
-                    0: "GPIO4", 1: "GPIO0", 2: "GPIO2", 3: "GPIO15",
-                    4: "GPIO13", 5: "GPIO12", 6: "GPIO14", 7: "GPIO27",
-                    8: "GPIO33", 9: "GPIO32"
-                }
-            })
+            PeripheralInfo(
+                "TOUCH",
+                0,
+                {
+                    "channels": {
+                        0: "GPIO4",
+                        1: "GPIO0",
+                        2: "GPIO2",
+                        3: "GPIO15",
+                        4: "GPIO13",
+                        5: "GPIO12",
+                        6: "GPIO14",
+                        7: "GPIO27",
+                        8: "GPIO33",
+                        9: "GPIO32",
+                    }
+                },
+            )
         )
 
     def normalize_pin_name(self, pin_name: str) -> str:
         """
         Normalize pin name according to ESP32 conventions.
-        
+
         Args:
             pin_name: Raw pin name from schematic/CSV
-            
+
         Returns:
             Normalized pin name (GPIOnn format)
-            
+
         Raises:
             ValueError: If pin name cannot be normalized
         """
         if not pin_name:
-            raise ValueError("Pin name cannot be empty")
+            msg = "Pin name cannot be empty"
+            raise ValueError(msg)
 
         # Remove whitespace and convert to uppercase
         pin_name = pin_name.strip().upper()
@@ -262,9 +359,8 @@ class ESP32Profile(MCUProfile):
                 return normalized
 
         # Handle GPIOnn format (already normalized)
-        if pin_name.startswith("GPIO"):
-            if pin_name in self.pins:
-                return pin_name
+        if pin_name.startswith("GPIO") and pin_name in self.pins:
+            return pin_name
 
         # Check alternate names
         for pin_id, pin_info in self.pins.items():
@@ -272,16 +368,17 @@ class ESP32Profile(MCUProfile):
                 return pin_id
 
         # Unknown format
-        raise ValueError(f"Cannot normalize ESP32 pin name: {pin_name}")
+        msg = f"Cannot normalize ESP32 pin name: {pin_name}"
+        raise ValueError(msg)
 
     def validate_pin_assignment(self, pin_name: str, role: str) -> list[str]:
         """
         ESP32-specific pin assignment validation.
-        
+
         Args:
             pin_name: Normalized pin name
             role: Assigned role/function
-            
+
         Returns:
             List of validation warnings
         """
@@ -297,11 +394,15 @@ class ESP32Profile(MCUProfile):
         # ESP32-specific validation
         strapping_pins = {0, 2, 5, 12, 15}
         if pin_num in strapping_pins and role != "strapping":
-            warnings.append(f"GPIO{pin_num} is a strapping pin - may affect boot behavior")
+            warnings.append(
+                f"GPIO{pin_num} is a strapping pin - may affect boot behavior"
+            )
 
         # UART0 pins
         if pin_num in [1, 3] and not role.startswith("uart."):
-            warnings.append(f"GPIO{pin_num} is UART0 - may interfere with programming/console")
+            warnings.append(
+                f"GPIO{pin_num} is UART0 - may interfere with programming/console"
+            )
 
         # Input-only pins used for output
         input_only = {34, 35, 36, 37, 38, 39}

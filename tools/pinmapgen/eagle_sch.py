@@ -13,13 +13,13 @@ from typing import Any
 def parse_schematic(sch_path: Path | str) -> ET.Element:
     """
     Parse EAGLE schematic XML file.
-    
+
     Args:
         sch_path: Path to the .sch file (Path object or string)
-        
+
     Returns:
         XML root element
-        
+
     Raises:
         FileNotFoundError: If schematic file doesn't exist
         ET.ParseError: If XML parsing fails
@@ -30,37 +30,45 @@ def parse_schematic(sch_path: Path | str) -> ET.Element:
         sch_path = Path(sch_path)
 
     if not sch_path.exists():
-        raise FileNotFoundError(f"Schematic file not found: {sch_path}")
+        msg = f"Schematic file not found: {sch_path}"
+        raise FileNotFoundError(msg)
 
     try:
         tree = ET.parse(sch_path)
         root = tree.getroot()
     except ET.ParseError as e:
-        raise ET.ParseError(f"Failed to parse XML in {sch_path}: {e}")
+        msg = f"Failed to parse XML in {sch_path}: {e}"
+        raise ET.ParseError(msg) from e
 
     # Validate this is an EAGLE schematic
     if root.tag != "eagle":
-        raise ValueError(f"File {sch_path} is not a valid EAGLE file (root tag: {root.tag})")
+        msg = f"File {sch_path} is not a valid EAGLE file (root tag: {root.tag})"
+        raise ValueError(
+            msg
+        )
 
     # Check for schematic section
     schematic = root.find("drawing/schematic")
     if schematic is None:
-        raise ValueError(f"File {sch_path} does not contain schematic data")
+        msg = f"File {sch_path} does not contain schematic data"
+        raise ValueError(msg)
 
     return root
 
 
-def parse_schematic_tuples(sch_path: Path | str, mcu_ref: str) -> list[tuple[str, str, str]]:
+def parse_schematic_tuples(
+    sch_path: Path | str, mcu_ref: str
+) -> list[tuple[str, str, str]]:
     """
     Parse EAGLE schematic file and return (net_name, refdes, pin) tuples.
-    
+
     Args:
         sch_path: Path to the .sch file
         mcu_ref: MCU reference designator to filter for (e.g., "U1")
-        
+
     Returns:
         List of (net_name, refdes, pin) tuples for the specified MCU
-        
+
     Raises:
         ValueError: If no nets found for the specified MCU reference
     """
@@ -71,12 +79,14 @@ def parse_schematic_tuples(sch_path: Path | str, mcu_ref: str) -> list[tuple[str
     schematic = root.find("drawing/schematic")
 
     if schematic is None:
-        raise ValueError("No schematic section found in EAGLE file")
+        msg = "No schematic section found in EAGLE file"
+        raise ValueError(msg)
 
     # Get all sheets (EAGLE can have multi-sheet schematics)
     sheets = schematic.findall("sheets/sheet")
     if not sheets:
-        raise ValueError("No sheets found in schematic")
+        msg = "No sheets found in schematic"
+        raise ValueError(msg)
 
     # Process each sheet
     for sheet in sheets:
@@ -99,13 +109,12 @@ def parse_schematic_tuples(sch_path: Path | str, mcu_ref: str) -> list[tuple[str
                     part_ref = pinref.get("part")
                     pin_name = pinref.get("pin")
 
-                    if part_ref and pin_name:
-                        # Filter for the specified MCU reference
-                        if part_ref == mcu_ref:
+                    if part_ref and pin_name and part_ref == mcu_ref:
                             nets_data.append((net_name, part_ref, pin_name))
 
     if not nets_data:
-        raise ValueError(f"No nets found for MCU reference '{mcu_ref}' in schematic")
+        msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"
+        raise ValueError(msg)
 
     return nets_data
 
@@ -113,11 +122,11 @@ def parse_schematic_tuples(sch_path: Path | str, mcu_ref: str) -> list[tuple[str
 def extract_nets_from_schematic(root: ET.Element, mcu_ref: str) -> dict[str, list[str]]:
     """
     Extract net to pin mappings from schematic XML.
-    
+
     Args:
         root: XML root element from parsed EAGLE schematic
         mcu_ref: MCU reference designator (e.g., "U1")
-        
+
     Returns:
         Dictionary mapping net names to pin lists
     """
@@ -162,14 +171,16 @@ def extract_nets_from_schematic(root: ET.Element, mcu_ref: str) -> dict[str, lis
     return net_to_pins
 
 
-def get_mcu_nets_from_schematic(sch_path: Path | str, mcu_ref: str) -> dict[str, list[str]]:
+def get_mcu_nets_from_schematic(
+    sch_path: Path | str, mcu_ref: str
+) -> dict[str, list[str]]:
     """
     Convenience function to parse EAGLE schematic and extract nets for a specific MCU.
-    
+
     Args:
         sch_path: Path to the .sch file
         mcu_ref: MCU reference designator (e.g., "U1")
-        
+
     Returns:
         Dictionary mapping net names to pin lists for the specified MCU
     """
@@ -180,10 +191,10 @@ def get_mcu_nets_from_schematic(sch_path: Path | str, mcu_ref: str) -> dict[str,
 def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:
     """
     Extract general information from EAGLE schematic.
-    
+
     Args:
         sch_path: Path to the .sch file
-        
+
     Returns:
         Dictionary with schematic metadata
     """
@@ -193,7 +204,7 @@ def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:
         "eagle_version": root.get("version", "unknown"),
         "sheets": [],
         "parts": [],
-        "nets_count": 0
+        "nets_count": 0,
     }
 
     schematic = root.find("drawing/schematic")
@@ -206,7 +217,7 @@ def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:
         sheet_info = {
             "index": i + 1,
             "nets": len(sheet.findall("nets/net")),
-            "instances": len(sheet.findall("instances/instance"))
+            "instances": len(sheet.findall("instances/instance")),
         }
         info["sheets"].append(sheet_info)
         info["nets_count"] += sheet_info["nets"]
@@ -220,9 +231,6 @@ def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:
             part_name = instance.get("part")
             gate = instance.get("gate")
             if part_name:
-                info["parts"].append({
-                    "name": part_name,
-                    "gate": gate or "A"
-                })
+                info["parts"].append({"name": part_name, "gate": gate or "A"})
 
     return info

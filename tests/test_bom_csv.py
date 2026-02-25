@@ -46,7 +46,7 @@ I2C_SDA,GP4,RP2040,U1"""
         expected = [
             ("LED_STATUS", "U1", "GP15"),
             ("LED_ERROR", "U1", "GP16"),
-            ("I2C_SDA", "U1", "GP4")
+            ("I2C_SDA", "U1", "GP4"),
         ]
         for expected_tuple in expected:
             self.assertIn(expected_tuple, result)
