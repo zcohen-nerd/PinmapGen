@@ -24,7 +24,7 @@ class STM32G0Profile(MCUProfile):
         port_configs = {
             "A": list(range(16)),  # PA0-PA15
             "B": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],  # PB0-PB15
-            "C": [6, 13, 14, 15],  # PC6, PC13-PC15
+            "C": [2, 3, 4, 5, 6, 7, 13, 14, 15],  # PC2-PC7, PC13-PC15
             "D": [0, 1, 2, 3, 8, 9],  # PD0-PD3, PD8-PD9
             "F": [0, 1, 2]  # PF0-PF2
         }

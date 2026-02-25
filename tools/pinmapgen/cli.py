@@ -218,6 +218,7 @@ def generate_outputs(canonical_dict: dict[str, Any], args: argparse.Namespace) -
 
 def main():
     """Main CLI entry point."""
+    args = None
     try:
         # Parse command line arguments
         args = parse_arguments()
@@ -247,7 +248,7 @@ def main():
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        if args.verbose:
+        if args is not None and args.verbose:
             import traceback
             traceback.print_exc()
         sys.exit(1)

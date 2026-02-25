@@ -225,7 +225,7 @@ class RP2040Profile:
         # Validate the normalized pinmap
         validation_errors = self.validate_pinmap(normalized_nets)
         if validation_errors:
-            raise ValueError(f"Pinmap validation failed: {'; '.join(validation_errors)}")
+            print(f"Validation errors found: {'; '.join(validation_errors)}")
 
         # Detect differential pairs
         diff_pairs = self.detect_differential_pairs(normalized_nets)

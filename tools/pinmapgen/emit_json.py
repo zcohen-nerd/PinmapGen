@@ -60,15 +60,22 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
         for group_name, pins in bus_groups.items():
             output_data["bus_groups"][group_name] = [pin.net_name for pin in pins]
 
-        # Add differential pair metadata
+        # Merge role-analysis differential pairs with canonical ones
         if diff_pairs:
-            output_data["differential_pairs"] = []
+            # Build a set of existing pairs from canonical dict for dedup
+            existing_pairs = set()
+            for p in output_data.get("differential_pairs", []):
+                existing_pairs.add((p.get("positive", ""), p.get("negative", "")))
+
             for pair in diff_pairs:
-                output_data["differential_pairs"].append({
-                    "positive": pair[0].net_name,
-                    "negative": pair[1].net_name,
-                    "type": pair[0].role.value.split(".")[0]  # e.g., 'usb' from 'usb.dp'
-                })
+                key = (pair[0].net_name, pair[1].net_name)
+                if key not in existing_pairs:
+                    output_data.setdefault("differential_pairs", []).append({
+                        "positive": pair[0].net_name,
+                        "negative": pair[1].net_name,
+                        "type": pair[0].role.value.split(".")[0]
+                    })
+                    existing_pairs.add(key)
 
     # Add generation metadata
     output_data["generated"] = {

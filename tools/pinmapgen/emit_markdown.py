@@ -99,29 +99,6 @@ def generate_pinout_documentation(canonical_dict: dict[str, Any]) -> str:
             "",
         ])
 
-    # Differential pairs section
-    diff_pairs = canonical_dict.get("differential_pairs", [])
-    if diff_pairs:
-        lines.extend([
-            "## Differential Pairs",
-            "",
-            "The following signals are routed as differential pairs:",
-            "",
-        ])
-
-        for pair in diff_pairs:
-            pos_net = pair.get("positive", "")
-            neg_net = pair.get("negative", "")
-            lines.extend([
-                f"### {pos_net} / {neg_net}",
-                "",
-                f"- **Positive:** {pos_net}",
-                f"- **Negative:** {neg_net}",
-                "",
-                "> **Note:** These signals should be routed with matched lengths and controlled impedance.",
-                "",
-            ])
-
     # Usage examples
     lines.extend([
         "## Usage Examples",
