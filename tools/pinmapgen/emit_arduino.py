@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles
 
 
@@ -35,94 +36,6 @@ def emit_arduino_header(
     # Write to file
     with output_path.open("w", encoding="utf-8") as f:
         f.write(code)
-
-
-def generate_arduino_defines(canonical_dict: dict[str, Any]) -> str:
-    """
-    Generate Arduino #define statements from canonical dictionary.
-
-    Args:
-        canonical_dict: Canonical pinmap dictionary
-
-    Returns:
-        C++ header code string
-    """
-    lines = []
-
-    # Header guard name based on filename
-    guard_name = "PINMAP_ARDUINO_H"
-    mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S")
-
-    lines.extend(
-        [
-            f"#ifndef {guard_name}",
-            f"#define {guard_name}",
-            "",
-            "/*",
-            f" * Auto-generated Arduino pinmap for {mcu}",
-            f" * Generated: {timestamp}",
-            " * Generator: PinmapGen",
-            " */",
-            "",
-        ]
-    )
-
-    # Generate pin definitions
-    if "pins" in canonical_dict:
-        lines.append("// Pin Definitions")
-
-        # Sort pins by net name for consistent output
-        sorted_pins = sorted(canonical_dict["pins"].items())
-
-        for net_name, pin_list in sorted_pins:
-            if pin_list:  # Check if pin list is not empty
-                pin_name = pin_list[0]  # Take first pin from list
-
-                # Extract numeric part of pin (e.g., 'GP24' -> '24')
-                pin_num = re.search(r"\d+", pin_name)
-                if pin_num:
-                    pin_num = pin_num.group()
-                    const_name = _sanitize_net_name(net_name)
-                    comment = _get_pin_comment(pin_name, canonical_dict)
-                    lines.append(f"#define {const_name} {pin_num}  // {comment}")
-
-        lines.append("")
-
-    # Generate differential pairs if present
-    if canonical_dict.get("differential_pairs"):
-        lines.append("// Differential Pairs")
-
-        for pair in canonical_dict["differential_pairs"]:
-            pos_net = pair["positive"]
-            neg_net = pair["negative"]
-
-            # Get pin numbers
-            pos_pins = canonical_dict["pins"].get(pos_net, [])
-            neg_pins = canonical_dict["pins"].get(neg_net, [])
-
-            if pos_pins and neg_pins:
-                pos_pin = pos_pins[0]
-                neg_pin = neg_pins[0]
-
-                # Extract numeric parts
-                pos_num = re.search(r"\d+", pos_pin)
-                neg_num = re.search(r"\d+", neg_pin)
-
-                if pos_num and neg_num:
-                    pos_num = pos_num.group()
-                    neg_num = neg_num.group()
-
-                    pair_const = _sanitize_net_name(f"{pos_net}_{neg_net}")
-                    lines.append(f"#define {pair_const}_POS {pos_num}  // {pos_pin}")
-                    lines.append(f"#define {pair_const}_NEG {neg_num}  // {neg_pin}")
-
-        lines.append("")
-
-    # Close header guard
-    lines.extend([f"#endif // {guard_name}", ""])
-
-    return "\n".join(lines)
 
 
 def _sanitize_net_name(net_name: str) -> str:
@@ -155,56 +68,13 @@ def _sanitize_net_name(net_name: str) -> str:
 
 
 def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
+    """Get descriptive comment for a pin.
+
+    Wraps :func:`pin_metadata.get_pin_comment` to accept a canonical dict
+    (for backward compatibility with existing callers in this module).
     """
-    Get descriptive comment for a pin.
-
-    Args:
-        pin: Pin name (e.g., 'GP24', 'PA13', 'GPIO0')
-        canonical_dict: Canonical pinmap dictionary
-
-    Returns:
-        Comment string
-    """
-    comments = [pin]  # Always include the pin name
-
     mcu = canonical_dict.get("mcu", "unknown")
-    special_functions = {
-        "rp2040": {
-            "GP24": "USB D-",
-            "GP25": "USB D+",
-            "GP26": "ADC0",
-            "GP27": "ADC1",
-            "GP28": "ADC2",
-            "GP29": "ADC3",
-            "GP23": "SMPS_MODE",
-        },
-        "stm32g0": {
-            "PA13": "SWDIO",
-            "PA14": "SWCLK",
-            "PB2": "BOOT1",
-            "PC14": "LSE",
-            "PC15": "LSE",
-            "PF0": "HSE_IN",
-            "PF1": "HSE_OUT",
-            "PF2": "NRST",
-        },
-        "esp32": {
-            "GPIO0": "BOOT_MODE",
-            "GPIO1": "UART0_TX",
-            "GPIO2": "BOOT_MODE",
-            "GPIO3": "UART0_RX",
-            "GPIO25": "DAC1",
-            "GPIO26": "DAC2",
-            "GPIO36": "VP",
-            "GPIO39": "VN",
-        },
-    }
-
-    mcu_funcs = special_functions.get(mcu.lower(), {})
-    if pin in mcu_funcs:
-        comments.append(mcu_funcs[pin])
-
-    return " - ".join(comments)
+    return get_pin_comment(pin, mcu)
 
 
 def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:

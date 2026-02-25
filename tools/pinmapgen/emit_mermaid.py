@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .pin_metadata import SPECIAL_FUNCTIONS_SHORT
 
 
 def emit_mermaid_diagram(
@@ -237,39 +238,7 @@ def _create_node_label(net_name: str, pin: str, canonical_dict: dict[str, Any]) 
     label_parts = [net_name, pin]
 
     mcu = canonical_dict.get("mcu", "unknown")
-    special_functions = {
-        "rp2040": {
-            "GP24": "USB D-",
-            "GP25": "USB D+",
-            "GP26": "ADC0",
-            "GP27": "ADC1",
-            "GP28": "ADC2",
-            "GP29": "ADC3",
-            "GP23": "SMPS",
-        },
-        "stm32g0": {
-            "PA13": "SWDIO",
-            "PA14": "SWCLK",
-            "PB2": "BOOT1",
-            "PC14": "LSE",
-            "PC15": "LSE",
-            "PF0": "HSE_IN",
-            "PF1": "HSE_OUT",
-            "PF2": "NRST",
-        },
-        "esp32": {
-            "GPIO0": "BOOT",
-            "GPIO1": "TX0",
-            "GPIO2": "BOOT",
-            "GPIO3": "RX0",
-            "GPIO25": "DAC1",
-            "GPIO26": "DAC2",
-            "GPIO36": "VP",
-            "GPIO39": "VN",
-        },
-    }
-
-    mcu_funcs = special_functions.get(mcu.lower(), {})
+    mcu_funcs = SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
     if pin in mcu_funcs:
         label_parts.append(mcu_funcs[pin])
 

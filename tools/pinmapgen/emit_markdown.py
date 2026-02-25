@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .pin_metadata import get_special_function as _get_special_function_impl
 
 
 def emit_markdown_docs(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
@@ -330,43 +331,7 @@ def _sanitize_c_identifier(name: str) -> str:
 
 def _get_special_function(pin: str, mcu: str = "rp2040") -> str:
     """Get special function description for a pin."""
-    special_functions = {
-        "rp2040": {
-            "GP24": "USB D- (Data Minus)",
-            "GP25": "USB D+ (Data Plus)",
-            "GP26": "ADC Channel 0",
-            "GP27": "ADC Channel 1",
-            "GP28": "ADC Channel 2",
-            "GP29": "ADC Channel 3",
-            "GP23": "SMPS Power Mode",
-        },
-        "stm32g0": {
-            "PA13": "SWD Debug IO (SWDIO)",
-            "PA14": "SWD Debug Clock (SWCLK)",
-            "PB2": "Boot1 Pin",
-            "PC14": "LSE Crystal (32kHz)",
-            "PC15": "LSE Crystal (32kHz)",
-            "PF0": "HSE Crystal Input",
-            "PF1": "HSE Crystal Output",
-            "PF2": "NRST (Reset)",
-        },
-        "esp32": {
-            "GPIO0": "Strapping Pin / Boot Mode",
-            "GPIO1": "UART0 TX (Console)",
-            "GPIO2": "Strapping Pin / Boot Mode",
-            "GPIO3": "UART0 RX (Console)",
-            "GPIO5": "Strapping Pin / VSPI CS0",
-            "GPIO12": "Strapping Pin / Boot Voltage",
-            "GPIO15": "Strapping Pin / Boot Silence",
-            "GPIO25": "DAC1",
-            "GPIO26": "DAC2",
-            "GPIO36": "VP (Input Only)",
-            "GPIO39": "VN (Input Only)",
-        },
-    }
-
-    mcu_funcs = special_functions.get(mcu.lower(), {})
-    return mcu_funcs.get(pin, "General Purpose I/O")
+    return _get_special_function_impl(pin, mcu)
 
 
 def _get_pin_notes(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> str:

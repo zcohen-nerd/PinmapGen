@@ -4,7 +4,9 @@ Test cases for pin name normalization functionality.
 
 import unittest
 
+from tools.pinmapgen.esp32_profile import ESP32Profile
 from tools.pinmapgen.rp2040_profile import RP2040Profile
+from tools.pinmapgen.stm32g0_profile import STM32G0Profile
 
 
 class TestNormalize(unittest.TestCase):
@@ -83,6 +85,104 @@ class TestNormalize(unittest.TestCase):
         pair = diff_pairs[0]
         self.assertIn(pair["positive"], ["USB_DP", "USB_DM"])
         self.assertIn(pair["negative"], ["USB_DP", "USB_DM"])
+
+
+class TestSTM32G0Normalize(unittest.TestCase):
+    """Test pin name normalization for STM32G0."""
+
+    def setUp(self):
+        self.profile = STM32G0Profile()
+
+    def test_stm32g0_pin_normalization(self):
+        """Test STM32G0 pin name normalization formats."""
+        self.assertEqual(self.profile.normalize_pin_name("PA0"), "PA0")
+        self.assertEqual(self.profile.normalize_pin_name("PB6"), "PB6")
+        # GPIOA5 -> PA5
+        self.assertEqual(self.profile.normalize_pin_name("GPIOA5"), "PA5")
+        # A5 -> PA5
+        self.assertEqual(self.profile.normalize_pin_name("A5"), "PA5")
+
+    def test_stm32g0_case_insensitive(self):
+        """Test that normalization is case insensitive."""
+        self.assertEqual(self.profile.normalize_pin_name("pa0"), "PA0")
+        self.assertEqual(self.profile.normalize_pin_name("gpiob6"), "PB6")
+
+    def test_stm32g0_special_pins(self):
+        """Test special function pin detection."""
+        # SWD pins should be recognized
+        pin_info = self.profile.pins.get("PA13")
+        self.assertIsNotNone(pin_info)
+        self.assertIsNotNone(pin_info.special_function)
+
+    def test_stm32g0_invalid_pins(self):
+        """Test handling of invalid pin names."""
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("")
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("INVALID")
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("PG0")  # Port G doesn't exist
+
+    def test_stm32g0_canonical_pinmap(self):
+        """Test canonical pinmap generation."""
+        nets = {
+            "I2C_SDA": ["PA10"],
+            "I2C_SCL": ["PA9"],
+            "LED": ["PB0"],
+        }
+        canonical = self.profile.create_canonical_pinmap(nets)
+        self.assertEqual(canonical["mcu"], "stm32g0")
+        self.assertEqual(len(canonical["pins"]), 3)
+        self.assertIn("I2C_SDA", canonical["pins"])
+
+
+class TestESP32Normalize(unittest.TestCase):
+    """Test pin name normalization for ESP32."""
+
+    def setUp(self):
+        self.profile = ESP32Profile()
+
+    def test_esp32_pin_normalization(self):
+        """Test ESP32 pin name normalization formats."""
+        self.assertEqual(self.profile.normalize_pin_name("GPIO0"), "GPIO0")
+        self.assertEqual(self.profile.normalize_pin_name("GPIO25"), "GPIO25")
+        # IO4 -> GPIO4
+        self.assertEqual(self.profile.normalize_pin_name("IO4"), "GPIO4")
+        # Numeric -> GPIOnn
+        self.assertEqual(self.profile.normalize_pin_name("4"), "GPIO4")
+
+    def test_esp32_case_insensitive(self):
+        """Test that normalization is case insensitive."""
+        self.assertEqual(self.profile.normalize_pin_name("gpio0"), "GPIO0")
+        self.assertEqual(self.profile.normalize_pin_name("io4"), "GPIO4")
+
+    def test_esp32_special_pins(self):
+        """Test strapping pin detection."""
+        pin_info = self.profile.pins.get("GPIO0")
+        self.assertIsNotNone(pin_info)
+        # GPIO0 is a strapping pin — should have warnings
+        self.assertTrue(len(pin_info.warnings) > 0)
+
+    def test_esp32_invalid_pins(self):
+        """Test handling of invalid pin names."""
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("")
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("INVALID")
+        with self.assertRaises(ValueError):
+            self.profile.normalize_pin_name("GPIO99")
+
+    def test_esp32_canonical_pinmap(self):
+        """Test canonical pinmap generation."""
+        nets = {
+            "LED": ["GPIO2"],
+            "SENSOR": ["GPIO4"],
+            "DAC_OUT": ["GPIO25"],
+        }
+        canonical = self.profile.create_canonical_pinmap(nets)
+        self.assertEqual(canonical["mcu"], "esp32")
+        self.assertEqual(len(canonical["pins"]), 3)
+        self.assertIn("LED", canonical["pins"])
 
 
 if __name__ == "__main__":

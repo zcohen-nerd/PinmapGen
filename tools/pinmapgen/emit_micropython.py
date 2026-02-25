@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles
 
 
@@ -36,84 +37,6 @@ def emit_micropython(
     # Write to file
     with output_path.open("w", encoding="utf-8") as f:
         f.write(code)
-
-
-def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
-    """
-    Generate MicroPython pin constant definitions from canonical dictionary.
-
-    Args:
-        canonical_dict: Canonical pinmap dictionary
-
-    Returns:
-        MicroPython code string
-    """
-    lines = []
-
-    # File header
-    mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
-
-    lines.extend(
-        [
-            '"""',
-            f"Auto-generated MicroPython pinmap for {mcu}.",
-            f"Generated: {timestamp}",
-            "Generator: PinmapGen",
-            "",
-            "Pin constants for easy hardware access.",
-            '"""',
-            "",
-        ]
-    )
-
-    # Generate pin constants
-    if "pins" in canonical_dict:
-        lines.append("# Pin Constants")
-
-        # Sort pins by net name for consistent output
-        sorted_pins = sorted(canonical_dict["pins"].items())
-        mcu = canonical_dict.get("mcu", "")
-
-        for net_name, pin_entry in sorted_pins:
-            pin_name = _extract_primary_pin(pin_entry)
-            if not pin_name:
-                continue
-
-            const_name = _sanitize_net_name(net_name)
-            comment = _get_pin_comment(pin_name, mcu)
-            literal = _micropython_pin_literal(pin_name)
-            lines.append(f"{const_name} = {literal}  # {comment}")
-
-        lines.append("")
-
-    # Generate differential pairs if present
-    if canonical_dict.get("differential_pairs"):
-        lines.append("# Differential Pairs")
-
-        pins = canonical_dict.get("pins", {})
-        mcu = canonical_dict.get("mcu", "")
-
-        for pair in canonical_dict["differential_pairs"]:
-            pos_net = pair.get("positive")
-            neg_net = pair.get("negative")
-            if not pos_net or not neg_net:
-                continue
-
-            pos_pin = _extract_primary_pin(pins.get(pos_net))
-            neg_pin = _extract_primary_pin(pins.get(neg_net))
-            if not pos_pin or not neg_pin:
-                continue
-
-            pair_const = _sanitize_net_name(f"{pos_net}_{neg_net}")
-            pos_literal = _micropython_pin_literal(pos_pin)
-            neg_literal = _micropython_pin_literal(neg_pin)
-            lines.append(f"{pair_const}_POS = {pos_literal}  # {pos_pin}")
-            lines.append(f"{pair_const}_NEG = {neg_literal}  # {neg_pin}")
-
-        lines.append("")
-
-    return "\n".join(lines)
 
 
 def _sanitize_net_name(net_name: str) -> str:
@@ -194,57 +117,8 @@ def _micropython_pin_literal(pin_name: str) -> str:
     return f'"{pin_name}"'
 
 
-def _get_pin_comment(pin: str, mcu: str = "rp2040") -> str:
-    """
-    Get descriptive comment for a pin.
-
-    Args:
-        pin: Pin name (e.g., 'GP24', 'PA13', 'GPIO0').
-        mcu: MCU identifier for MCU-specific lookups.
-
-    Returns:
-        Human-readable comment string used in emitted constants.
-    """
-    comments = [pin]  # Always include the pin name
-
-    # Add special function information
-    special_functions = {
-        "rp2040": {
-            "GP24": "USB D-",
-            "GP25": "USB D+",
-            "GP26": "ADC0",
-            "GP27": "ADC1",
-            "GP28": "ADC2",
-            "GP29": "ADC3",
-            "GP23": "SMPS_MODE",
-        },
-        "stm32g0": {
-            "PA13": "SWDIO",
-            "PA14": "SWCLK",
-            "PB2": "BOOT1",
-            "PC14": "LSE",
-            "PC15": "LSE",
-            "PF0": "HSE_IN",
-            "PF1": "HSE_OUT",
-            "PF2": "NRST",
-        },
-        "esp32": {
-            "GPIO0": "BOOT_MODE",
-            "GPIO1": "UART0_TX",
-            "GPIO2": "BOOT_MODE",
-            "GPIO3": "UART0_RX",
-            "GPIO25": "DAC1",
-            "GPIO26": "DAC2",
-            "GPIO36": "VP",
-            "GPIO39": "VN",
-        },
-    }
-
-    mcu_funcs = special_functions.get(mcu.lower(), {})
-    if pin in mcu_funcs:
-        comments.append(mcu_funcs[pin])
-
-    return " - ".join(comments)
+# _get_pin_comment is now in pin_metadata.py as get_pin_comment
+_get_pin_comment = get_pin_comment
 
 
 def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:

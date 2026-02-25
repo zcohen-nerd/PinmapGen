@@ -9,6 +9,8 @@ import unittest
 
 from tools.pinmapgen.emit_arduino import emit_arduino_header
 from tools.pinmapgen.emit_json import emit_json
+from tools.pinmapgen.emit_markdown import emit_markdown_docs
+from tools.pinmapgen.emit_mermaid import emit_mermaid_diagram
 from tools.pinmapgen.emit_micropython import emit_micropython
 
 
@@ -164,6 +166,94 @@ class TestEmitters(unittest.TestCase):
             self.assertEqual(content1, content2)
         finally:
             del os.environ["SOURCE_DATE_EPOCH"]
+
+    def test_emit_markdown_docs(self):
+        """Test Markdown documentation generation."""
+        output_path = os.path.join(self.temp_dir, "PINOUT.md")
+
+        emit_markdown_docs(self.canonical_dict, output_path)
+
+        self.assertTrue(os.path.exists(output_path))
+
+        with open(output_path, encoding="utf-8") as f:
+            content = f.read()
+
+        # Should contain markdown table header
+        self.assertIn("| Net Name |", content)
+        # Should contain pin data
+        self.assertIn("I2C0_SDA", content)
+        self.assertIn("GP0", content)
+        # Should contain differential pair section
+        self.assertIn("Differential", content)
+        # Should contain auto-generated header
+        self.assertIn("PinmapGen", content)
+
+    def test_emit_mermaid_diagram(self):
+        """Test Mermaid diagram generation."""
+        output_path = os.path.join(self.temp_dir, "pinout.mmd")
+
+        emit_mermaid_diagram(self.canonical_dict, output_path)
+
+        self.assertTrue(os.path.exists(output_path))
+
+        with open(output_path, encoding="utf-8") as f:
+            content = f.read()
+
+        # Should contain Mermaid graph declaration
+        self.assertIn("graph TB", content)
+        # Should contain MCU node
+        self.assertIn("MCU", content)
+        # Should contain pin data
+        self.assertIn("I2C0_SDA", content)
+        # Should contain styling
+        self.assertIn("classDef", content)
+
+    def test_emit_markdown_empty_data(self):
+        """Test Markdown emitter handles empty data."""
+        empty_dict = {
+            "mcu": "test",
+            "pins": {},
+            "differential_pairs": [],
+            "metadata": {},
+        }
+        output_path = os.path.join(self.temp_dir, "empty.md")
+        emit_markdown_docs(empty_dict, output_path)
+        self.assertTrue(os.path.exists(output_path))
+
+    def test_emit_mermaid_empty_data(self):
+        """Test Mermaid emitter handles empty data."""
+        empty_dict = {
+            "mcu": "test",
+            "pins": {},
+            "differential_pairs": [],
+            "metadata": {},
+        }
+        output_path = os.path.join(self.temp_dir, "empty.mmd")
+        emit_mermaid_diagram(empty_dict, output_path)
+        self.assertTrue(os.path.exists(output_path))
+
+    def test_emit_markdown_with_diff_pairs(self):
+        """Test Markdown emitter includes differential pair table."""
+        output_path = os.path.join(self.temp_dir, "diff.md")
+        emit_markdown_docs(self.canonical_dict, output_path)
+
+        with open(output_path, encoding="utf-8") as f:
+            content = f.read()
+
+        # Diff pair section uses signal name "USB" and pin names GP24/GP25
+        self.assertIn("Differential Pair", content)
+        self.assertIn("GP24", content)
+        self.assertIn("GP25", content)
+
+    def test_emit_mermaid_with_diff_pairs(self):
+        """Test Mermaid emitter includes differential pair subgraph."""
+        output_path = os.path.join(self.temp_dir, "diff.mmd")
+        emit_mermaid_diagram(self.canonical_dict, output_path)
+
+        with open(output_path, encoding="utf-8") as f:
+            content = f.read()
+
+        self.assertIn("Differential Pair", content)
 
 
 if __name__ == "__main__":
