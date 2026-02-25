@@ -181,10 +181,11 @@ class RoleInferencer:
                 if re.match(pattern, net_name):
                     return role
 
-        # Default to GPIO based on direction hints
-        if any(keyword in net_name.lower() for keyword in ["in", "input", "sense"]):
+        # Default to GPIO based on direction hints (word boundary matching)
+        net_lower = net_name.lower()
+        if re.search(r"(?<![a-zA-Z])(?:in|input|sense)(?![a-zA-Z])", net_lower):
             return PinRole.GPIO_IN
-        if any(keyword in net_name.lower() for keyword in ["out", "output", "drive"]):
+        if re.search(r"(?<![a-zA-Z])(?:out|output|drive)(?![a-zA-Z])", net_lower):
             return PinRole.GPIO_OUT
 
         return PinRole.UNKNOWN
@@ -335,18 +336,18 @@ class RoleInferencer:
 
         for group_name, pins in bus_groups.items():
             if group_name == "USB":
-                # Find USB D+/D- pairs
+                # Find USB D+/D- pairs (1:1 matching, not cartesian product)
                 dp_pins = [p for p in pins if p.role == PinRole.USB_DP]
                 dn_pins = [p for p in pins if p.role == PinRole.USB_DN]
 
-                pairs.extend((dp, dn) for dp in dp_pins for dn in dn_pins)
+                pairs.extend(zip(dp_pins, dn_pins, strict=False))
 
             elif group_name == "CAN":
-                # Find CAN H/L pairs
+                # Find CAN H/L pairs (1:1 matching, not cartesian product)
                 h_pins = [p for p in pins if p.role == PinRole.CAN_H]
                 l_pins = [p for p in pins if p.role == PinRole.CAN_L]
 
-                pairs.extend((h, low_pin) for h in h_pins for low_pin in l_pins)
+                pairs.extend(zip(h_pins, l_pins, strict=False))
 
         return pairs
 

@@ -163,10 +163,6 @@ class ESP32Profile(MCUProfile):
         if pin_num in adc2_pins:
             warnings.append("ADC2 not available when WiFi is active")
 
-        # High-frequency limitations
-        if pin_num in [6, 7, 8, 9, 10, 11]:  # Connected to flash
-            warnings.append("Connected to SPI flash - avoid using")
-
         return warnings
 
     def _initialize_peripherals(self) -> None:

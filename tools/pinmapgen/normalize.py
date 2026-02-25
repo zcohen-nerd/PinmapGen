@@ -103,7 +103,10 @@ class RP2040Profile:
         else:
             msg = f"Cannot normalize pin name: {pin_name}"
             raise ValueError(msg)
-        return None
+
+        # Regex did not match within a recognized prefix branch
+        msg = f"Cannot normalize pin name: {pin_name}"
+        raise ValueError(msg)
 
     def detect_differential_pairs(
         self, nets: dict[str, list[str]]
@@ -282,13 +285,23 @@ def get_mcu_profile(mcu_name: str):
     Get MCU profile by name.
 
     Args:
-        mcu_name: MCU name (e.g., "rp2040")
+        mcu_name: MCU name (e.g., "rp2040", "stm32g0", "esp32")
 
     Returns:
         MCU profile instance
     """
-    if mcu_name.lower() == "rp2040":
-        return RP2040Profile()
+    from .esp32_profile import ESP32Profile
+    from .rp2040_profile import RP2040Profile as RP2040ProfileNew
+    from .stm32g0_profile import STM32G0Profile
+
+    profiles = {
+        "rp2040": RP2040ProfileNew,
+        "stm32g0": STM32G0Profile,
+        "esp32": ESP32Profile,
+    }
+    key = mcu_name.lower()
+    if key in profiles:
+        return profiles[key]()
     msg = f"Unsupported MCU: {mcu_name}"
     raise ValueError(msg)
 

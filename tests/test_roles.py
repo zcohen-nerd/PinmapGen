@@ -132,8 +132,12 @@ class TestRoles(unittest.TestCase):
 
     def test_infer_unknown_roles(self):
         """Test handling of unknown pin names."""
-        # UNKNOWN_PIN contains "IN" so it triggers GPIO_IN fallback
+        # UNKNOWN_PIN no longer false-matches GPIO_IN (word boundary fix)
         result = self.inferencer.infer_role("UNKNOWN_PIN")
+        self.assertEqual(result, PinRole.UNKNOWN)
+
+        # Explicit "INPUT" keyword should still match GPIO_IN
+        result = self.inferencer.infer_role("SENSOR_INPUT")
         self.assertEqual(result, PinRole.GPIO_IN)
 
         # Test truly unknown net name
