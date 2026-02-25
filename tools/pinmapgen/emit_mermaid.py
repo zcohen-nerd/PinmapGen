@@ -37,6 +37,35 @@ def emit_mermaid_diagram(
         f.write(diagram)
 
 
+def _build_node_id_map(
+    pins: dict[str, list[str]], diff_pairs: list[dict[str, str]]
+) -> dict[str, str]:
+    """Build a mapping from net names to unique Mermaid node IDs.
+
+    This ensures that two different net names that sanitize to the same
+    raw ID (e.g. ``USB.DP`` and ``USB-DP``) receive distinct IDs.
+    """
+    all_net_names: set[str] = set(pins.keys())
+    for pair in diff_pairs:
+        pos = pair.get("positive", "")
+        neg = pair.get("negative", "")
+        if pos:
+            all_net_names.add(pos)
+        if neg:
+            all_net_names.add(neg)
+
+    node_id_map: dict[str, str] = {}
+    seen_ids: dict[str, int] = {}
+
+    for net_name in sorted(all_net_names):
+        raw_id = _sanitize_node_id(net_name)
+        count = seen_ids.get(raw_id, 0) + 1
+        seen_ids[raw_id] = count
+        node_id_map[net_name] = raw_id if count == 1 else f"{raw_id}_{count}"
+
+    return node_id_map
+
+
 def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
     """
     Generate Mermaid graph syntax from canonical dictionary.
@@ -67,6 +96,8 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
 
     # Extract and sort pins
     pins = canonical_dict.get("pins", {})
+    diff_pairs = canonical_dict.get("differential_pairs", [])
+    node_id_map = _build_node_id_map(pins, diff_pairs)
     pin_data = []
 
     multi_pin_nets: list[tuple[str, list[str]]] = []
@@ -99,7 +130,7 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
             lines.append(f"    %% {group_name} pins")
 
             for _pin_num, net_name, pin in group_pins:
-                node_id = _sanitize_node_id(net_name)
+                node_id = node_id_map.get(net_name, _sanitize_node_id(net_name))
                 node_label = _create_node_label(net_name, pin, canonical_dict)
                 node_style = _get_node_style(net_name, pin, canonical_dict)
 
@@ -113,8 +144,33 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
             lines.append("")
 
     # Add differential pair subgraphs
-    diff_pairs = canonical_dict.get("differential_pairs", [])
     if diff_pairs:
+        lines.extend(
+            [
+                "    %% Differential pair pin definitions",
+            ]
+        )
+
+        # Emit labeled node definitions for differential pair pins
+        for pair in diff_pairs:
+            for net_key in ["positive", "negative"]:
+                net_name = pair.get(net_key, "")
+                if net_name and net_name in pins:
+                    pin_list = pins[net_name]
+                    if pin_list:
+                        pin = pin_list[0]
+                        node_id = node_id_map.get(
+                            net_name, _sanitize_node_id(net_name)
+                        )
+                        node_label = _create_node_label(
+                            net_name, pin, canonical_dict
+                        )
+                        lines.append(
+                            f'    MCU --> {node_id}["{node_label}"]'
+                        )
+                        lines.append(f"    class {node_id} differential")
+        lines.append("")
+
         lines.extend(
             [
                 "    %% Differential pairs as subgraphs",
@@ -125,8 +181,8 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
             pos_net = pair.get("positive", "")
             neg_net = pair.get("negative", "")
 
-            pos_id = _sanitize_node_id(pos_net)
-            neg_id = _sanitize_node_id(neg_net)
+            pos_id = node_id_map.get(pos_net, _sanitize_node_id(pos_net))
+            neg_id = node_id_map.get(neg_net, _sanitize_node_id(neg_net))
 
             # Determine signal type for subgraph name
             signal_type = _get_diff_signal_type(pos_net, neg_net)
@@ -149,7 +205,7 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
     if multi_pin_nets:
         lines.append("    %% Multi-pin nets")
         for net_name, pin_list in sorted(multi_pin_nets):
-            node_id = _sanitize_node_id(net_name)
+            node_id = node_id_map.get(net_name, _sanitize_node_id(net_name))
             pins_str = ", ".join(sorted(pin_list))
             lines.append(
                 f'    MCU --> {node_id}["{net_name}<br/>{pins_str}"]'

@@ -27,6 +27,17 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     # Create output directory if it doesn't exist
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Validate canonical dict structure before emitting
+    errors = validate_canonical_dict(canonical_dict)
+    if errors:
+        import warnings
+
+        for err in errors:
+            warnings.warn(
+                f"canonical dict validation: {err}",
+                stacklevel=2,
+            )
+
     # Start with canonical dictionary
     output_data = canonical_dict.copy()
 

@@ -146,31 +146,31 @@ class RoleInferencer:
             ],
             # PWM patterns
             PinRole.PWM: [
-                r"(?i).*pwm.*",
-                r"(?i).*pulse.*",
-                r"(?i).*servo.*",
-                r"(?i).*motor.*",
+                r"(?i).*(?<![a-zA-Z])pwm(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])pulse(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])servo(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])motor(?![a-zA-Z]).*",
             ],
             # Special patterns
             PinRole.LED: [
-                r"(?i).*led.*",
-                r"(?i).*light.*",
+                r"(?i).*(?<![a-zA-Z])led(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])light(?![a-zA-Z]).*",
             ],
             PinRole.BUTTON: [
-                r"(?i).*button.*",
+                r"(?i).*(?<![a-zA-Z])button(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])btn(?![a-zA-Z]).*",
-                r"(?i).*switch.*",
+                r"(?i).*(?<![a-zA-Z])switch(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])sw\d*(?![a-zA-Z]).*",
             ],
             PinRole.RESET: [
-                r"(?i).*reset.*",
+                r"(?i).*(?<![a-zA-Z])reset(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])rst(?![a-zA-Z]).*",
             ],
             PinRole.CLOCK: [
-                r"(?i).*clock.*",
+                r"(?i).*(?<![a-zA-Z])clock(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])clk(?![a-zA-Z]).*",
-                r"(?i).*xtal.*",
-                r"(?i).*osc.*",
+                r"(?i).*(?<![a-zA-Z])xtal(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])osc(?![a-zA-Z]).*",
             ],
         }
 

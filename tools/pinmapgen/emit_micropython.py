@@ -159,9 +159,10 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
     needed_imports = _determine_machine_imports(bus_groups)
     lines.extend(_render_file_header(canonical_dict, needed_imports))
 
-    lines.extend(_render_pin_constants(bus_groups))
+    const_lines, name_lookup = _render_pin_constants(bus_groups)
+    lines.extend(const_lines)
     lines.extend(
-        _render_helper_functions(pin_infos, bus_groups, diff_pairs),
+        _render_helper_functions(pin_infos, bus_groups, diff_pairs, name_lookup),
     )
 
     return "\n".join(lines)
@@ -233,9 +234,19 @@ def _prepare_pins_for_analysis(
     return pins_for_analysis
 
 
-def _render_pin_constants(bus_groups: dict[str, list[Any]]) -> list[str]:
+def _render_pin_constants(
+    bus_groups: dict[str, list[Any]],
+) -> tuple[list[str], dict[str, str]]:
+    """Render pin constant assignments and return a name lookup table.
+
+    Returns:
+        A tuple of ``(lines, name_lookup)`` where *name_lookup* maps each
+        original net name to the (possibly collision-suffixed) constant name
+        that was emitted.
+    """
+    name_lookup: dict[str, str] = {}
     if not any(bus_groups.values()):
-        return []
+        return [], name_lookup
 
     lines = [
         "# ========================================",
@@ -253,19 +264,23 @@ def _render_pin_constants(bus_groups: dict[str, list[Any]]) -> list[str]:
         lines.append(f"# {group_name} Pins")
         for pin_info in pins:
             const_name = _sanitize_net_name(pin_info.net_name, seen_names)
+            name_lookup[pin_info.net_name] = const_name
             descriptor = f"{pin_info.description} ({pin_info.pin_name})"
             literal = _micropython_pin_literal(pin_info.pin_name)
             lines.append(f"{const_name} = {literal}  # {descriptor}")
         lines.append("")
 
-    return lines
+    return lines, name_lookup
 
 
 def _render_helper_functions(
     pin_infos: list[Any],
     bus_groups: dict[str, list[Any]],
     diff_pairs: list[Any],
+    name_lookup: dict[str, str] | None = None,
 ) -> list[str]:
+    if name_lookup is None:
+        name_lookup = {}
     lines = [
         "# ========================================",
         "# Helper Functions",
@@ -276,9 +291,9 @@ def _render_helper_functions(
     lines.extend(_digital_helpers())
     lines.extend(_adc_helper(pin_infos))
     lines.extend(_pwm_helper(pin_infos))
-    lines.extend(_i2c_helpers(bus_groups))
-    lines.extend(_spi_helpers(bus_groups))
-    lines.extend(_diff_pair_helpers(diff_pairs))
+    lines.extend(_i2c_helpers(bus_groups, name_lookup))
+    lines.extend(_spi_helpers(bus_groups, name_lookup))
+    lines.extend(_diff_pair_helpers(diff_pairs, name_lookup))
 
     return lines
 
@@ -320,7 +335,12 @@ def _pwm_helper(pin_infos: list[Any]) -> list[str]:
     ]
 
 
-def _i2c_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
+def _i2c_helpers(
+    bus_groups: dict[str, list[Any]],
+    name_lookup: dict[str, str] | None = None,
+) -> list[str]:
+    if name_lookup is None:
+        name_lookup = {}
     helpers: list[str] = []
     for i2c_name, pins in bus_groups.items():
         if not i2c_name.startswith("I2C"):
@@ -340,8 +360,12 @@ def _i2c_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
 
         i2c_num = i2c_name.replace("I2C", "").lower() or "0"
         func_name = f"setup_{i2c_name.lower()}"
-        sda_const = _sanitize_net_name(sda_pin.net_name)
-        scl_const = _sanitize_net_name(scl_pin.net_name)
+        sda_const = name_lookup.get(
+            sda_pin.net_name, _sanitize_net_name(sda_pin.net_name)
+        )
+        scl_const = name_lookup.get(
+            scl_pin.net_name, _sanitize_net_name(scl_pin.net_name)
+        )
 
         helper_doc = (
             f"Setup {i2c_name} with SDA={sda_pin.pin_name}, SCL={scl_pin.pin_name}."
@@ -363,7 +387,12 @@ def _i2c_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
     return helpers
 
 
-def _spi_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
+def _spi_helpers(
+    bus_groups: dict[str, list[Any]],
+    name_lookup: dict[str, str] | None = None,
+) -> list[str]:
+    if name_lookup is None:
+        name_lookup = {}
     helpers: list[str] = []
     for spi_name, pins in bus_groups.items():
         if not spi_name.startswith("SPI"):
@@ -387,9 +416,15 @@ def _spi_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
 
         spi_num = spi_name.replace("SPI", "").lower() or "0"
         func_name = f"setup_{spi_name.lower()}"
-        mosi_const = _sanitize_net_name(mosi_pin.net_name)
-        miso_const = _sanitize_net_name(miso_pin.net_name)
-        sck_const = _sanitize_net_name(sck_pin.net_name)
+        mosi_const = name_lookup.get(
+            mosi_pin.net_name, _sanitize_net_name(mosi_pin.net_name)
+        )
+        miso_const = name_lookup.get(
+            miso_pin.net_name, _sanitize_net_name(miso_pin.net_name)
+        )
+        sck_const = name_lookup.get(
+            sck_pin.net_name, _sanitize_net_name(sck_pin.net_name)
+        )
 
         helper_doc = (
             f"Setup {spi_name} with MOSI={mosi_pin.pin_name}, "
@@ -413,29 +448,59 @@ def _spi_helpers(bus_groups: dict[str, list[Any]]) -> list[str]:
     return helpers
 
 
-def _diff_pair_helpers(diff_pairs: list[Any]) -> list[str]:
+def _diff_pair_helpers(
+    diff_pairs: list[Any],
+    name_lookup: dict[str, str] | None = None,
+) -> list[str]:
+    if name_lookup is None:
+        name_lookup = {}
     body: list[str] = []
     for pair in diff_pairs:
-        if pair[0].role != PinRole.USB_DP:
-            continue
+        if pair[0].role == PinRole.USB_DP:
+            pos_const = name_lookup.get(
+                pair[0].net_name, _sanitize_net_name(pair[0].net_name)
+            )
+            neg_const = name_lookup.get(
+                pair[1].net_name, _sanitize_net_name(pair[1].net_name)
+            )
 
-        pos_const = _sanitize_net_name(pair[0].net_name)
-        neg_const = _sanitize_net_name(pair[1].net_name)
+            body.extend(
+                [
+                    "class USBPins:",
+                    '    """USB differential pair pin definitions."""',
+                    f"    DP = {pos_const}  # {pair[0].description}",
+                    f"    DN = {neg_const}  # {pair[1].description}",
+                    "",
+                    "    @classmethod",
+                    "    def get_pair(cls):",
+                    '        """Get USB D+/D- pin tuple."""',
+                    "        return (cls.DP, cls.DN)",
+                    "",
+                ]
+            )
 
-        body.extend(
-            [
-                "class USBPins:",
-                '    """USB differential pair pin definitions."""',
-                f"    DP = {pos_const}  # {pair[0].description}",
-                f"    DN = {neg_const}  # {pair[1].description}",
-                "",
-                "    @classmethod",
-                "    def get_pair(cls):",
-                '        """Get USB D+/D- pin tuple."""',
-                "        return (cls.DP, cls.DN)",
-                "",
-            ]
-        )
+        elif pair[0].role == PinRole.CAN_H:
+            pos_const = name_lookup.get(
+                pair[0].net_name, _sanitize_net_name(pair[0].net_name)
+            )
+            neg_const = name_lookup.get(
+                pair[1].net_name, _sanitize_net_name(pair[1].net_name)
+            )
+
+            body.extend(
+                [
+                    "class CANPins:",
+                    '    """CAN differential pair pin definitions."""',
+                    f"    H = {pos_const}  # {pair[0].description}",
+                    f"    L = {neg_const}  # {pair[1].description}",
+                    "",
+                    "    @classmethod",
+                    "    def get_pair(cls):",
+                    '        """Get CAN H/L pin tuple."""',
+                    "        return (cls.H, cls.L)",
+                    "",
+                ]
+            )
 
     if not body:
         return []

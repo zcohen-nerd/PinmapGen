@@ -110,7 +110,7 @@ def parse_schematic_tuples(
                     pin_name = pinref.get("pin")
 
                     if part_ref and pin_name and part_ref == mcu_ref:
-                            nets_data.append((net_name, part_ref, pin_name))
+                        nets_data.append((net_name, part_ref, pin_name))
 
     if not nets_data:
         msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"

@@ -317,8 +317,17 @@ def generate_differential_pairs_table(canonical_dict: dict[str, Any]) -> str:
 def _sanitize_identifier(name: str) -> str:
     """Convert net name to valid identifier."""
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+
+    # Prefix leading digits with underscore
     if sanitized and sanitized[0].isdigit():
         sanitized = "_" + sanitized
+
+    # Collapse consecutive underscores
+    sanitized = re.sub(r"_{2,}", "_", sanitized)
+
+    # Strip trailing underscores (keep leading for digit-prefixed names)
+    sanitized = sanitized.rstrip("_")
+
     if not sanitized or sanitized == "_":
         sanitized = "UNNAMED_PIN"
     return sanitized.upper()

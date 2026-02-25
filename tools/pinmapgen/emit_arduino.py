@@ -91,6 +91,46 @@ def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
     return get_pin_comment(pin, mcu)
 
 
+def _arduino_pin_literal(pin_name: str) -> str:
+    """Return the Arduino-compatible pin literal for a given MCU pin name.
+
+    RP2040: ``GP4`` → ``4``
+    ESP32:  ``GPIO21`` → ``21``
+    STM32:  ``PA10`` → ``PA_10``
+
+    Args:
+        pin_name: Normalized MCU pin name.
+
+    Returns:
+        Pin literal suitable for an Arduino ``#define`` value.
+    """
+    token = pin_name.strip().upper()
+    if not token:
+        return "0"
+
+    # RP2040: GP<n> → bare number
+    rp_match = re.fullmatch(r"GP(\d+)", token)
+    if rp_match:
+        return rp_match.group(1)
+
+    # ESP32: GPIO<n> → bare number
+    gpio_match = re.fullmatch(r"GPIO(\d+)", token)
+    if gpio_match:
+        return gpio_match.group(1)
+
+    # STM32: P<port><n> → P<port>_<n>
+    stm_match = re.fullmatch(r"P([A-Z])(\d+)", token)
+    if stm_match:
+        return f"P{stm_match.group(1)}_{stm_match.group(2)}"
+
+    # Fallback: extract first number
+    num_match = re.search(r"\d+", token)
+    if num_match:
+        return num_match.group()
+
+    return "0"
+
+
 def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
     """
     Generate enhanced Arduino header with role-aware structures and helpers.
@@ -152,19 +192,20 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
 
         # Track emitted #define names to avoid collisions
         seen_names: dict[str, int] = {}
+        name_lookup: dict[str, str] = {}
 
         # Group constants by bus/function
         for group_name, pins in bus_groups.items():
             if pins:
                 lines.append(f"// {group_name} Pins")
                 for pin_info in pins:
-                    pin_num_match = re.search(r"\d+", pin_info.pin_name)
-                    pin_num = pin_num_match.group() if pin_num_match else "0"
+                    pin_val = _arduino_pin_literal(pin_info.pin_name)
                     const_name = _sanitize_net_name(
                         pin_info.net_name, seen_names
                     )
+                    name_lookup[pin_info.net_name] = const_name
                     comment = f"  // {pin_info.description}"
-                    lines.append(f"#define {const_name} {pin_num}{comment}")
+                    lines.append(f"#define {const_name} {pin_val}{comment}")
                 lines.append("")
 
         # Generate differential pair structures
@@ -180,8 +221,12 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
 
             for pair in diff_pairs:
                 if pair[0].role == PinRole.USB_DP:
-                    pos_const = _sanitize_net_name(pair[0].net_name)
-                    neg_const = _sanitize_net_name(pair[1].net_name)
+                    pos_const = name_lookup.get(
+                        pair[0].net_name, _sanitize_net_name(pair[0].net_name)
+                    )
+                    neg_const = name_lookup.get(
+                        pair[1].net_name, _sanitize_net_name(pair[1].net_name)
+                    )
 
                     lines.extend(
                         [
@@ -194,8 +239,12 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                     )
 
                 elif pair[0].role == PinRole.CAN_H:
-                    pos_const = _sanitize_net_name(pair[0].net_name)
-                    neg_const = _sanitize_net_name(pair[1].net_name)
+                    pos_const = name_lookup.get(
+                        pair[0].net_name, _sanitize_net_name(pair[0].net_name)
+                    )
+                    neg_const = name_lookup.get(
+                        pair[1].net_name, _sanitize_net_name(pair[1].net_name)
+                    )
 
                     lines.extend(
                         [
@@ -249,7 +298,7 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                 [
                     "// ADC helpers",
                     "#define ADC_READ(pin)           analogRead(pin)",
-                    "#define ADC_READ_VOLTAGE(pin)   (analogRead(pin) * 3.3f / 1023.0f)",
+                    "#define ADC_READ_VOLTAGE(pin)   (analogRead(pin) * 3.3f / 4095.0f)",
                     "",
                 ]
             )
@@ -270,8 +319,12 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
 
                 if sda_pin and scl_pin:
                     func_name = f"SETUP_{i2c_name}"
-                    sda_const = _sanitize_net_name(sda_pin.net_name)
-                    scl_const = _sanitize_net_name(scl_pin.net_name)
+                    sda_const = name_lookup.get(
+                        sda_pin.net_name, _sanitize_net_name(sda_pin.net_name)
+                    )
+                    scl_const = name_lookup.get(
+                        scl_pin.net_name, _sanitize_net_name(scl_pin.net_name)
+                    )
 
                     lines.extend(
                         [
@@ -301,9 +354,15 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
 
                 if mosi_pin and miso_pin and sck_pin:
                     func_name = f"SETUP_{spi_name}"
-                    mosi_const = _sanitize_net_name(mosi_pin.net_name)
-                    miso_const = _sanitize_net_name(miso_pin.net_name)
-                    sck_const = _sanitize_net_name(sck_pin.net_name)
+                    mosi_const = name_lookup.get(
+                        mosi_pin.net_name, _sanitize_net_name(mosi_pin.net_name)
+                    )
+                    miso_const = name_lookup.get(
+                        miso_pin.net_name, _sanitize_net_name(miso_pin.net_name)
+                    )
+                    sck_const = name_lookup.get(
+                        sck_pin.net_name, _sanitize_net_name(sck_pin.net_name)
+                    )
 
                     lines.extend(
                         [
