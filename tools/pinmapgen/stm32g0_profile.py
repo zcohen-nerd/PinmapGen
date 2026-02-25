@@ -296,10 +296,10 @@ class STM32G0Profile(MCUProfile):
         if pin_name == "PB2" and role != "boot":
             warnings.append("PB2 is Boot1 pin - state affects boot mode selection")
 
-        if pin_name in ["PC14", "PC15"] and role not in ["gpio", "crystal"]:
+        if pin_name in ["PC14", "PC15"] and not role.startswith("gpio") and role != "crystal":
             warnings.append(f"Pin {pin_name} is LSE crystal pin - may conflict with RTC")
 
-        if pin_name in ["PF0", "PF1"] and role not in ["gpio", "crystal"]:
+        if pin_name in ["PF0", "PF1"] and not role.startswith("gpio") and role != "crystal":
             warnings.append(f"Pin {pin_name} is HSE crystal pin - may conflict with system clock")
 
         return warnings

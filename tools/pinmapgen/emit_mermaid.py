@@ -66,9 +66,9 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
     for net_name, pin_list in pins.items():
         if len(pin_list) == 1:  # Single pin nets only
             pin = pin_list[0]
-            match = re.match(r"GP(\d+)", pin)
-            if match:
-                pin_num = int(match.group(1))
+            num_match = re.search(r"\d+", pin)
+            if num_match:
+                pin_num = int(num_match.group())
                 pin_data.append((pin_num, net_name, pin))
 
     # Sort by pin number
@@ -175,7 +175,7 @@ def _group_pins_by_function(pin_data: list[tuple], canonical_dict: dict[str, Any
 
         if any(keyword in net_upper for keyword in ["VCC", "VDD", "GND", "POWER", "3V3", "5V"]):
             groups["Power"].append((pin_num, net_name, pin))
-        elif any(keyword in net_upper for keyword in ["ADC", "ANALOG", "AIN"]) or pin in ["GP26", "GP27", "GP28", "GP29"]:
+        elif any(keyword in net_upper for keyword in ["ADC", "ANALOG", "AIN", "DAC"]):
             groups["Analog"].append((pin_num, net_name, pin))
         elif any(keyword in net_upper for keyword in ["I2C", "SPI", "UART", "CAN", "SDA", "SCL", "MOSI", "MISO"]):
             groups["Communication"].append((pin_num, net_name, pin))
@@ -205,19 +205,42 @@ def _create_node_label(net_name: str, pin: str, canonical_dict: dict[str, Any]) 
     """Create descriptive label for Mermaid node."""
     label_parts = [net_name, pin]
 
-    # Add special function if applicable
+    mcu = canonical_dict.get("mcu", "unknown")
     special_functions = {
-        "GP24": "USB D-",
-        "GP25": "USB D+",
-        "GP26": "ADC0",
-        "GP27": "ADC1",
-        "GP28": "ADC2",
-        "GP29": "ADC3",
-        "GP23": "SMPS"
+        "rp2040": {
+            "GP24": "USB D-",
+            "GP25": "USB D+",
+            "GP26": "ADC0",
+            "GP27": "ADC1",
+            "GP28": "ADC2",
+            "GP29": "ADC3",
+            "GP23": "SMPS",
+        },
+        "stm32g0": {
+            "PA13": "SWDIO",
+            "PA14": "SWCLK",
+            "PB2": "BOOT1",
+            "PC14": "LSE",
+            "PC15": "LSE",
+            "PF0": "HSE_IN",
+            "PF1": "HSE_OUT",
+            "PF2": "NRST",
+        },
+        "esp32": {
+            "GPIO0": "BOOT",
+            "GPIO1": "TX0",
+            "GPIO2": "BOOT",
+            "GPIO3": "RX0",
+            "GPIO25": "DAC1",
+            "GPIO26": "DAC2",
+            "GPIO36": "VP",
+            "GPIO39": "VN",
+        },
     }
 
-    if pin in special_functions:
-        label_parts.append(special_functions[pin])
+    mcu_funcs = special_functions.get(mcu.lower(), {})
+    if pin in mcu_funcs:
+        label_parts.append(mcu_funcs[pin])
 
     return "<br/>".join(label_parts)
 
@@ -235,12 +258,10 @@ def _get_node_style(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> 
     # Categorize by function
     if any(keyword in net_upper for keyword in ["VCC", "VDD", "GND", "POWER", "3V3", "5V"]):
         return "power"
-    if any(keyword in net_upper for keyword in ["ADC", "ANALOG", "AIN"]) or pin in ["GP26", "GP27", "GP28", "GP29"]:
+    if any(keyword in net_upper for keyword in ["ADC", "ANALOG", "AIN", "DAC"]):
         return "analog"
     if any(keyword in net_upper for keyword in ["I2C", "SPI", "UART", "CAN", "SDA", "SCL", "MOSI", "MISO"]):
         return "communication"
-    if pin in ["GP24", "GP25", "GP23"]:  # Special function pins
-        return "special"
     return "digital"
 
 

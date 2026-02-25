@@ -63,7 +63,7 @@ class RP2040Profile(MCUProfile):
             capabilities={PinCapability.GPIO, PinCapability.USB_DP},
             special_function="USB D+ (Data Plus)",
             warnings=["GP25 is USB D+ pin - avoid for general GPIO if USB needed"],
-            alternate_names=["USB_DP", "USB_DM", "USBDP", "USBDM", "GPIO25", "IO25", "25"]
+            alternate_names=["USB_DP", "USBDP", "GPIO25", "IO25", "25"]
         )
 
         # ADC pins (26-29)
@@ -225,7 +225,7 @@ class RP2040Profile(MCUProfile):
         warnings = super().validate_pin_assignment(pin_name, role)
 
         # RP2040-specific validation
-        if pin_name == "GP23" and role != "gpio":
+        if pin_name == "GP23" and not role.startswith("gpio"):
             warnings.append("GP23 has limited peripheral support due to SMPS function")
 
         if pin_name in ["GP24", "GP25"] and role.startswith("usb"):

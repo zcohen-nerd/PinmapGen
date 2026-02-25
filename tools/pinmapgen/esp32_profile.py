@@ -300,7 +300,7 @@ class ESP32Profile(MCUProfile):
             warnings.append(f"GPIO{pin_num} is a strapping pin - may affect boot behavior")
 
         # UART0 pins
-        if pin_num in [1, 3] and not role.startswith("uart"):
+        if pin_num in [1, 3] and not role.startswith("uart."):
             warnings.append(f"GPIO{pin_num} is UART0 - may interfere with programming/console")
 
         # Input-only pins used for output

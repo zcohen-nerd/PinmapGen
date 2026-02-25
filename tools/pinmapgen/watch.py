@@ -215,7 +215,7 @@ def main() -> None:
     parser.add_argument(
         "--mcu",
         default="rp2040",
-        choices=["rp2040"],
+        choices=["rp2040", "stm32g0", "esp32"],
         help="MCU profile (default: rp2040)"
     )
     parser.add_argument(

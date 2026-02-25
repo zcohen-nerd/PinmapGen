@@ -74,8 +74,9 @@ def generate_pinout_documentation(canonical_dict: dict[str, Any]) -> str:
             "",
         ])
 
+        mcu_lower = canonical_dict.get("mcu", "unknown")
         for pin in special_pins:
-            function = _get_special_function(pin)
+            function = _get_special_function(pin, mcu_lower)
             lines.append(f"- **{pin}**: {function}")
 
         lines.extend(["", "---", ""])
@@ -206,14 +207,15 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
         diff_pair_nets.add(pair.get("negative", ""))
 
     # Collect single-ended pins only
+    mcu = canonical_dict.get("mcu", "unknown")
     pin_data = []
     for net_name, pin_list in pins.items():
         if len(pin_list) == 1 and net_name not in diff_pair_nets:
             pin = pin_list[0]
-            match = re.match(r"GP(\d+)", pin)
-            if match:
-                pin_num = int(match.group(1))
-                function = _get_special_function(pin)
+            num_match = re.search(r"\d+", pin)
+            if num_match:
+                pin_num = int(num_match.group())
+                function = _get_special_function(pin, mcu)
                 notes = _get_pin_notes(net_name, pin, canonical_dict)
                 pin_data.append((pin_num, net_name, pin, function, notes))
 
@@ -306,19 +308,45 @@ def _sanitize_c_identifier(name: str) -> str:
     return _sanitize_identifier(name)
 
 
-def _get_special_function(pin: str) -> str:
+def _get_special_function(pin: str, mcu: str = "rp2040") -> str:
     """Get special function description for a pin."""
     special_functions = {
-        "GP24": "USB D- (Data Minus)",
-        "GP25": "USB D+ (Data Plus)",
-        "GP26": "ADC Channel 0",
-        "GP27": "ADC Channel 1",
-        "GP28": "ADC Channel 2",
-        "GP29": "ADC Channel 3",
-        "GP23": "SMPS Power Mode",
+        "rp2040": {
+            "GP24": "USB D- (Data Minus)",
+            "GP25": "USB D+ (Data Plus)",
+            "GP26": "ADC Channel 0",
+            "GP27": "ADC Channel 1",
+            "GP28": "ADC Channel 2",
+            "GP29": "ADC Channel 3",
+            "GP23": "SMPS Power Mode",
+        },
+        "stm32g0": {
+            "PA13": "SWD Debug IO (SWDIO)",
+            "PA14": "SWD Debug Clock (SWCLK)",
+            "PB2": "Boot1 Pin",
+            "PC14": "LSE Crystal (32kHz)",
+            "PC15": "LSE Crystal (32kHz)",
+            "PF0": "HSE Crystal Input",
+            "PF1": "HSE Crystal Output",
+            "PF2": "NRST (Reset)",
+        },
+        "esp32": {
+            "GPIO0": "Strapping Pin / Boot Mode",
+            "GPIO1": "UART0 TX (Console)",
+            "GPIO2": "Strapping Pin / Boot Mode",
+            "GPIO3": "UART0 RX (Console)",
+            "GPIO5": "Strapping Pin / VSPI CS0",
+            "GPIO12": "Strapping Pin / Boot Voltage",
+            "GPIO15": "Strapping Pin / Boot Silence",
+            "GPIO25": "DAC1",
+            "GPIO26": "DAC2",
+            "GPIO36": "VP (Input Only)",
+            "GPIO39": "VN (Input Only)",
+        },
     }
 
-    return special_functions.get(pin, "General Purpose I/O")
+    mcu_funcs = special_functions.get(mcu.lower(), {})
+    return mcu_funcs.get(pin, "General Purpose I/O")
 
 
 def _get_pin_notes(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> str:

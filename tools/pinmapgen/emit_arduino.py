@@ -158,7 +158,7 @@ def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
     Get descriptive comment for a pin.
     
     Args:
-        pin: Pin name (e.g., 'GP24')
+        pin: Pin name (e.g., 'GP24', 'PA13', 'GPIO0')
         canonical_dict: Canonical pinmap dictionary
         
     Returns:
@@ -166,19 +166,42 @@ def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
     """
     comments = [pin]  # Always include the pin name
 
-    # Add special function information
+    mcu = canonical_dict.get("mcu", "unknown")
     special_functions = {
-        "GP24": "USB D-",
-        "GP25": "USB D+",
-        "GP26": "ADC0",
-        "GP27": "ADC1",
-        "GP28": "ADC2",
-        "GP29": "ADC3",
-        "GP23": "SMPS_MODE"
+        "rp2040": {
+            "GP24": "USB D-",
+            "GP25": "USB D+",
+            "GP26": "ADC0",
+            "GP27": "ADC1",
+            "GP28": "ADC2",
+            "GP29": "ADC3",
+            "GP23": "SMPS_MODE",
+        },
+        "stm32g0": {
+            "PA13": "SWDIO",
+            "PA14": "SWCLK",
+            "PB2": "BOOT1",
+            "PC14": "LSE",
+            "PC15": "LSE",
+            "PF0": "HSE_IN",
+            "PF1": "HSE_OUT",
+            "PF2": "NRST",
+        },
+        "esp32": {
+            "GPIO0": "BOOT_MODE",
+            "GPIO1": "UART0_TX",
+            "GPIO2": "BOOT_MODE",
+            "GPIO3": "UART0_RX",
+            "GPIO25": "DAC1",
+            "GPIO26": "DAC2",
+            "GPIO36": "VP",
+            "GPIO39": "VN",
+        },
     }
 
-    if pin in special_functions:
-        comments.append(special_functions[pin])
+    mcu_funcs = special_functions.get(mcu.lower(), {})
+    if pin in mcu_funcs:
+        comments.append(mcu_funcs[pin])
 
     return " - ".join(comments)
 
@@ -243,7 +266,8 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
             if pins:
                 lines.append(f"// {group_name} Pins")
                 for pin_info in pins:
-                    pin_num = pin_info.pin_name.replace("GP", "")
+                    pin_num_match = re.search(r"\d+", pin_info.pin_name)
+                    pin_num = pin_num_match.group() if pin_num_match else "0"
                     const_name = _sanitize_net_name(pin_info.net_name)
                     comment = f"  // {pin_info.description}"
                     lines.append(f"#define {const_name} {pin_num}{comment}")

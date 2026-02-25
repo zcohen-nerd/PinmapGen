@@ -291,7 +291,7 @@ class MCUProfile(ABC):
                     from .roles import PinRoleInferrer
                     role_inferrer = PinRoleInferrer()
                     role = role_inferrer.infer_role(net_name)
-                    pin_warnings = self.validate_pin_assignment(normalized_pin, role.name)
+                    pin_warnings = self.validate_pin_assignment(normalized_pin, role.value)
                     validation_warnings.extend(pin_warnings)
 
                 except ValueError as e:

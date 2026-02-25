@@ -79,7 +79,7 @@ def generate_micropython_constants(canonical_dict: dict[str, Any]) -> str:
                 continue
 
             const_name = _sanitize_net_name(net_name)
-            comment = _get_pin_comment(pin_name)
+            comment = _get_pin_comment(pin_name, mcu)
             literal = _micropython_pin_literal(pin_name)
             lines.append(f"{const_name} = {literal}  # {comment}")
 
@@ -196,12 +196,13 @@ def _micropython_pin_literal(pin_name: str) -> str:
     return f'"{pin_name}"'
 
 
-def _get_pin_comment(pin: str) -> str:
+def _get_pin_comment(pin: str, mcu: str = "rp2040") -> str:
     """
     Get descriptive comment for a pin.
 
     Args:
-        pin: Pin name (e.g., 'GP24').
+        pin: Pin name (e.g., 'GP24', 'PA13', 'GPIO0').
+        mcu: MCU identifier for MCU-specific lookups.
 
     Returns:
         Human-readable comment string used in emitted constants.
@@ -210,17 +211,40 @@ def _get_pin_comment(pin: str) -> str:
 
     # Add special function information
     special_functions = {
-        "GP24": "USB D-",
-        "GP25": "USB D+",
-        "GP26": "ADC0",
-        "GP27": "ADC1",
-        "GP28": "ADC2",
-        "GP29": "ADC3",
-        "GP23": "SMPS_MODE"
+        "rp2040": {
+            "GP24": "USB D-",
+            "GP25": "USB D+",
+            "GP26": "ADC0",
+            "GP27": "ADC1",
+            "GP28": "ADC2",
+            "GP29": "ADC3",
+            "GP23": "SMPS_MODE",
+        },
+        "stm32g0": {
+            "PA13": "SWDIO",
+            "PA14": "SWCLK",
+            "PB2": "BOOT1",
+            "PC14": "LSE",
+            "PC15": "LSE",
+            "PF0": "HSE_IN",
+            "PF1": "HSE_OUT",
+            "PF2": "NRST",
+        },
+        "esp32": {
+            "GPIO0": "BOOT_MODE",
+            "GPIO1": "UART0_TX",
+            "GPIO2": "BOOT_MODE",
+            "GPIO3": "UART0_RX",
+            "GPIO25": "DAC1",
+            "GPIO26": "DAC2",
+            "GPIO36": "VP",
+            "GPIO39": "VN",
+        },
     }
 
-    if pin in special_functions:
-        comments.append(special_functions[pin])
+    mcu_funcs = special_functions.get(mcu.lower(), {})
+    if pin in mcu_funcs:
+        comments.append(mcu_funcs[pin])
 
     return " - ".join(comments)
 

@@ -71,46 +71,46 @@ class RoleInferencer:
             # I2C patterns
             PinRole.I2C_SDA: [
                 r"(?i).*i2c.*sda.*",
-                r"(?i).*sda.*",
+                r"(?i).*(?<![a-zA-Z])sda(?![a-zA-Z]).*",
             ],
             PinRole.I2C_SCL: [
                 r"(?i).*i2c.*scl.*",
-                r"(?i).*scl.*",
+                r"(?i).*(?<![a-zA-Z])scl(?![a-zA-Z]).*",
             ],
 
             # UART patterns
             PinRole.UART_TX: [
                 r"(?i).*uart.*tx.*",
-                r"(?i).*tx.*",
+                r"(?i).*(?<![a-zA-Z])tx(?![a-zA-Z]).*",
                 r"(?i).*serial.*tx.*",
             ],
             PinRole.UART_RX: [
                 r"(?i).*uart.*rx.*",
-                r"(?i).*rx.*",
+                r"(?i).*(?<![a-zA-Z])rx(?![a-zA-Z]).*",
                 r"(?i).*serial.*rx.*",
             ],
 
             # SPI patterns
             PinRole.SPI_MOSI: [
                 r"(?i).*spi.*mosi.*",
-                r"(?i).*mosi.*",
+                r"(?i).*(?<![a-zA-Z])mosi(?![a-zA-Z]).*",
                 r"(?i).*spi.*tx.*",
             ],
             PinRole.SPI_MISO: [
                 r"(?i).*spi.*miso.*",
-                r"(?i).*miso.*",
+                r"(?i).*(?<![a-zA-Z])miso(?![a-zA-Z]).*",
                 r"(?i).*spi.*rx.*",
             ],
             PinRole.SPI_SCK: [
                 r"(?i).*spi.*sck.*",
-                r"(?i).*sck.*",
+                r"(?i).*(?<![a-zA-Z])sck(?![a-zA-Z]).*",
                 r"(?i).*spi.*clk.*",
             ],
             PinRole.SPI_CS: [
                 r"(?i).*spi.*cs.*",
-                r"(?i).*cs.*",
+                r"(?i).*(?<![a-zA-Z])cs(?![a-zA-Z]).*",
                 r"(?i).*spi.*ss.*",
-                r"(?i).*ss.*",
+                r"(?i).*(?<![a-zA-Z])ss(?![a-zA-Z]).*",
             ],
 
             # USB patterns
@@ -139,12 +139,12 @@ class RoleInferencer:
             PinRole.ADC: [
                 r"(?i).*adc.*",
                 r"(?i).*analog.*in.*",
-                r"(?i).*ain.*",
+                r"(?i).*(?<![a-zA-Z])ain(?![a-zA-Z]).*",
             ],
             PinRole.DAC: [
                 r"(?i).*dac.*",
                 r"(?i).*analog.*out.*",
-                r"(?i).*aout.*",
+                r"(?i).*(?<![a-zA-Z])aout(?![a-zA-Z]).*",
             ],
 
             # PWM patterns
@@ -162,17 +162,17 @@ class RoleInferencer:
             ],
             PinRole.BUTTON: [
                 r"(?i).*button.*",
-                r"(?i).*btn.*",
+                r"(?i).*(?<![a-zA-Z])btn(?![a-zA-Z]).*",
                 r"(?i).*switch.*",
-                r"(?i).*sw.*",
+                r"(?i).*(?<![a-zA-Z])sw\d*(?![a-zA-Z]).*",
             ],
             PinRole.RESET: [
                 r"(?i).*reset.*",
-                r"(?i).*rst.*",
+                r"(?i).*(?<![a-zA-Z])rst(?![a-zA-Z]).*",
             ],
             PinRole.CLOCK: [
                 r"(?i).*clock.*",
-                r"(?i).*clk.*",
+                r"(?i).*(?<![a-zA-Z])clk(?![a-zA-Z]).*",
                 r"(?i).*xtal.*",
                 r"(?i).*osc.*",
             ],
