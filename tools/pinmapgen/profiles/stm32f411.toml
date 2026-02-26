@@ -1,0 +1,200 @@
+# STM32F411 — ST STM32F411 Cortex-M4 (BlackPill, 48-pin LQFP)
+# Canonical pin names: PA0–PA15, PB0–PB15, PC13–PC15
+
+[profile]
+schema_version = 1
+name           = "stm32f411"
+display_name = "STM32F411"
+description  = "ST STM32F411 ARM Cortex-M4F 100 MHz (LQFP-48, BlackPill)"
+family       = "stm32"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[normalization.aliases]
+SWDIO = "PA13"
+SWCLK = "PA14"
+
+# ── Pin groups ────────────────────────────────────────────────────────────
+
+[[pins.groups]]
+range        = { prefix = "PA", start = 0, end = 15 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range        = { prefix = "PB", start = 0, end = 15 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+names        = ["PC13", "PC14", "PC15"]
+capabilities = ["gpio"]
+
+# ── Per-pin capabilities ─────────────────────────────────────────────────
+
+# ADC1 channels
+[[pins.individual]]
+name = "PA0"
+add_capabilities = ["adc", "pwm", "uart_tx"]
+[[pins.individual]]
+name = "PA1"
+add_capabilities = ["adc", "pwm"]
+[[pins.individual]]
+name = "PA2"
+add_capabilities = ["adc", "pwm", "uart_tx"]
+[[pins.individual]]
+name = "PA3"
+add_capabilities = ["adc", "pwm", "uart_rx"]
+[[pins.individual]]
+name = "PA4"
+add_capabilities = ["adc", "spi_cs"]
+[[pins.individual]]
+name = "PA5"
+add_capabilities = ["adc", "spi_sck"]
+[[pins.individual]]
+name = "PA6"
+add_capabilities = ["adc", "pwm", "spi_miso"]
+[[pins.individual]]
+name = "PA7"
+add_capabilities = ["adc", "pwm", "spi_mosi"]
+
+# I2C / UART / SPI pins
+[[pins.individual]]
+name = "PA8"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PA9"
+add_capabilities = ["pwm", "uart_tx", "i2c_scl"]
+[[pins.individual]]
+name = "PA10"
+add_capabilities = ["pwm", "uart_rx", "i2c_sda"]
+[[pins.individual]]
+name = "PA11"
+add_capabilities = ["pwm", "usb_dm"]
+special_function       = "USB D-"
+special_function_short = "USB D-"
+[[pins.individual]]
+name = "PA12"
+add_capabilities = ["usb_dp"]
+special_function       = "USB D+"
+special_function_short = "USB D+"
+
+# SWD
+[[pins.individual]]
+name                   = "PA13"
+special_function       = "SWD Debug IO (SWDIO)"
+special_function_short = "SWDIO"
+warnings               = ["PA13 is default SWDIO - repurposing disables debug"]
+[[pins.individual]]
+name                   = "PA14"
+special_function       = "SWD Debug Clock (SWCLK)"
+special_function_short = "SWCLK"
+warnings               = ["PA14 is default SWCLK - repurposing disables debug"]
+[[pins.individual]]
+name = "PA15"
+add_capabilities = ["pwm", "spi_cs"]
+
+# Port B
+[[pins.individual]]
+name = "PB0"
+add_capabilities = ["adc", "pwm"]
+[[pins.individual]]
+name = "PB1"
+add_capabilities = ["adc", "pwm"]
+[[pins.individual]]
+name = "PB3"
+add_capabilities = ["pwm", "spi_sck"]
+[[pins.individual]]
+name = "PB4"
+add_capabilities = ["pwm", "spi_miso"]
+[[pins.individual]]
+name = "PB5"
+add_capabilities = ["pwm", "spi_mosi"]
+[[pins.individual]]
+name = "PB6"
+add_capabilities = ["pwm", "i2c_scl", "uart_tx"]
+[[pins.individual]]
+name = "PB7"
+add_capabilities = ["pwm", "i2c_sda", "uart_rx"]
+[[pins.individual]]
+name = "PB8"
+add_capabilities = ["pwm", "i2c_scl"]
+[[pins.individual]]
+name = "PB9"
+add_capabilities = ["pwm", "i2c_sda"]
+[[pins.individual]]
+name = "PB10"
+add_capabilities = ["pwm", "i2c_scl", "spi_sck"]
+[[pins.individual]]
+name = "PB12"
+add_capabilities = ["spi_cs"]
+[[pins.individual]]
+name = "PB13"
+add_capabilities = ["spi_sck"]
+[[pins.individual]]
+name = "PB14"
+add_capabilities = ["spi_miso"]
+[[pins.individual]]
+name = "PB15"
+add_capabilities = ["spi_mosi"]
+
+# Port C
+[[pins.individual]]
+name                   = "PC13"
+special_function       = "User LED (BlackPill)"
+special_function_short = "LED"
+[[pins.individual]]
+name                   = "PC14"
+special_function       = "LSE Crystal (32 kHz)"
+special_function_short = "LSE"
+[[pins.individual]]
+name                   = "PC15"
+special_function       = "LSE Crystal (32 kHz)"
+special_function_short = "LSE"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "PB7", scl = "PB6" }
+
+[[peripherals]]
+name = "I2C"
+instance = 1
+pins = { sda = "PB3", scl = "PB10" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "PA7", miso = "PA6", sck = "PA5", cs = "PA4" }
+
+[[peripherals]]
+name = "SPI"
+instance = 1
+pins = { mosi = "PB15", miso = "PB14", sck = "PB13", cs = "PB12" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "PA9", rx = "PA10" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "PA2", rx = "PA3" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "PA12", dm = "PA11" }

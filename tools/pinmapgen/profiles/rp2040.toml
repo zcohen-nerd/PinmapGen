@@ -1,0 +1,137 @@
+# RP2040 — Raspberry Pi RP2040 dual-core ARM Cortex-M0+
+# Canonical pin names: GP0 – GP29
+
+[profile]
+schema_version = 1
+name           = "rp2040"
+display_name = "RP2040"
+description = "Raspberry Pi RP2040 dual-core ARM Cortex-M0+ (QFN-56)"
+family      = "rp2"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "GP"
+allow_numeric    = true
+
+[[normalization.patterns]]
+regex  = "GPIO(\\d+)"
+output = "GP{0}"
+
+[[normalization.patterns]]
+regex  = "IO(\\d+)"
+output = "GP{0}"
+
+[normalization.aliases]
+USB_DP  = "GP25"
+USB_DM  = "GP24"
+USB_DN  = "GP24"
+USBDP   = "GP25"
+USBDM   = "GP24"
+USBDN   = "GP24"
+ADC0    = "GP26"
+ADC1    = "GP27"
+ADC2    = "GP28"
+ADC3    = "GP29"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+[[pins.groups]]
+range        = { prefix = "GP", start = 0, end = 29 }
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# GP23 — SMPS mode (limited — override to restrict capabilities)
+[[pins.individual]]
+name                  = "GP23"
+capabilities          = ["gpio"]
+special_function      = "SMPS Power Mode"
+special_function_short = "SMPS_MODE"
+warnings              = ["GP23 controls SMPS power mode - use with caution"]
+
+# GP24 — USB D-
+[[pins.individual]]
+name                  = "GP24"
+capabilities          = ["gpio", "usb_dm"]
+special_function      = "USB D- (Data Minus)"
+special_function_short = "USB D-"
+warnings              = ["GP24 is USB D- pin - avoid for general GPIO if USB needed"]
+
+# GP25 — USB D+
+[[pins.individual]]
+name                  = "GP25"
+capabilities          = ["gpio", "usb_dp"]
+special_function      = "USB D+ (Data Plus)"
+special_function_short = "USB D+"
+warnings              = ["GP25 is USB D+ pin - avoid for general GPIO if USB needed"]
+
+# GP26–GP29 — ADC channels (also have full peripheral mux)
+[[pins.individual]]
+name                  = "GP26"
+add_capabilities      = ["adc"]
+special_function      = "ADC Channel 0"
+special_function_short = "ADC0"
+
+[[pins.individual]]
+name                  = "GP27"
+add_capabilities      = ["adc"]
+special_function      = "ADC Channel 1"
+special_function_short = "ADC1"
+
+[[pins.individual]]
+name                  = "GP28"
+add_capabilities      = ["adc"]
+special_function      = "ADC Channel 2"
+special_function_short = "ADC2"
+
+[[pins.individual]]
+name                  = "GP29"
+add_capabilities      = ["adc"]
+special_function      = "ADC Channel 3"
+special_function_short = "ADC3"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name     = "I2C"
+instance = 0
+pins     = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name     = "I2C"
+instance = 1
+pins     = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 0
+pins     = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 1
+pins     = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name     = "UART"
+instance = 0
+pins     = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name     = "UART"
+instance = 1
+pins     = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name     = "USB"
+instance = 0
+pins     = { dp = "GP25", dm = "GP24" }
+
+[[peripherals]]
+name     = "ADC"
+instance = 0
+pins     = { ch0 = "GP26", ch1 = "GP27", ch2 = "GP28", ch3 = "GP29" }

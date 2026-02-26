@@ -4,6 +4,9 @@ PinmapGen CLI - Command Line Interface for generating pinmaps from Fusion Electr
 
 Usage:
     python -m tools.pinmapgen.cli --sch|--csv --mcu rp2040 --mcu-ref U1 --out-root . [--mermaid]
+    python -m tools.pinmapgen.cli --list-mcus
+    python -m tools.pinmapgen.cli profiles list [--profile-dir DIR]
+    python -m tools.pinmapgen.cli profiles check <name> [--profile-dir DIR]
 """
 
 import argparse
@@ -22,20 +25,18 @@ from . import (
     emit_mermaid,
     emit_micropython,
 )
-from .esp32_profile import ESP32Profile
-from .rp2040_profile import RP2040Profile
-from .stm32g0_profile import STM32G0Profile
+from .profile_registry import registry
 
-# MCU Profile Registry
-MCU_PROFILES = {
-    "rp2040": RP2040Profile,
-    "stm32g0": STM32G0Profile,
-    "esp32": ESP32Profile,
-}
+# Legacy MCU_PROFILES dict kept for backward compatibility.  Code that
+# imports ``cli.MCU_PROFILES`` will still work; the registry is the
+# canonical source of truth at runtime.
+MCU_PROFILES = {name: name for name in registry.list_profiles()}
 
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
+    available = registry.list_profiles()
+
     parser = argparse.ArgumentParser(
         description="Generate pinmaps from Fusion Electronics exports",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -43,23 +44,39 @@ def parse_arguments() -> argparse.Namespace:
 Examples:
   python -m tools.pinmapgen.cli --csv hardware/exports/netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
   python -m tools.pinmapgen.cli --sch hardware/exports/project.sch --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
+  python -m tools.pinmapgen.cli --list-mcus
+  python -m tools.pinmapgen.cli --csv netlist.csv --mcu my_mcu --mcu-ref U1 --profile-dir ./my_profiles
         """,
     )
 
-    # Input source (mutually exclusive)
-    input_group = parser.add_mutually_exclusive_group(required=True)
+    # Input source (mutually exclusive) — not required when --list-mcus
+    input_group = parser.add_mutually_exclusive_group(required=False)
     input_group.add_argument("--csv", type=Path, help="CSV netlist export file")
     input_group.add_argument("--sch", type=Path, help="EAGLE schematic file (.sch)")
 
     # MCU configuration
     parser.add_argument(
         "--mcu",
-        required=True,
-        choices=list(MCU_PROFILES.keys()),
-        help=f"MCU profile (supports: {', '.join(MCU_PROFILES.keys())})",
+        help=(
+            "MCU profile name. Built-in profiles: "
+            + ", ".join(available)
+            + ". Use --list-mcus to see all available."
+        ),
     )
     parser.add_argument(
-        "--mcu-ref", required=True, help="MCU reference designator (e.g., U1)"
+        "--mcu-ref", help="MCU reference designator (e.g., U1)"
+    )
+
+    # Profile discovery
+    parser.add_argument(
+        "--profile-dir",
+        type=Path,
+        help="Additional directory containing custom TOML MCU profiles",
+    )
+    parser.add_argument(
+        "--list-mcus",
+        action="store_true",
+        help="List all available MCU profiles and exit",
     )
 
     # Output configuration
@@ -83,7 +100,57 @@ Examples:
         help="Produce reproducible output (fixed timestamps)",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Register user profile directory before validation.
+    if args.profile_dir:
+        try:
+            registry.add_profile_dir(args.profile_dir)
+        except FileNotFoundError as exc:
+            parser.error(str(exc))
+
+    # Handle --list-mcus early.
+    if args.list_mcus:
+        _print_profile_list()
+        sys.exit(0)
+
+    # When not listing, --csv/--sch, --mcu, and --mcu-ref are required.
+    if not args.csv and not args.sch:
+        parser.error("one of --csv or --sch is required")
+    if not args.mcu:
+        parser.error("--mcu is required")
+    if not args.mcu_ref:
+        parser.error("--mcu-ref is required")
+
+    # Validate MCU name against registry.
+    if args.mcu.lower() not in registry:
+        available_now = registry.list_profiles()
+        parser.error(
+            f"Unknown MCU profile '{args.mcu}'. "
+            f"Available: {', '.join(available_now)}"
+        )
+
+    return args
+
+
+def _print_profile_list() -> None:
+    """Print a formatted list of available MCU profiles."""
+    profiles = registry.list_profiles()
+    if not profiles:
+        print("No MCU profiles found.")
+        return
+
+    print(f"{'Name':<16} {'Display':<16} {'Family':<8} {'Source':<8} Description")
+    print("-" * 80)
+    for name in profiles:
+        info = registry.get_profile_info(name)
+        print(
+            f"{info['name']:<16} "
+            f"{info.get('display_name', ''):<16} "
+            f"{info.get('family', ''):<8} "
+            f"{info['source']:<8} "
+            f"{info.get('description', '')}"
+        )
 
 
 def parse_input_file(args: argparse.Namespace) -> dict[str, list[str]]:
@@ -130,13 +197,8 @@ def create_canonical_pinmap(
         print(f"Normalizing pins for {mcu_name}")
 
     try:
-        # Get MCU profile
-        if mcu_name not in MCU_PROFILES:
-            msg = f"Unknown MCU profile: {mcu_name}"
-            raise ValueError(msg)
-
-        profile_class = MCU_PROFILES[mcu_name]
-        profile = profile_class()
+        # Get MCU profile from registry
+        profile = registry.get_profile(mcu_name)
 
         # Create canonical pinmap using profile
         canonical_dict = profile.create_canonical_pinmap(nets)
@@ -160,7 +222,7 @@ def create_canonical_pinmap(
 
         return canonical_dict
 
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -210,8 +272,136 @@ def generate_outputs(canonical_dict: dict[str, Any], args: argparse.Namespace) -
             print(f"  - {mermaid_path}")
 
 
+def _profiles_main(argv: list[str]) -> int:
+    """Handle the ``profiles`` subcommand (list / check).
+
+    Returns an exit code (0 = success).
+    """
+    parser = argparse.ArgumentParser(
+        prog="pinmapgen profiles",
+        description="Profile management utilities",
+    )
+    parser.add_argument(
+        "--profile-dir",
+        type=Path,
+        help="Additional directory containing custom TOML MCU profiles",
+    )
+    sub = parser.add_subparsers(dest="action")
+    sub.required = True
+
+    sub.add_parser("list", help="List available MCU profiles")
+
+    check_p = sub.add_parser("check", help="Validate and inspect a profile")
+    check_p.add_argument("name", help="Profile name to check")
+
+    args = parser.parse_args(argv)
+
+    # Register user profile directory if provided.
+    if args.profile_dir:
+        try:
+            registry.add_profile_dir(args.profile_dir)
+        except FileNotFoundError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+
+    if args.action == "list":
+        return _profiles_list_cmd()
+    if args.action == "check":
+        return _profiles_check_cmd(args.name)
+    return 1  # pragma: no cover
+
+
+def _profiles_list_cmd() -> int:
+    """Print a formatted table of all registered profiles."""
+    profiles = registry.list_profiles()
+    if not profiles:
+        print("No MCU profiles found.")
+        return 0
+
+    # Table header
+    print(
+        f"{'Name':<16} {'Source':<8} {'Schema':<8} "
+        f"{'Family':<8} Description"
+    )
+    print("-" * 76)
+    for name in profiles:
+        info = registry.get_profile_info(name)
+        sv = info.get("schema_version")
+        sv_str = str(sv) if sv is not None else "-"
+        print(
+            f"{info['name']:<16} "
+            f"{info['source']:<8} "
+            f"{sv_str:<8} "
+            f"{info.get('family', ''):<8} "
+            f"{info.get('description', '')}"
+        )
+    return 0
+
+
+def _profiles_check_cmd(name: str) -> int:
+    """Validate and summarise a single profile."""
+    key = name.lower()
+    if key not in registry:
+        print(f"Error: Unknown profile '{name}'.", file=sys.stderr)
+        available = registry.list_profiles()
+        if available:
+            print(
+                f"Available: {', '.join(available)}", file=sys.stderr,
+            )
+        return 1
+
+    info = registry.get_profile_info(key)
+    print(f"Profile:         {info['name']}")
+    print(f"Source:          {info['source']}")
+    if info.get("path"):
+        print(f"Path:            {info['path']}")
+    if info.get("class"):
+        print(f"Class:           {info['class']}")
+    sv = info.get("schema_version")
+    print(f"Schema version:  {sv if sv is not None else '-'}")
+    print(f"Family:          {info.get('family', '') or '-'}")
+    print(f"Display name:    {info.get('display_name', '') or '-'}")
+    desc = info.get("description", "")
+    if desc:
+        print(f"Description:     {desc}")
+
+    # Attempt full instantiation to catch validation / hydration errors.
+    try:
+        profile = registry.get_profile(key)
+    except Exception as exc:
+        print(f"\nValidation FAILED: {exc}", file=sys.stderr)
+        return 1
+
+    # Summary statistics.
+    pin_count = len(profile.pins)
+    peripheral_count = len(profile.peripherals)
+    special_pins = [
+        p.name for p in profile.pins.values()
+        if p.special_function
+    ]
+
+    print(f"Pin count:       {pin_count}")
+    print(f"Peripherals:     {peripheral_count}")
+    if special_pins:
+        print(f"Special pins:    {len(special_pins)} ({', '.join(special_pins)})")
+
+    # If TOML, report validation warnings from the loader.
+    if hasattr(profile, "validation_warnings") and profile.validation_warnings:
+        print(f"\nWarnings ({len(profile.validation_warnings)}):")
+        for w in profile.validation_warnings:
+            print(f"  - {w}")
+    else:
+        print("\nValidation OK — no warnings.")
+
+    return 0
+
+
 def main():
     """Main CLI entry point."""
+    # Check for ``profiles`` subcommand before normal argparse.
+    if len(sys.argv) > 1 and sys.argv[1] == "profiles":
+        sys.exit(_profiles_main(sys.argv[2:]))
+
     args = None
     try:
         # Parse command line arguments

@@ -294,7 +294,11 @@ def _create_node_label(net_name: str, pin: str, canonical_dict: dict[str, Any]) 
     label_parts = [net_name, pin]
 
     mcu = canonical_dict.get("mcu", "unknown")
-    mcu_funcs = SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
+    # Prefer embedded metadata (TOML profiles), fall back to hardcoded table.
+    meta_funcs = (
+        canonical_dict.get("metadata", {}).get("special_functions_short", {})
+    )
+    mcu_funcs = meta_funcs or SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
     if pin in mcu_funcs:
         label_parts.append(mcu_funcs[pin])
 

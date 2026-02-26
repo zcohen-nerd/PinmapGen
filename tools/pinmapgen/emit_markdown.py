@@ -294,8 +294,22 @@ def generate_differential_pairs_table(canonical_dict: dict[str, Any]) -> str:
         neg_net = pair.get("negative", "")
 
         # Get pin assignments
-        pos_pin = pins.get(pos_net, [""])[0] if pos_net in pins else ""
-        neg_pin = pins.get(neg_net, [""])[0] if neg_net in pins else ""
+        pos_entry = pins.get(pos_net, [])
+        neg_entry = pins.get(neg_net, [])
+
+        if isinstance(pos_entry, list):
+            pos_pin = pos_entry[0] if pos_entry else ""
+        elif isinstance(pos_entry, str):
+            pos_pin = pos_entry
+        else:
+            pos_pin = ""
+
+        if isinstance(neg_entry, list):
+            neg_pin = neg_entry[0] if neg_entry else ""
+        elif isinstance(neg_entry, str):
+            neg_pin = neg_entry
+        else:
+            neg_pin = ""
 
         # Determine signal type and function
         signal_name = _get_differential_signal_name(pos_net, neg_net)
@@ -338,9 +352,11 @@ def _sanitize_c_identifier(name: str) -> str:
     return _sanitize_identifier(name)
 
 
-def _get_special_function(pin: str, mcu: str = "rp2040") -> str:
+def _get_special_function(
+    pin: str, mcu: str = "rp2040", canonical_dict: dict[str, Any] | None = None,
+) -> str:
     """Get special function description for a pin."""
-    return _get_special_function_impl(pin, mcu)
+    return _get_special_function_impl(pin, mcu, canonical_dict=canonical_dict)
 
 
 def _get_pin_notes(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> str:

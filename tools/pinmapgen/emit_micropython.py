@@ -113,14 +113,22 @@ def _micropython_pin_literal(pin_name: str) -> str:
     if not token:
         return '"UNKNOWN_PIN"'
 
+    # RP2040 / RP2350: GP<n> → bare int
     rp_match = re.fullmatch(r"GP(\d+)", token)
     if rp_match:
         return str(int(rp_match.group(1)))
 
+    # ESP32 family: GPIO<n> → quoted string
     gpio_match = re.fullmatch(r"GPIO(\d+)", token)
     if gpio_match:
         return f'"GPIO{gpio_match.group(1)}"'
 
+    # nRF52840: P<port>_<pin> → "P<port>.<pin>" (MicroPython nrf port)
+    nrf_match = re.fullmatch(r"P(\d+)_(\d+)", token)
+    if nrf_match:
+        return f'"P{nrf_match.group(1)}.{nrf_match.group(2)}"'
+
+    # STM32 / AVR / SAM: P<letter><n> → quoted string
     stm_match = re.fullmatch(r"P[A-Z]\d+", token)
     if stm_match:
         return f'"{token}"'
@@ -171,15 +179,21 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
 def _determine_machine_imports(bus_groups: dict[str, list[Any]]) -> set[str]:
     """Determine which ``machine`` module imports are actually needed."""
     imports: set[str] = {"Pin"}  # Pin is always needed
-    group_to_import = {
+    group_prefix_to_import = {
         "I2C": "I2C",
         "SPI": "SPI",
         "PWM": "PWM",
-        "Analog": "ADC",
+        "ANALOG": "ADC",
     }
     for group_name, pins in bus_groups.items():
-        if pins and group_name in group_to_import:
-            imports.add(group_to_import[group_name])
+        if not pins:
+            continue
+
+        upper_name = group_name.upper()
+        for prefix, import_name in group_prefix_to_import.items():
+            if upper_name.startswith(prefix):
+                imports.add(import_name)
+                break
     return imports
 
 

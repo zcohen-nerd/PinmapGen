@@ -1,0 +1,200 @@
+# ESP32 — Espressif ESP32-WROOM-32 dual-core Xtensa LX6
+# Canonical pin names: GPIO0 – GPIO39 (subset available on module)
+
+[profile]
+schema_version = 1
+name           = "esp32"
+display_name = "ESP32"
+description  = "Espressif ESP32-WROOM-32 dual-core Xtensa LX6"
+family       = "esp"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "GPIO"
+allow_numeric    = true
+
+[[normalization.patterns]]
+regex  = "IO(\\d+)"
+output = "GPIO{0}"
+
+[normalization.aliases]
+VP      = "GPIO36"
+VN      = "GPIO39"
+DAC1    = "GPIO25"
+DAC2    = "GPIO26"
+
+# ── Pin groups ────────────────────────────────────────────────────────────
+
+# Output-capable GPIOs (full peripheral matrix via GPIO mux)
+[[pins.groups]]
+names        = [
+    "GPIO0", "GPIO1", "GPIO2", "GPIO3", "GPIO4", "GPIO5",
+    "GPIO12", "GPIO13", "GPIO14", "GPIO15",
+    "GPIO16", "GPIO17", "GPIO18", "GPIO19",
+    "GPIO21", "GPIO22", "GPIO23",
+    "GPIO25", "GPIO26", "GPIO27",
+    "GPIO32", "GPIO33",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# Input-only GPIOs (34-39)
+[[pins.groups]]
+names        = ["GPIO34", "GPIO35", "GPIO36", "GPIO37", "GPIO38", "GPIO39"]
+capabilities = ["gpio"]
+
+# ── Per-pin overrides ────────────────────────────────────────────────────
+
+# ADC1 pins (available even with WiFi)
+[[pins.individual]]
+name             = "GPIO32"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO33"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO34"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO35"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO36"
+add_capabilities = ["adc"]
+special_function       = "VP (Input Only)"
+special_function_short = "VP"
+[[pins.individual]]
+name             = "GPIO37"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO38"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "GPIO39"
+add_capabilities = ["adc"]
+special_function       = "VN (Input Only)"
+special_function_short = "VN"
+
+# ADC2 pins (NOT available when WiFi is active)
+[[pins.individual]]
+name             = "GPIO0"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin / Boot Mode"
+special_function_short = "BOOT_MODE"
+warnings               = ["GPIO0 is a boot strapping pin", "ADC2 unavailable when WiFi active"]
+
+[[pins.individual]]
+name             = "GPIO2"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin / Boot Mode"
+special_function_short = "BOOT_MODE"
+warnings               = ["GPIO2 is a boot strapping pin", "ADC2 unavailable when WiFi active"]
+
+[[pins.individual]]
+name             = "GPIO4"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name             = "GPIO12"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin / Boot Voltage"
+special_function_short = "BOOT_VOLTAGE"
+warnings               = ["GPIO12 configures flash voltage at boot", "ADC2 unavailable when WiFi active"]
+
+[[pins.individual]]
+name             = "GPIO13"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name             = "GPIO14"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name             = "GPIO15"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin / Boot Silence"
+special_function_short = "BOOT_SILENCE"
+warnings               = ["GPIO15 controls boot log output", "ADC2 unavailable when WiFi active"]
+
+[[pins.individual]]
+name             = "GPIO25"
+add_capabilities = ["adc", "dac"]
+special_function       = "DAC1"
+special_function_short = "DAC1"
+
+[[pins.individual]]
+name             = "GPIO26"
+add_capabilities = ["adc", "dac"]
+special_function       = "DAC2"
+special_function_short = "DAC2"
+
+[[pins.individual]]
+name             = "GPIO27"
+add_capabilities = ["adc"]
+
+# Console UART
+[[pins.individual]]
+name                   = "GPIO1"
+special_function       = "UART0 TX (Console)"
+special_function_short = "UART0_TX"
+warnings               = ["GPIO1 is default serial console TX"]
+
+[[pins.individual]]
+name                   = "GPIO3"
+special_function       = "UART0 RX (Console)"
+special_function_short = "UART0_RX"
+warnings               = ["GPIO3 is default serial console RX"]
+
+# VSPI default CS
+[[pins.individual]]
+name                   = "GPIO5"
+special_function       = "Strapping Pin / VSPI CS0"
+special_function_short = "VSPI_CS0"
+warnings               = ["GPIO5 is a boot strapping pin"]
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name     = "I2C"
+instance = 0
+pins     = { sda = "GPIO21", scl = "GPIO22" }
+
+[[peripherals]]
+name     = "I2C"
+instance = 1
+pins     = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 0
+pins     = { mosi = "GPIO23", miso = "GPIO19", sck = "GPIO18", cs = "GPIO5" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 1
+pins     = { mosi = "GPIO13", miso = "GPIO12", sck = "GPIO14", cs = "GPIO15" }
+
+[[peripherals]]
+name     = "UART"
+instance = 0
+pins     = { tx = "GPIO1", rx = "GPIO3" }
+
+[[peripherals]]
+name     = "UART"
+instance = 1
+pins     = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name     = "UART"
+instance = 2
+pins     = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name     = "DAC"
+instance = 0
+pins     = { ch0 = "GPIO25", ch1 = "GPIO26" }

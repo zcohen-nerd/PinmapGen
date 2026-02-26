@@ -83,6 +83,32 @@ class TestIntegration(unittest.TestCase):
                 content = f.read()
                 self.assertGreater(len(content), 0, f"Empty file: {file_path}")
 
+    def test_cli_fails_when_mcu_ref_missing(self):
+        """Test CLI exits with an error when MCU reference is not found."""
+        sample_csv = "hardware/exports/sample_netlist.csv"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "tools.pinmapgen.cli",
+                "--csv",
+                sample_csv,
+                "--mcu",
+                "rp2040",
+                "--mcu-ref",
+                "U999",
+                "--out-root",
+                self.temp_dir,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No entries found for MCU reference", result.stderr)
+
     def test_modules_can_be_imported(self):
         """Test that all modules can be imported without errors."""
         modules_to_test = [

@@ -7,8 +7,10 @@
 
 PinmapGen converts Fusion 360 Electronics / EAGLE CAD exports (CSV netlists,
 `.sch` schematics) into firmware-ready pin-mapping artifacts: MicroPython
-modules, Arduino headers, JSON, Markdown docs, and Mermaid diagrams. It targets
-RP2040, STM32G0, and ESP32 via an extensible profile system.
+modules, Arduino headers, JSON, Markdown docs, and Mermaid diagrams. It ships
+with **13 MCU profiles** (RP2040, RP2350, ESP32, ESP32-S3, ESP32-C3, STM32G0,
+STM32F411, STM32H743, nRF52840, ATmega328P, ATmega2560, ATSAMD21, ATSAMD51) and
+supports adding new MCUs via declarative TOML files — no Python required.
 
 ---
 
@@ -35,7 +37,8 @@ RP2040, STM32G0, and ESP32 via an extensible profile system.
 - **MCU-aware validation** — Detects conflicting pin assignments, special-function usage, and likely differential pairs
 - **Multiple entry points** — CLI for automation and CI; ULP for designers who prefer a graphical workflow
 - **Automation friendly** — VS Code tasks, a polling watcher, and a pytest suite for regression coverage
-- **Extensible profiles** — Add new MCUs by subclassing `MCUProfile` and registering with the CLI
+- **Extensible profiles** — Add new MCUs with a short TOML file (`--profile-dir`) or by subclassing `MCUProfile` in Python
+- **Schema-validated profiles** — TOML profiles are validated on load with actionable error messages for typos, missing fields, and type mismatches
 
 ---
 
@@ -137,13 +140,20 @@ python -m tools.pinmapgen.cli [OPTIONS]
 
 Required arguments:
   --sch PATH | --csv PATH     Input schematic or CSV export
-  --mcu {rp2040,stm32g0,esp32}
+  --mcu NAME                  MCU profile name (use --list-mcus to see all)
   --mcu-ref TEXT              Reference designator (e.g., U1)
 
 Useful flags:
   --out-root PATH             Output directory (default: current dir)
   --mermaid                   Emit Mermaid diagram
   --verbose, -v               Print normalization summary
+  --reproducible              Fixed timestamps for reproducible builds
+  --profile-dir PATH          Additional directory with custom TOML profiles
+  --list-mcus                 List all available MCU profiles and exit
+
+Profile management:
+  profiles list               List all registered profiles with metadata
+  profiles check <name>       Validate and inspect a profile
 ```
 
 More examples (STM32G0, ESP32, watch mode) are in
@@ -168,14 +178,43 @@ and troubleshooting.
 
 ## MCU support
 
-| MCU | Highlights | Notes |
-|-----|------------|-------|
-| RP2040 | GPIO normalization, USB diff pair detection, ADC role hints | Reference implementation used in automated tests |
-| STM32G0 | Port-based pin naming, alternate function validation, boot pin warnings | Modelled on STM32G071 reference design |
-| ESP32 | GPIO matrix awareness, strapping pin warnings, ADC2 Wi-Fi guard rails | Based on ESP32-WROOM-32 module |
+PinmapGen ships with **13 built-in TOML profiles**:
 
-Adding new MCUs requires implementing an `MCUProfile` subclass and registering
-it in the CLI. See [`docs/extending.md`](docs/extending.md).
+| Family | Profiles | Highlights |
+|--------|----------|------------|
+| RP2 | `rp2040`, `rp2350` | GPIO normalization, USB diff pair detection, ADC hints |
+| ESP | `esp32`, `esp32s3`, `esp32c3` | GPIO matrix, strapping pin warnings, ADC2 Wi-Fi guard |
+| STM32 | `stm32g0`, `stm32f411`, `stm32h743` | Port-based naming, alternate functions, boot/SWD warnings |
+| nRF | `nrf52840` | BLE/USB, NFC pin detection, port.pin naming |
+| AVR | `atmega328p`, `atmega2560` | Arduino digital/analog aliases, port-based naming |
+| SAM | `atsamd21`, `atsamd51` | ARM Cortex-M0+/M4F, port-based naming |
+
+List them at any time:
+
+```bash
+python -m tools.pinmapgen.cli --list-mcus
+# or with detailed metadata:
+python -m tools.pinmapgen.cli profiles list
+```
+
+Validate a profile before first use:
+
+```bash
+python -m tools.pinmapgen.cli profiles check rp2040
+```
+
+### Adding new MCUs
+
+Drop a TOML file into a directory and point PinmapGen at it — no Python needed:
+
+```bash
+python -m tools.pinmapgen.cli \
+  --csv netlist.csv --mcu my_mcu --mcu-ref U1 \
+  --profile-dir ./my_profiles
+```
+
+See [`docs/extending.md`](docs/extending.md) for the full TOML schema and
+advanced Python profile classes.
 
 ---
 

@@ -102,9 +102,9 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
         "features": ["role_inference", "bus_groups", "differential_pairs"],
     }
 
-    # Write JSON file with pretty formatting
+    # Write JSON file with pretty formatting and stable key ordering
     with output_path.open("w", encoding="utf-8") as f:
-        json.dump(output_data, f, indent=2, ensure_ascii=False)
+        json.dump(output_data, f, indent=2, ensure_ascii=False, sort_keys=True)
         f.write("\n")  # Add trailing newline
 
 

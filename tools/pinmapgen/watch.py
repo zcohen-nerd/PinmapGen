@@ -148,7 +148,7 @@ def watch_and_regenerate(
     # Verify the directory has watchable files at startup
     initial_files = set()
     for pattern in ["*.csv", "*.sch"]:
-        initial_files.update(watch_dir.glob(pattern))
+        initial_files.update(watch_dir.rglob(pattern))
 
     if not initial_files:
         print(f"ERROR: No .csv or .sch files found in {watch_dir}")

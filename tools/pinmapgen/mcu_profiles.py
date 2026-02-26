@@ -46,6 +46,7 @@ class PinInfo:
     name: str
     capabilities: set[PinCapability]
     special_function: str | None = None
+    special_function_short: str | None = None
     warnings: list[str] | None = None
     alternate_names: list[str] | None = None
 
@@ -192,7 +193,7 @@ class MCUProfile(ABC):
                     continue
 
                 # Check if this net matches the positive pattern
-                pos_match = re.match(pos_pattern, net_name)
+                pos_match = re.match(pos_pattern, net_name, re.IGNORECASE)
                 if pos_match:
                     base_name = pos_match.group(1)
 
@@ -203,7 +204,7 @@ class MCUProfile(ABC):
                     for other_net in net_names:
                         if other_net in matched_pairs or other_net == net_name:
                             continue
-                        if re.match(neg_match_pattern, other_net):
+                        if re.match(neg_match_pattern, other_net, re.IGNORECASE):
                             diff_pairs.append((net_name, other_net))
                             matched_pairs.add(net_name)
                             matched_pairs.add(other_net)
@@ -265,7 +266,7 @@ class MCUProfile(ABC):
         for net_name in nets:
             if net_name not in diff_nets:
                 for pattern in diff_patterns:
-                    if re.match(pattern, net_name):
+                    if re.match(pattern, net_name, re.IGNORECASE):
                         errors.append(
                             f"Potential lonely differential pair: '{net_name}' has no partner"
                         )
@@ -358,7 +359,21 @@ class MCUProfile(ABC):
             if pin in self.pins and self.pins[pin].special_function
         ]
 
+        # Extract special-function metadata from pin definitions so that
+        # emitters can use it without hard-coded look-up tables.
+        special_functions_short: dict[str, str] = {}
+        special_functions_long: dict[str, str] = {}
+        for pin_name, pin_info in self.pins.items():
+            if pin_info.special_function:
+                special_functions_long[pin_name] = pin_info.special_function
+                special_functions_short[pin_name] = (
+                    pin_info.special_function_short
+                    or pin_info.special_function
+                )
+
         # Create canonical structure
+        # Sort nets by name for deterministic, diff-friendly output.
+        normalized_nets = dict(sorted(normalized_nets.items()))
         return {
             "mcu": self.mcu_name.lower(),
             "pins": normalized_nets,
@@ -373,6 +388,8 @@ class MCUProfile(ABC):
                 "validation_warnings": validation_warnings,
                 "validation_errors": validation_errors,
                 "dropped_pins": dropped_pins,
+                "special_functions_short": special_functions_short,
+                "special_functions_long": special_functions_long,
             },
         }
 

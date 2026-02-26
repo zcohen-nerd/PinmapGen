@@ -1,0 +1,123 @@
+# ESP32-C3 — Espressif ESP32-C3 single-core RISC-V
+# Canonical pin names: GPIO0 – GPIO21
+
+[profile]
+schema_version = 1
+name           = "esp32c3"
+display_name = "ESP32-C3"
+description  = "Espressif ESP32-C3 single-core 32-bit RISC-V"
+family       = "esp"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "GPIO"
+allow_numeric    = true
+
+[[normalization.patterns]]
+regex  = "IO(\\d+)"
+output = "GPIO{0}"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Full GPIO set (GPIO0-GPIO21, though GPIO11-GPIO17 used by flash on modules)
+[[pins.groups]]
+names = [
+    "GPIO0", "GPIO1", "GPIO2", "GPIO3", "GPIO4", "GPIO5",
+    "GPIO6", "GPIO7", "GPIO8", "GPIO9", "GPIO10",
+    "GPIO18", "GPIO19", "GPIO20", "GPIO21",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# ADC channels (GPIO0-GPIO4)
+[[pins.individual]]
+name = "GPIO0"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name = "GPIO1"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name = "GPIO2"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin"
+special_function_short = "STRAP"
+warnings               = ["GPIO2 is a boot strapping pin"]
+
+[[pins.individual]]
+name = "GPIO3"
+add_capabilities = ["adc"]
+
+[[pins.individual]]
+name = "GPIO4"
+add_capabilities = ["adc"]
+
+# Strapping / boot pins
+[[pins.individual]]
+name                   = "GPIO8"
+special_function       = "Strapping Pin (Boot)"
+special_function_short = "BOOT"
+warnings               = ["GPIO8 strapping pin affects boot mode"]
+
+[[pins.individual]]
+name                   = "GPIO9"
+special_function       = "Strapping Pin (Boot)"
+special_function_short = "BOOT"
+warnings               = ["GPIO9 is the boot button strapping pin"]
+
+# USB Serial/JTAG
+[[pins.individual]]
+name                   = "GPIO18"
+add_capabilities       = ["usb_dm"]
+special_function       = "USB Serial/JTAG D-"
+special_function_short = "USB D-"
+
+[[pins.individual]]
+name                   = "GPIO19"
+add_capabilities       = ["usb_dp"]
+special_function       = "USB Serial/JTAG D+"
+special_function_short = "USB D+"
+
+# Default UART
+[[pins.individual]]
+name                   = "GPIO20"
+special_function       = "UART0 RX (Console)"
+special_function_short = "U0RXD"
+
+[[pins.individual]]
+name                   = "GPIO21"
+special_function       = "UART0 TX (Console)"
+special_function_short = "U0TXD"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "GPIO7", miso = "GPIO2", sck = "GPIO6", cs = "GPIO10" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "GPIO21", rx = "GPIO20" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "GPIO19", dm = "GPIO18" }

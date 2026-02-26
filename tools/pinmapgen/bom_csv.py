@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import Any
 
 
+def _normalize_refdes(value: str) -> str:
+    """Normalize reference designator for stable comparisons."""
+    return value.strip().upper()
+
+
 def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
     """
     Parse CSV netlist export.
@@ -97,9 +102,10 @@ def parse_netlist_tuples(
     csv_data = parse_csv(csv_path)
 
     # Filter for the specified MCU reference and extract tuples
+    normalized_ref = _normalize_refdes(mcu_ref)
     mcu_tuples = []
     for row in csv_data:
-        if row["RefDes"] == mcu_ref:
+        if _normalize_refdes(row["RefDes"]) == normalized_ref:
             net_name = row["Net"]
             refdes = row["RefDes"]
             pin = row["Pin"]
@@ -126,10 +132,11 @@ def extract_nets(
         Dictionary mapping net names to pin lists
     """
     net_to_pins = {}
+    normalized_ref = _normalize_refdes(mcu_ref) if mcu_ref else None
 
     for row in csv_data:
         # Filter by MCU reference if specified
-        if mcu_ref and row["RefDes"] != mcu_ref:
+        if normalized_ref and _normalize_refdes(row["RefDes"]) != normalized_ref:
             continue
 
         net_name = row["Net"]
@@ -158,4 +165,8 @@ def get_mcu_nets(csv_path: Path | str, mcu_ref: str) -> dict[str, list[str]]:
         Dictionary mapping net names to pin lists for the specified MCU
     """
     csv_data = parse_csv(csv_path)
-    return extract_nets(csv_data, mcu_ref)
+    net_map = extract_nets(csv_data, mcu_ref)
+    if not net_map:
+        msg = f"No entries found for MCU reference '{mcu_ref}'"
+        raise ValueError(msg)
+    return net_map

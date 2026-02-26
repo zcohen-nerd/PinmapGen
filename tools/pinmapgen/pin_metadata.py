@@ -77,32 +77,59 @@ SPECIAL_FUNCTIONS_LONG: dict[str, dict[str, str]] = {
 }
 
 
-def get_pin_comment(pin: str, mcu: str = "rp2040") -> str:
+def get_pin_comment(
+    pin: str,
+    mcu: str = "rp2040",
+    canonical_dict: dict | None = None,
+) -> str:
     """Return a concise pin comment such as ``"GP24 - USB D-"``.
+
+    When *canonical_dict* is provided the special-function data embedded in
+    its ``metadata.special_functions_short`` is used, which makes the
+    function work for TOML-defined profiles without any hard-coded tables.
+    Falls back to the built-in ``SPECIAL_FUNCTIONS_SHORT`` dict.
 
     Args:
         pin: Normalised pin name (e.g. ``"GP24"``, ``"PA13"``).
         mcu: MCU identifier for MCU-specific lookups.
+        canonical_dict: Optional canonical pinmap dict.
 
     Returns:
         Human-readable comment string.
     """
     comments = [pin]
-    mcu_funcs = SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
+    if canonical_dict:
+        mcu_funcs = (
+            canonical_dict.get("metadata", {})
+            .get("special_functions_short", {})
+        )
+    else:
+        mcu_funcs = SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
     if pin in mcu_funcs:
         comments.append(mcu_funcs[pin])
     return " - ".join(comments)
 
 
-def get_special_function(pin: str, mcu: str = "rp2040") -> str:
+def get_special_function(
+    pin: str,
+    mcu: str = "rp2040",
+    canonical_dict: dict | None = None,
+) -> str:
     """Return a verbose special-function description for documentation.
 
     Args:
         pin: Normalised pin name.
         mcu: MCU identifier.
+        canonical_dict: Optional canonical pinmap dict.
 
     Returns:
         Descriptive string, or ``"General Purpose I/O"`` if unknown.
     """
-    mcu_funcs = SPECIAL_FUNCTIONS_LONG.get(mcu.lower(), {})
+    if canonical_dict:
+        mcu_funcs = (
+            canonical_dict.get("metadata", {})
+            .get("special_functions_long", {})
+        )
+    else:
+        mcu_funcs = SPECIAL_FUNCTIONS_LONG.get(mcu.lower(), {})
     return mcu_funcs.get(pin, "General Purpose I/O")

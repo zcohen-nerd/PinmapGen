@@ -84,19 +84,21 @@ def _sanitize_net_name(
 def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
     """Get descriptive comment for a pin.
 
-    Wraps :func:`pin_metadata.get_pin_comment` to accept a canonical dict
-    (for backward compatibility with existing callers in this module).
+    Wraps :func:`pin_metadata.get_pin_comment` to accept a canonical dict.
+    When the canonical dict contains embedded special-function metadata
+    (from TOML profiles) that data is used automatically.
     """
     mcu = canonical_dict.get("mcu", "unknown")
-    return get_pin_comment(pin, mcu)
+    return get_pin_comment(pin, mcu, canonical_dict=canonical_dict)
 
 
 def _arduino_pin_literal(pin_name: str) -> str:
     """Return the Arduino-compatible pin literal for a given MCU pin name.
 
-    RP2040: ``GP4`` → ``4``
-    ESP32:  ``GPIO21`` → ``21``
-    STM32:  ``PA10`` → ``PA_10``
+    RP2040:   ``GP4``    → ``4``
+    ESP32:    ``GPIO21`` → ``21``
+    STM32:    ``PA10``   → ``PA_10``
+    nRF52840: ``P0_13``  → ``13``   (port * 32 + pin)
 
     Args:
         pin_name: Normalized MCU pin name.
@@ -118,7 +120,14 @@ def _arduino_pin_literal(pin_name: str) -> str:
     if gpio_match:
         return gpio_match.group(1)
 
-    # STM32: P<port><n> → P<port>_<n>
+    # nRF52840: P<port>_<pin> → flat number (port * 32 + pin)
+    nrf_match = re.fullmatch(r"P(\d+)_(\d+)", token)
+    if nrf_match:
+        port = int(nrf_match.group(1))
+        pin = int(nrf_match.group(2))
+        return str(port * 32 + pin)
+
+    # STM32 / AVR / SAM: P<port><n> → P<port>_<n>
     stm_match = re.fullmatch(r"P([A-Z])(\d+)", token)
     if stm_match:
         return f"P{stm_match.group(1)}_{stm_match.group(2)}"

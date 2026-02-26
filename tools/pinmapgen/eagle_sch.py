@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import Any
 
 
+def _normalize_refdes(value: str) -> str:
+    """Normalize reference designator for stable comparisons."""
+    return value.strip().upper()
+
+
 def parse_schematic(sch_path: Path | str) -> ET.Element:
     """
     Parse EAGLE schematic XML file.
@@ -75,6 +80,7 @@ def parse_schematic_tuples(
     root = parse_schematic(sch_path)
 
     # Find all nets in the schematic
+    normalized_ref = _normalize_refdes(mcu_ref)
     nets_data = []
     schematic = root.find("drawing/schematic")
 
@@ -109,7 +115,11 @@ def parse_schematic_tuples(
                     part_ref = pinref.get("part")
                     pin_name = pinref.get("pin")
 
-                    if part_ref and pin_name and part_ref == mcu_ref:
+                    if (
+                        part_ref
+                        and pin_name
+                        and _normalize_refdes(part_ref) == normalized_ref
+                    ):
                         nets_data.append((net_name, part_ref, pin_name))
 
     if not nets_data:
@@ -131,6 +141,7 @@ def extract_nets_from_schematic(root: ET.Element, mcu_ref: str) -> dict[str, lis
         Dictionary mapping net names to pin lists
     """
     net_to_pins = {}
+    normalized_ref = _normalize_refdes(mcu_ref)
     schematic = root.find("drawing/schematic")
 
     if schematic is None:
@@ -159,7 +170,11 @@ def extract_nets_from_schematic(root: ET.Element, mcu_ref: str) -> dict[str, lis
                     part_ref = pinref.get("part")
                     pin_name = pinref.get("pin")
 
-                    if part_ref and pin_name and part_ref == mcu_ref:
+                    if (
+                        part_ref
+                        and pin_name
+                        and _normalize_refdes(part_ref) == normalized_ref
+                    ):
                         # Add pin to net mapping
                         if net_name not in net_to_pins:
                             net_to_pins[net_name] = []
@@ -185,7 +200,11 @@ def get_mcu_nets_from_schematic(
         Dictionary mapping net names to pin lists for the specified MCU
     """
     root = parse_schematic(sch_path)
-    return extract_nets_from_schematic(root, mcu_ref)
+    net_map = extract_nets_from_schematic(root, mcu_ref)
+    if not net_map:
+        msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"
+        raise ValueError(msg)
+    return net_map
 
 
 def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:

@@ -1,0 +1,188 @@
+# nRF52840 — Nordic nRF52840 Cortex-M4F with BLE 5.0 and USB
+# Canonical pin names: P0_00 – P0_31, P1_00 – P1_15
+
+[profile]
+schema_version = 1
+name           = "nrf52840"
+display_name = "nRF52840"
+description  = "Nordic nRF52840 ARM Cortex-M4F with Bluetooth 5.0, USB"
+family       = "nrf"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+# P0.13 → P0_13  (dot to underscore)
+[[normalization.patterns]]
+regex  = "P(\\d+)\\.(\\d+)"
+output = "P{0}_{1}"
+
+# P0_13 already canonical (no transform needed but validates)
+[[normalization.patterns]]
+regex  = "P(\\d+)_(\\d+)"
+output = "P{0}_{1}"
+
+# Bare GPIO number → P0_xx (for numbers 0-31) — common in Arduino cores
+[[normalization.patterns]]
+regex  = "GPIO(\\d+)"
+output = "P0_{0}"
+
+[normalization.aliases]
+# Common Adafruit Feather nRF52840 aliases
+LED1   = "P0_13"
+LED2   = "P0_14"
+NRST   = "P0_18"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Port 0: P0_00 – P0_31 (fully featured GPIOs)
+[[pins.groups]]
+names = [
+    "P0_00", "P0_01", "P0_02", "P0_03", "P0_04", "P0_05", "P0_06", "P0_07",
+    "P0_08", "P0_09", "P0_10", "P0_11", "P0_12", "P0_13", "P0_14", "P0_15",
+    "P0_16", "P0_17", "P0_18", "P0_19", "P0_20", "P0_21", "P0_22", "P0_23",
+    "P0_24", "P0_25", "P0_26", "P0_27", "P0_28", "P0_29", "P0_30", "P0_31",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# Port 1: P1_00 – P1_15
+[[pins.groups]]
+names = [
+    "P1_00", "P1_01", "P1_02", "P1_03", "P1_04", "P1_05", "P1_06", "P1_07",
+    "P1_08", "P1_09", "P1_10", "P1_11", "P1_12", "P1_13", "P1_14", "P1_15",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# ADC inputs (SAADC: P0_02–P0_05, P0_28–P0_31)
+[[pins.individual]]
+name = "P0_02"
+add_capabilities = ["adc"]
+special_function = "AIN0 (Analog Input)"
+special_function_short = "AIN0"
+
+[[pins.individual]]
+name = "P0_03"
+add_capabilities = ["adc"]
+special_function = "AIN1 (Analog Input)"
+special_function_short = "AIN1"
+
+[[pins.individual]]
+name = "P0_04"
+add_capabilities = ["adc"]
+special_function = "AIN2 (Analog Input)"
+special_function_short = "AIN2"
+
+[[pins.individual]]
+name = "P0_05"
+add_capabilities = ["adc"]
+special_function = "AIN3 (Analog Input)"
+special_function_short = "AIN3"
+
+[[pins.individual]]
+name = "P0_28"
+add_capabilities = ["adc"]
+special_function = "AIN4 (Analog Input)"
+special_function_short = "AIN4"
+
+[[pins.individual]]
+name = "P0_29"
+add_capabilities = ["adc"]
+special_function = "AIN5 (Analog Input)"
+special_function_short = "AIN5"
+
+[[pins.individual]]
+name = "P0_30"
+add_capabilities = ["adc"]
+special_function = "AIN6 (Analog Input)"
+special_function_short = "AIN6"
+
+[[pins.individual]]
+name = "P0_31"
+add_capabilities = ["adc"]
+special_function = "AIN7 (Analog Input)"
+special_function_short = "AIN7"
+
+# NFC antenna pins
+[[pins.individual]]
+name                   = "P0_09"
+special_function       = "NFC1 Antenna"
+special_function_short = "NFC1"
+warnings               = ["P0.09 default NFC antenna - disable NFC to use as GPIO"]
+
+[[pins.individual]]
+name                   = "P0_10"
+special_function       = "NFC2 Antenna"
+special_function_short = "NFC2"
+warnings               = ["P0.10 default NFC antenna - disable NFC to use as GPIO"]
+
+# Reset
+[[pins.individual]]
+name                   = "P0_18"
+special_function       = "RESET"
+special_function_short = "NRST"
+warnings               = ["P0.18 is the hardware reset pin"]
+
+# USB
+[[pins.individual]]
+name                   = "P0_13"
+special_function       = "USB D- / LED1 (dev kits)"
+special_function_short = "USB D-"
+add_capabilities       = ["usb_dm"]
+
+[[pins.individual]]
+name                   = "P0_14"
+add_capabilities       = ["usb_dp"]
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name = "I2C"
+instance = 1
+pins = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 1
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 2
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "P0_14", dm = "P0_13" }

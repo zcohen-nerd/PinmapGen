@@ -1,0 +1,213 @@
+# ATSAMD21G18 — Microchip ATSAMD21G18A Cortex-M0+ (Arduino Zero / Adafruit M0)
+# Canonical pin names: PA00–PA31, PB00–PB23
+
+[profile]
+schema_version = 1
+name           = "atsamd21"
+display_name = "ATSAMD21"
+description  = "Microchip ATSAMD21G18A ARM Cortex-M0+ (Arduino Zero, Adafruit M0)"
+family       = "sam"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+# Two-digit pin numbers (PA02, PB09)
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+# Arduino Zero aliases
+[normalization.aliases]
+D0  = "PA11"
+D1  = "PA10"
+D2  = "PA14"
+D3  = "PA09"
+D4  = "PA08"
+D5  = "PA15"
+D6  = "PA20"
+D7  = "PA21"
+D8  = "PA06"
+D9  = "PA07"
+D10 = "PA18"
+D11 = "PA16"
+D12 = "PA19"
+D13 = "PA17"
+A0  = "PA02"
+A1  = "PB08"
+A2  = "PB09"
+A3  = "PA04"
+A4  = "PA05"
+A5  = "PB02"
+SDA = "PA22"
+SCL = "PA23"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Port A (PA00-PA31, not all bonded out)
+[[pins.groups]]
+names = [
+    "PA00", "PA01", "PA02", "PA03", "PA04", "PA05", "PA06", "PA07",
+    "PA08", "PA09", "PA10", "PA11", "PA12", "PA13", "PA14", "PA15",
+    "PA16", "PA17", "PA18", "PA19", "PA20", "PA21", "PA22", "PA23",
+    "PA24", "PA25", "PA27", "PA28", "PA30", "PA31",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# Port B
+[[pins.groups]]
+names = [
+    "PB00", "PB01", "PB02", "PB03", "PB04", "PB05",
+    "PB06", "PB07", "PB08", "PB09", "PB10", "PB11",
+    "PB22", "PB23",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# ── Per-pin capabilities ─────────────────────────────────────────────────
+
+# DAC output
+[[pins.individual]]
+name = "PA02"
+add_capabilities = ["adc", "dac"]
+special_function = "DAC Output / ADC AIN0"
+special_function_short = "DAC/AIN0"
+
+# ADC inputs
+[[pins.individual]]
+name = "PA03"
+add_capabilities = ["adc"]
+special_function_short = "AIN1"
+[[pins.individual]]
+name = "PA04"
+add_capabilities = ["adc"]
+special_function_short = "AIN4"
+[[pins.individual]]
+name = "PA05"
+add_capabilities = ["adc"]
+special_function_short = "AIN5"
+[[pins.individual]]
+name = "PA06"
+add_capabilities = ["adc"]
+special_function_short = "AIN6"
+[[pins.individual]]
+name = "PA07"
+add_capabilities = ["adc"]
+special_function_short = "AIN7"
+
+[[pins.individual]]
+name = "PB00"
+add_capabilities = ["adc"]
+special_function_short = "AIN8"
+[[pins.individual]]
+name = "PB01"
+add_capabilities = ["adc"]
+special_function_short = "AIN9"
+[[pins.individual]]
+name = "PB02"
+add_capabilities = ["adc"]
+special_function_short = "AIN10"
+[[pins.individual]]
+name = "PB03"
+add_capabilities = ["adc"]
+special_function_short = "AIN11"
+[[pins.individual]]
+name = "PB04"
+add_capabilities = ["adc"]
+special_function_short = "AIN12"
+[[pins.individual]]
+name = "PB05"
+add_capabilities = ["adc"]
+special_function_short = "AIN13"
+[[pins.individual]]
+name = "PB08"
+add_capabilities = ["adc"]
+special_function_short = "AIN2"
+[[pins.individual]]
+name = "PB09"
+add_capabilities = ["adc"]
+special_function_short = "AIN3"
+
+# USB
+[[pins.individual]]
+name = "PA24"
+add_capabilities = ["usb_dm"]
+special_function = "USB D-"
+special_function_short = "USB D-"
+
+[[pins.individual]]
+name = "PA25"
+add_capabilities = ["usb_dp"]
+special_function = "USB D+"
+special_function_short = "USB D+"
+
+# SWD pins
+[[pins.individual]]
+name = "PA30"
+special_function = "SWCLK (Debug)"
+special_function_short = "SWCLK"
+warnings = ["PA30 is SWCLK - repurposing disables debug"]
+
+[[pins.individual]]
+name = "PA31"
+special_function = "SWDIO (Debug)"
+special_function_short = "SWDIO"
+warnings = ["PA31 is SWDIO - repurposing disables debug"]
+
+# Crystal
+[[pins.individual]]
+name = "PA00"
+special_function = "XIN32 (32 kHz Crystal)"
+special_function_short = "XIN32"
+[[pins.individual]]
+name = "PA01"
+special_function = "XOUT32 (32 kHz Crystal)"
+special_function_short = "XOUT32"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+# SERCOM peripherals (flexible I2C/SPI/UART)
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "PA22", scl = "PA23" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "PA16", miso = "PA19", sck = "PA17", cs = "PA18" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "PA10", rx = "PA11" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "PB22", rx = "PB23" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "PA25", dm = "PA24" }
+
+[[peripherals]]
+name = "DAC"
+instance = 0
+pins = { out = "PA02" }

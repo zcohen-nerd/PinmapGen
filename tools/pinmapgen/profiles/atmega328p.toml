@@ -1,0 +1,193 @@
+# ATmega328P — Microchip ATmega328P (Arduino Uno / Nano)
+# Canonical pin names: PB0–PB7, PC0–PC6, PD0–PD7
+
+[profile]
+schema_version = 1
+name           = "atmega328p"
+display_name = "ATmega328P"
+description  = "Microchip ATmega328P 8-bit AVR (Arduino Uno / Nano)"
+family       = "avr"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+# Arduino digital pin aliases → AVR port pins
+[normalization.aliases]
+D0  = "PD0"
+D1  = "PD1"
+D2  = "PD2"
+D3  = "PD3"
+D4  = "PD4"
+D5  = "PD5"
+D6  = "PD6"
+D7  = "PD7"
+D8  = "PB0"
+D9  = "PB1"
+D10 = "PB2"
+D11 = "PB3"
+D12 = "PB4"
+D13 = "PB5"
+A0  = "PC0"
+A1  = "PC1"
+A2  = "PC2"
+A3  = "PC3"
+A4  = "PC4"
+A5  = "PC5"
+SCK  = "PB5"
+MISO = "PB4"
+MOSI = "PB3"
+SS   = "PB2"
+SDA  = "PC4"
+SCL  = "PC5"
+LED  = "PB5"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Port B (PB0-PB7)
+[[pins.groups]]
+range        = { prefix = "PB", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+# Port C (PC0-PC6, PC7 doesn't exist on DIP-28)
+[[pins.groups]]
+range        = { prefix = "PC", start = 0, end = 6 }
+capabilities = ["gpio"]
+
+# Port D (PD0-PD7)
+[[pins.groups]]
+range        = { prefix = "PD", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+# ── Per-pin capabilities ─────────────────────────────────────────────────
+
+# PWM outputs (OC0A, OC0B, OC1A, OC1B, OC2A, OC2B)
+[[pins.individual]]
+name = "PD6"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PD5"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB1"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB2"
+add_capabilities = ["pwm", "spi_cs"]
+special_function       = "SPI SS / OC1B"
+special_function_short = "SS/PWM"
+[[pins.individual]]
+name = "PB3"
+add_capabilities = ["pwm", "spi_mosi"]
+special_function       = "SPI MOSI / OC2A"
+special_function_short = "MOSI/PWM"
+[[pins.individual]]
+name = "PD3"
+add_capabilities = ["pwm"]
+
+# SPI
+[[pins.individual]]
+name = "PB4"
+add_capabilities = ["spi_miso"]
+[[pins.individual]]
+name = "PB5"
+add_capabilities = ["spi_sck"]
+special_function       = "SPI SCK / LED (Arduino)"
+special_function_short = "SCK/LED"
+
+# UART
+[[pins.individual]]
+name                   = "PD0"
+add_capabilities       = ["uart_rx"]
+special_function       = "UART RX"
+special_function_short = "RXD"
+[[pins.individual]]
+name                   = "PD1"
+add_capabilities       = ["uart_tx"]
+special_function       = "UART TX"
+special_function_short = "TXD"
+
+# I2C (TWI)
+[[pins.individual]]
+name                   = "PC4"
+add_capabilities       = ["adc", "i2c_sda"]
+special_function       = "ADC4 / I2C SDA"
+special_function_short = "SDA/A4"
+[[pins.individual]]
+name                   = "PC5"
+add_capabilities       = ["adc", "i2c_scl"]
+special_function       = "ADC5 / I2C SCL"
+special_function_short = "SCL/A5"
+
+# ADC channels (PC0-PC5 = ADC0-ADC5)
+[[pins.individual]]
+name = "PC0"
+add_capabilities = ["adc"]
+special_function = "ADC Channel 0"
+special_function_short = "ADC0"
+[[pins.individual]]
+name = "PC1"
+add_capabilities = ["adc"]
+special_function = "ADC Channel 1"
+special_function_short = "ADC1"
+[[pins.individual]]
+name = "PC2"
+add_capabilities = ["adc"]
+special_function = "ADC Channel 2"
+special_function_short = "ADC2"
+[[pins.individual]]
+name = "PC3"
+add_capabilities = ["adc"]
+special_function = "ADC Channel 3"
+special_function_short = "ADC3"
+
+# PC6 — RESET
+[[pins.individual]]
+name                   = "PC6"
+special_function       = "RESET (active low)"
+special_function_short = "RESET"
+warnings               = ["PC6 is RESET by default - requires fuse change for GPIO use"]
+
+# Crystal pins
+[[pins.individual]]
+name                   = "PB6"
+special_function       = "XTAL1 (Crystal)"
+special_function_short = "XTAL1"
+warnings               = ["PB6 is crystal oscillator pin when external crystal used"]
+[[pins.individual]]
+name                   = "PB7"
+special_function       = "XTAL2 (Crystal)"
+special_function_short = "XTAL2"
+warnings               = ["PB7 is crystal oscillator pin when external crystal used"]
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "PB3", miso = "PB4", sck = "PB5", cs = "PB2" }
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "PC4", scl = "PC5" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "PD1", rx = "PD0" }
+
+[[peripherals]]
+name = "ADC"
+instance = 0
+pins = { ch0 = "PC0", ch1 = "PC1", ch2 = "PC2", ch3 = "PC3", ch4 = "PC4", ch5 = "PC5" }

@@ -1,0 +1,232 @@
+# ATSAMD51J19 — Microchip ATSAMD51J19A Cortex-M4F (Adafruit M4 boards)
+# Canonical pin names: PA00–PA31, PB00–PB31
+
+[profile]
+schema_version = 1
+name           = "atsamd51"
+display_name = "ATSAMD51"
+description  = "Microchip ATSAMD51J19A ARM Cortex-M4F 120 MHz (Adafruit Metro M4, Feather M4)"
+family       = "sam"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[normalization.aliases]
+SDA  = "PA12"
+SCL  = "PA13"
+SWCLK = "PA30"
+SWDIO = "PA31"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Port A
+[[pins.groups]]
+names = [
+    "PA00", "PA01", "PA02", "PA03", "PA04", "PA05", "PA06", "PA07",
+    "PA08", "PA09", "PA10", "PA11", "PA12", "PA13", "PA14", "PA15",
+    "PA16", "PA17", "PA18", "PA19", "PA20", "PA21", "PA22", "PA23",
+    "PA24", "PA25", "PA27", "PA30", "PA31",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# Port B
+[[pins.groups]]
+names = [
+    "PB00", "PB01", "PB02", "PB03", "PB04", "PB05", "PB06", "PB07",
+    "PB08", "PB09", "PB10", "PB11", "PB12", "PB13", "PB14", "PB15",
+    "PB16", "PB17", "PB22", "PB23", "PB30", "PB31",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# ── Per-pin capabilities ─────────────────────────────────────────────────
+
+# ADC0 inputs
+[[pins.individual]]
+name = "PA02"
+add_capabilities = ["adc", "dac"]
+special_function = "ADC0 AIN0 / DAC0"
+special_function_short = "DAC0/AIN0"
+[[pins.individual]]
+name = "PA03"
+add_capabilities = ["adc"]
+special_function_short = "AIN1"
+[[pins.individual]]
+name = "PA04"
+add_capabilities = ["adc"]
+special_function_short = "AIN4"
+[[pins.individual]]
+name = "PA05"
+add_capabilities = ["adc", "dac"]
+special_function = "ADC0 AIN5 / DAC1"
+special_function_short = "DAC1/AIN5"
+[[pins.individual]]
+name = "PA06"
+add_capabilities = ["adc"]
+special_function_short = "AIN6"
+[[pins.individual]]
+name = "PA07"
+add_capabilities = ["adc"]
+special_function_short = "AIN7"
+
+# ADC1 inputs
+[[pins.individual]]
+name = "PB00"
+add_capabilities = ["adc"]
+special_function_short = "AIN12"
+[[pins.individual]]
+name = "PB01"
+add_capabilities = ["adc"]
+special_function_short = "AIN13"
+[[pins.individual]]
+name = "PB02"
+add_capabilities = ["adc"]
+special_function_short = "AIN14"
+[[pins.individual]]
+name = "PB03"
+add_capabilities = ["adc"]
+special_function_short = "AIN15"
+[[pins.individual]]
+name = "PB04"
+add_capabilities = ["adc"]
+special_function_short = "AIN6"
+[[pins.individual]]
+name = "PB05"
+add_capabilities = ["adc"]
+special_function_short = "AIN7"
+[[pins.individual]]
+name = "PB06"
+add_capabilities = ["adc"]
+special_function_short = "AIN8"
+[[pins.individual]]
+name = "PB07"
+add_capabilities = ["adc"]
+special_function_short = "AIN9"
+[[pins.individual]]
+name = "PB08"
+add_capabilities = ["adc"]
+special_function_short = "AIN0"
+[[pins.individual]]
+name = "PB09"
+add_capabilities = ["adc"]
+special_function_short = "AIN1"
+
+# CAN bus (MCAN)
+[[pins.individual]]
+name = "PA22"
+add_capabilities = ["can_tx"]
+[[pins.individual]]
+name = "PA23"
+add_capabilities = ["can_rx"]
+[[pins.individual]]
+name = "PB12"
+add_capabilities = ["can_tx"]
+[[pins.individual]]
+name = "PB13"
+add_capabilities = ["can_rx"]
+
+# USB
+[[pins.individual]]
+name = "PA24"
+add_capabilities = ["usb_dm"]
+special_function = "USB D-"
+special_function_short = "USB D-"
+[[pins.individual]]
+name = "PA25"
+add_capabilities = ["usb_dp"]
+special_function = "USB D+"
+special_function_short = "USB D+"
+
+# SWD
+[[pins.individual]]
+name = "PA30"
+special_function = "SWCLK (Debug)"
+special_function_short = "SWCLK"
+warnings = ["PA30 is SWCLK - repurposing disables debug"]
+[[pins.individual]]
+name = "PA31"
+special_function = "SWDIO (Debug)"
+special_function_short = "SWDIO"
+warnings = ["PA31 is SWDIO - repurposing disables debug"]
+
+# Crystal
+[[pins.individual]]
+name = "PA00"
+special_function = "XIN32 (32 kHz Crystal)"
+special_function_short = "XIN32"
+[[pins.individual]]
+name = "PA01"
+special_function = "XOUT32 (32 kHz Crystal)"
+special_function_short = "XOUT32"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "PA12", scl = "PA13" }
+
+[[peripherals]]
+name = "I2C"
+instance = 1
+pins = { sda = "PA22", scl = "PA23" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "PA16", miso = "PA19", sck = "PA17", cs = "PA18" }
+
+[[peripherals]]
+name = "SPI"
+instance = 1
+pins = { mosi = "PB22", miso = "PB23", sck = "PA01", cs = "PA00" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "PB16", rx = "PB17" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "PA10", rx = "PA11" }
+
+[[peripherals]]
+name = "CAN"
+instance = 0
+pins = { tx = "PA22", rx = "PA23" }
+
+[[peripherals]]
+name = "CAN"
+instance = 1
+pins = { tx = "PB12", rx = "PB13" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "PA25", dm = "PA24" }
+
+[[peripherals]]
+name = "DAC"
+instance = 0
+pins = { ch0 = "PA02", ch1 = "PA05" }

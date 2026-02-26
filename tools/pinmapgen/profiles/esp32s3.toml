@@ -1,0 +1,220 @@
+# ESP32-S3 — Espressif ESP32-S3 dual-core Xtensa LX7 with USB OTG
+# Canonical pin names: GPIO0 – GPIO48 (GPIO22-25 not available on WROOM module)
+
+[profile]
+schema_version = 1
+name           = "esp32s3"
+display_name = "ESP32-S3"
+description  = "Espressif ESP32-S3 dual-core Xtensa LX7 with USB OTG"
+family       = "esp"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "GPIO"
+allow_numeric    = true
+
+[[normalization.patterns]]
+regex  = "IO(\\d+)"
+output = "GPIO{0}"
+
+[normalization.aliases]
+USB_DP = "GPIO20"
+USB_DM = "GPIO19"
+
+# ── Pin definitions ───────────────────────────────────────────────────────
+
+# Main GPIOs with full peripheral mux
+[[pins.groups]]
+names = [
+    "GPIO0", "GPIO1", "GPIO2", "GPIO3", "GPIO4", "GPIO5", "GPIO6", "GPIO7",
+    "GPIO8", "GPIO9", "GPIO10", "GPIO11", "GPIO12", "GPIO13", "GPIO14",
+    "GPIO15", "GPIO16", "GPIO17", "GPIO18",
+    "GPIO19", "GPIO20", "GPIO21",
+    "GPIO26", "GPIO27", "GPIO28", "GPIO29", "GPIO30",
+    "GPIO31", "GPIO32", "GPIO33", "GPIO34", "GPIO35", "GPIO36", "GPIO37",
+    "GPIO38", "GPIO39", "GPIO40", "GPIO41", "GPIO42",
+    "GPIO43", "GPIO44", "GPIO45", "GPIO46", "GPIO47", "GPIO48",
+]
+capabilities = [
+    "gpio", "pwm",
+    "i2c_sda", "i2c_scl",
+    "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+    "uart_tx", "uart_rx",
+]
+
+# ADC1 channels (GPIO1-GPIO10)
+[[pins.individual]]
+name = "GPIO1"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO2"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO3"
+add_capabilities = ["adc"]
+special_function       = "Strapping Pin"
+special_function_short = "STRAP"
+warnings               = ["GPIO3 is a strapping pin"]
+[[pins.individual]]
+name = "GPIO4"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO5"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO6"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO7"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO8"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO9"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO10"
+add_capabilities = ["adc"]
+
+# ADC2 channels (GPIO11-GPIO20)
+[[pins.individual]]
+name = "GPIO11"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO12"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO13"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO14"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO15"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO16"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO17"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name = "GPIO18"
+add_capabilities = ["adc"]
+
+# USB D-/D+ (also ADC2)
+[[pins.individual]]
+name                   = "GPIO19"
+add_capabilities       = ["adc", "usb_dm"]
+special_function       = "USB D- (OTG)"
+special_function_short = "USB D-"
+warnings               = ["GPIO19 is USB D- when USB OTG is used"]
+
+[[pins.individual]]
+name                   = "GPIO20"
+add_capabilities       = ["adc", "usb_dp"]
+special_function       = "USB D+ (OTG)"
+special_function_short = "USB D+"
+warnings               = ["GPIO20 is USB D+ when USB OTG is used"]
+
+# Strapping pins
+[[pins.individual]]
+name                   = "GPIO0"
+special_function       = "Strapping Pin / Boot Mode"
+special_function_short = "BOOT"
+warnings               = ["GPIO0 is a boot strapping pin"]
+
+[[pins.individual]]
+name                   = "GPIO45"
+special_function       = "Strapping Pin / VDD_SPI Voltage"
+special_function_short = "VDD_SPI"
+warnings               = ["GPIO45 strapping pin selects flash voltage"]
+
+[[pins.individual]]
+name                   = "GPIO46"
+special_function       = "Strapping Pin / Boot Mode"
+special_function_short = "BOOT"
+warnings               = ["GPIO46 is a boot strapping pin (input-only at boot)"]
+
+# JTAG pins
+[[pins.individual]]
+name                   = "GPIO39"
+special_function       = "JTAG MTCK"
+special_function_short = "JTAG"
+
+[[pins.individual]]
+name                   = "GPIO40"
+special_function       = "JTAG MTDO"
+special_function_short = "JTAG"
+
+[[pins.individual]]
+name                   = "GPIO41"
+special_function       = "JTAG MTDI"
+special_function_short = "JTAG"
+
+[[pins.individual]]
+name                   = "GPIO42"
+special_function       = "JTAG MTMS"
+special_function_short = "JTAG"
+
+# Default UART0 (console)
+[[pins.individual]]
+name                   = "GPIO43"
+special_function       = "UART0 TX (Console)"
+special_function_short = "U0TXD"
+warnings               = ["GPIO43 is default console TX"]
+
+[[pins.individual]]
+name                   = "GPIO44"
+special_function       = "UART0 RX (Console)"
+special_function_short = "U0RXD"
+warnings               = ["GPIO44 is default console RX"]
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name = "I2C"
+instance = 1
+pins = { sda = "configurable", scl = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 1
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "SPI"
+instance = 2
+pins = { mosi = "configurable", miso = "configurable", sck = "configurable", cs = "configurable" }
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "GPIO43", rx = "GPIO44" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name = "UART"
+instance = 2
+pins = { tx = "configurable", rx = "configurable" }
+
+[[peripherals]]
+name = "USB"
+instance = 0
+pins = { dp = "GPIO20", dm = "GPIO19" }

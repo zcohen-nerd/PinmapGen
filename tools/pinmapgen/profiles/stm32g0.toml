@@ -1,0 +1,248 @@
+# STM32G0 — STM32G071 Cortex-M0+ (48-pin LQFP)
+# Canonical pin names: PA0–PA15, PB0–PB15, PC2–PC15, PD0–PD9, PF0–PF2
+
+[profile]
+schema_version = 1
+name           = "stm32g0"
+display_name = "STM32G0"
+description  = "ST STM32G071 ARM Cortex-M0+ (LQFP-48)"
+family       = "stm32"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[normalization.aliases]
+SWDIO   = "PA13"
+SWCLK   = "PA14"
+NRST    = "PF2"
+BOOT1   = "PB2"
+
+# ── Pin groups (base GPIO capability) ────────────────────────────────────
+
+[[pins.groups]]
+range        = { prefix = "PA", start = 0, end = 15 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range        = { prefix = "PB", start = 0, end = 15 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+names        = ["PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC13", "PC14", "PC15"]
+capabilities = ["gpio"]
+
+[[pins.groups]]
+names        = ["PD0", "PD1", "PD2", "PD3", "PD8", "PD9"]
+capabilities = ["gpio"]
+
+[[pins.groups]]
+names        = ["PF0", "PF1", "PF2"]
+capabilities = ["gpio"]
+
+# ── Per-pin capability additions ─────────────────────────────────────────
+
+# PWM-capable pins
+[[pins.individual]]
+name             = "PA0"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA1"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA2"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA3"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA4"
+add_capabilities = ["adc", "dac"]
+[[pins.individual]]
+name             = "PA5"
+add_capabilities = ["adc", "dac"]
+[[pins.individual]]
+name             = "PA6"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA7"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PA8"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name             = "PA9"
+add_capabilities = ["pwm", "i2c_scl"]
+[[pins.individual]]
+name             = "PA10"
+add_capabilities = ["pwm", "i2c_sda"]
+[[pins.individual]]
+name             = "PA11"
+add_capabilities = ["pwm", "spi_mosi", "uart_tx"]
+[[pins.individual]]
+name             = "PA12"
+add_capabilities = ["spi_miso", "uart_rx"]
+
+# PA13 / PA14 — SWD debug
+[[pins.individual]]
+name                   = "PA13"
+special_function       = "SWD Debug IO (SWDIO)"
+special_function_short = "SWDIO"
+warnings               = ["PA13 is default SWDIO - repurposing disables debug"]
+[[pins.individual]]
+name                   = "PA14"
+special_function       = "SWD Debug Clock (SWCLK)"
+special_function_short = "SWCLK"
+warnings               = ["PA14 is default SWCLK - repurposing disables debug"]
+
+# Port-B additions
+[[pins.individual]]
+name             = "PB0"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PB1"
+add_capabilities = ["pwm", "adc"]
+[[pins.individual]]
+name             = "PB2"
+add_capabilities = ["adc"]
+special_function       = "Boot1 Pin"
+special_function_short = "BOOT1"
+warnings               = ["PB2 is BOOT1 strapping pin"]
+[[pins.individual]]
+name             = "PB3"
+add_capabilities = ["pwm", "spi_sck"]
+[[pins.individual]]
+name             = "PB4"
+add_capabilities = ["pwm", "spi_miso"]
+[[pins.individual]]
+name             = "PB5"
+add_capabilities = ["pwm", "spi_mosi"]
+[[pins.individual]]
+name             = "PB6"
+add_capabilities = ["pwm", "i2c_scl", "uart_tx"]
+[[pins.individual]]
+name             = "PB7"
+add_capabilities = ["pwm", "i2c_sda", "uart_rx"]
+[[pins.individual]]
+name             = "PB8"
+add_capabilities = ["pwm", "i2c_scl", "can_rx"]
+[[pins.individual]]
+name             = "PB9"
+add_capabilities = ["pwm", "i2c_sda", "can_tx"]
+[[pins.individual]]
+name             = "PB10"
+add_capabilities = ["adc", "i2c_scl"]
+[[pins.individual]]
+name             = "PB11"
+add_capabilities = ["adc", "i2c_sda"]
+[[pins.individual]]
+name             = "PB12"
+add_capabilities = ["adc", "spi_cs"]
+[[pins.individual]]
+name             = "PB13"
+add_capabilities = ["spi_sck"]
+[[pins.individual]]
+name             = "PB14"
+add_capabilities = ["pwm", "spi_miso"]
+[[pins.individual]]
+name             = "PB15"
+add_capabilities = ["pwm", "spi_mosi"]
+
+# Port-C
+[[pins.individual]]
+name             = "PC4"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "PC5"
+add_capabilities = ["adc"]
+[[pins.individual]]
+name             = "PC6"
+add_capabilities = ["pwm"]
+
+# PC14/PC15 — LSE Crystal
+[[pins.individual]]
+name                   = "PC14"
+special_function       = "LSE Crystal (32 kHz)"
+special_function_short = "LSE"
+warnings               = ["PC14 is LSE oscillator pin"]
+[[pins.individual]]
+name                   = "PC15"
+special_function       = "LSE Crystal (32 kHz)"
+special_function_short = "LSE"
+warnings               = ["PC15 is LSE oscillator pin"]
+
+# PF0/PF1 — HSE Crystal
+[[pins.individual]]
+name                   = "PF0"
+special_function       = "HSE Crystal Input"
+special_function_short = "HSE_IN"
+warnings               = ["PF0 is HSE oscillator input"]
+[[pins.individual]]
+name                   = "PF1"
+special_function       = "HSE Crystal Output"
+special_function_short = "HSE_OUT"
+warnings               = ["PF1 is HSE oscillator output"]
+
+# PF2 — NRST
+[[pins.individual]]
+name                   = "PF2"
+special_function       = "NRST (Reset)"
+special_function_short = "NRST"
+warnings               = ["PF2 is the hardware reset pin"]
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name     = "I2C"
+instance = 0
+pins     = { sda = "PA10", scl = "PA9" }
+
+[[peripherals]]
+name     = "I2C"
+instance = 1
+pins     = { sda = "PB11", scl = "PB10" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 0
+pins     = { mosi = "PB5", miso = "PB4", sck = "PB3", cs = "PA4" }
+
+[[peripherals]]
+name     = "SPI"
+instance = 1
+pins     = { mosi = "PB15", miso = "PB14", sck = "PB13", cs = "PB12" }
+
+[[peripherals]]
+name     = "UART"
+instance = 0
+pins     = { tx = "PA9", rx = "PA10" }
+
+[[peripherals]]
+name     = "UART"
+instance = 1
+pins     = { tx = "PA2", rx = "PA3" }
+
+[[peripherals]]
+name     = "CAN"
+instance = 0
+pins     = { tx = "PB9", rx = "PB8" }
+
+[[peripherals]]
+name     = "DAC"
+instance = 0
+pins     = { ch0 = "PA4", ch1 = "PA5" }
+
+[[peripherals]]
+name     = "ADC"
+instance = 0
+pins     = { ch0 = "PA0", ch1 = "PA1", ch2 = "PA2", ch3 = "PA3", ch4 = "PA4", ch5 = "PA5", ch6 = "PA6", ch7 = "PA7" }

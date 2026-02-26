@@ -1,0 +1,334 @@
+# ATmega2560 — Microchip ATmega2560 (Arduino Mega 2560)
+# Canonical pin names: PA0-PA7, PB0-PB7, PC0-PC7, PD0-PD7, PE0-PE7,
+#                      PF0-PF7, PG0-PG5, PH0-PH7, PJ0-PJ7, PK0-PK7, PL0-PL7
+
+[profile]
+schema_version = 1
+name           = "atmega2560"
+display_name = "ATmega2560"
+description  = "Microchip ATmega2560 8-bit AVR (Arduino Mega 2560)"
+family       = "avr"
+
+# ── Normalization ──────────────────────────────────────────────────────────
+
+[normalization]
+canonical_prefix = "P"
+allow_numeric    = false
+
+[[normalization.patterns]]
+regex  = "GPIO([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+[[normalization.patterns]]
+regex  = "([A-Z])(\\d+)"
+output = "P{0}{1}"
+
+# Arduino Mega digital pin aliases (most common ones)
+[normalization.aliases]
+D0  = "PE0"
+D1  = "PE1"
+D2  = "PE4"
+D3  = "PE5"
+D4  = "PG5"
+D5  = "PE3"
+D6  = "PH3"
+D7  = "PH4"
+D8  = "PH5"
+D9  = "PH6"
+D10 = "PB4"
+D11 = "PB5"
+D12 = "PB6"
+D13 = "PB7"
+A0  = "PF0"
+A1  = "PF1"
+A2  = "PF2"
+A3  = "PF3"
+A4  = "PF4"
+A5  = "PF5"
+A6  = "PF6"
+A7  = "PF7"
+A8  = "PK0"
+A9  = "PK1"
+A10 = "PK2"
+A11 = "PK3"
+A12 = "PK4"
+A13 = "PK5"
+A14 = "PK6"
+A15 = "PK7"
+
+# ── Pin groups ────────────────────────────────────────────────────────────
+
+[[pins.groups]]
+range = { prefix = "PA", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PB", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PC", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PD", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PE", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PF", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+names = ["PG0", "PG1", "PG2", "PG3", "PG4", "PG5"]
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PH", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PJ", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PK", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+[[pins.groups]]
+range = { prefix = "PL", start = 0, end = 7 }
+capabilities = ["gpio"]
+
+# ── Per-pin capabilities ─────────────────────────────────────────────────
+
+# UARTs (4 total)
+[[pins.individual]]
+name = "PE0"
+add_capabilities = ["uart_rx"]
+special_function = "UART0 RX"
+special_function_short = "RXD0"
+[[pins.individual]]
+name = "PE1"
+add_capabilities = ["uart_tx"]
+special_function = "UART0 TX"
+special_function_short = "TXD0"
+[[pins.individual]]
+name = "PD2"
+add_capabilities = ["uart_rx"]
+special_function = "UART1 RX"
+special_function_short = "RXD1"
+[[pins.individual]]
+name = "PD3"
+add_capabilities = ["uart_tx"]
+special_function = "UART1 TX"
+special_function_short = "TXD1"
+[[pins.individual]]
+name = "PH0"
+add_capabilities = ["uart_rx"]
+special_function = "UART2 RX"
+special_function_short = "RXD2"
+[[pins.individual]]
+name = "PH1"
+add_capabilities = ["uart_tx"]
+special_function = "UART2 TX"
+special_function_short = "TXD2"
+[[pins.individual]]
+name = "PJ0"
+add_capabilities = ["uart_rx"]
+special_function = "UART3 RX"
+special_function_short = "RXD3"
+[[pins.individual]]
+name = "PJ1"
+add_capabilities = ["uart_tx"]
+special_function = "UART3 TX"
+special_function_short = "TXD3"
+
+# SPI
+[[pins.individual]]
+name = "PB2"
+add_capabilities = ["spi_mosi"]
+special_function_short = "MOSI"
+[[pins.individual]]
+name = "PB3"
+add_capabilities = ["spi_miso"]
+special_function_short = "MISO"
+[[pins.individual]]
+name = "PB1"
+add_capabilities = ["spi_sck"]
+special_function_short = "SCK"
+[[pins.individual]]
+name = "PB0"
+add_capabilities = ["spi_cs"]
+special_function_short = "SS"
+
+# I2C (TWI)
+[[pins.individual]]
+name = "PD1"
+add_capabilities = ["i2c_sda"]
+special_function = "I2C SDA"
+special_function_short = "SDA"
+[[pins.individual]]
+name = "PD0"
+add_capabilities = ["i2c_scl"]
+special_function = "I2C SCL"
+special_function_short = "SCL"
+
+# PWM outputs
+[[pins.individual]]
+name = "PE3"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PE4"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PE5"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PG5"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PH3"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PH4"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PH5"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PH6"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB4"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB5"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB6"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PB7"
+add_capabilities = ["pwm"]
+special_function = "LED (Arduino Mega)"
+special_function_short = "LED"
+[[pins.individual]]
+name = "PL3"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PL4"
+add_capabilities = ["pwm"]
+[[pins.individual]]
+name = "PL5"
+add_capabilities = ["pwm"]
+
+# ADC channels (PF0-PF7 = ADC0-7, PK0-PK7 = ADC8-15)
+[[pins.individual]]
+name = "PF0"
+add_capabilities = ["adc"]
+special_function_short = "ADC0"
+[[pins.individual]]
+name = "PF1"
+add_capabilities = ["adc"]
+special_function_short = "ADC1"
+[[pins.individual]]
+name = "PF2"
+add_capabilities = ["adc"]
+special_function_short = "ADC2"
+[[pins.individual]]
+name = "PF3"
+add_capabilities = ["adc"]
+special_function_short = "ADC3"
+[[pins.individual]]
+name = "PF4"
+add_capabilities = ["adc"]
+special_function_short = "ADC4"
+[[pins.individual]]
+name = "PF5"
+add_capabilities = ["adc"]
+special_function_short = "ADC5"
+[[pins.individual]]
+name = "PF6"
+add_capabilities = ["adc"]
+special_function_short = "ADC6"
+[[pins.individual]]
+name = "PF7"
+add_capabilities = ["adc"]
+special_function_short = "ADC7"
+[[pins.individual]]
+name = "PK0"
+add_capabilities = ["adc"]
+special_function_short = "ADC8"
+[[pins.individual]]
+name = "PK1"
+add_capabilities = ["adc"]
+special_function_short = "ADC9"
+[[pins.individual]]
+name = "PK2"
+add_capabilities = ["adc"]
+special_function_short = "ADC10"
+[[pins.individual]]
+name = "PK3"
+add_capabilities = ["adc"]
+special_function_short = "ADC11"
+[[pins.individual]]
+name = "PK4"
+add_capabilities = ["adc"]
+special_function_short = "ADC12"
+[[pins.individual]]
+name = "PK5"
+add_capabilities = ["adc"]
+special_function_short = "ADC13"
+[[pins.individual]]
+name = "PK6"
+add_capabilities = ["adc"]
+special_function_short = "ADC14"
+[[pins.individual]]
+name = "PK7"
+add_capabilities = ["adc"]
+special_function_short = "ADC15"
+
+# ── Peripherals ───────────────────────────────────────────────────────────
+
+[[peripherals]]
+name = "UART"
+instance = 0
+pins = { tx = "PE1", rx = "PE0" }
+
+[[peripherals]]
+name = "UART"
+instance = 1
+pins = { tx = "PD3", rx = "PD2" }
+
+[[peripherals]]
+name = "UART"
+instance = 2
+pins = { tx = "PH1", rx = "PH0" }
+
+[[peripherals]]
+name = "UART"
+instance = 3
+pins = { tx = "PJ1", rx = "PJ0" }
+
+[[peripherals]]
+name = "SPI"
+instance = 0
+pins = { mosi = "PB2", miso = "PB3", sck = "PB1", cs = "PB0" }
+
+[[peripherals]]
+name = "I2C"
+instance = 0
+pins = { sda = "PD1", scl = "PD0" }
+
+[[peripherals]]
+name = "ADC"
+instance = 0
+pins = { ch0 = "PF0", ch1 = "PF1", ch2 = "PF2", ch3 = "PF3", ch4 = "PF4", ch5 = "PF5", ch6 = "PF6", ch7 = "PF7" }
+
+[[peripherals]]
+name = "ADC"
+instance = 1
+pins = { ch8 = "PK0", ch9 = "PK1", ch10 = "PK2", ch11 = "PK3", ch12 = "PK4", ch13 = "PK5", ch14 = "PK6", ch15 = "PK7" }
