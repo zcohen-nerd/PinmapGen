@@ -86,17 +86,15 @@ jobs:
         
     - name: Test JSON output validity
       run: |
-        python -c "
-import json
-with open('test_output/pinmaps/pinmap.json', 'r') as f:
-    data = json.load(f)
-print('JSON is valid')
-print(f'MCU: {data[\"mcu\"]}')  
-print(f'Pins: {len(data[\"pins\"])}')
-print(f'Differential pairs: {len(data[\"differential_pairs\"])}')
-"
-
-    - name: Test file watcher (Unix only)
+        python3 << 'PYEOF'
+        import json
+        with open('test_output/pinmaps/pinmap.json', 'r') as f:
+            data = json.load(f)
+        print('JSON is valid')
+        print(f'MCU: {data["mcu"]}')
+        print(f'Pins: {len(data["pins"])}')
+        print(f'Differential pairs: {len(data["differential_pairs"])}')
+        PYEOF
       if: runner.os == 'Linux'
       timeout-minutes: 2
       run: |

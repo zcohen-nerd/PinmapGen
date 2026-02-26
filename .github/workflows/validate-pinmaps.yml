@@ -105,17 +105,17 @@ jobs:
         
         # Validate JSON structure
         echo "🔍 Validating JSON structure..."
-        python -c "
-import json
-with open('pinmaps/pinmap.json', 'r') as f:
-    data = json.load(f)
-    
-required_keys = ['mcu', 'pins', 'differential_pairs', 'metadata']
-for key in required_keys:
-    assert key in data, f'Missing key: {key}'
-    
-print('✅ JSON structure is valid')
-"
+        python3 << 'PYEOF'
+        import json
+        with open('pinmaps/pinmap.json', 'r') as f:
+            data = json.load(f)
+
+        required_keys = ['mcu', 'pins', 'differential_pairs', 'metadata']
+        for key in required_keys:
+            assert key in data, f'Missing key: {key}'
+
+        print('JSON structure is valid')
+        PYEOF
 
         # Check that generated files contain expected content
         echo "🔍 Checking generated file content..."
