@@ -99,6 +99,9 @@ Examples:
         action="store_true",
         help="Produce reproducible output (fixed timestamps)",
     )
+    parser.add_argument(
+        "--version", action="version", version="%(prog)s 0.1.0",
+    )
 
     args = parser.parse_args()
 
