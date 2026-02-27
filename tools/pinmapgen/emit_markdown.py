@@ -82,7 +82,7 @@ def generate_pinout_documentation(canonical_dict: dict[str, Any]) -> str:
 
         mcu_lower = canonical_dict.get("mcu", "unknown")
         for pin in special_pins:
-            function = _get_special_function(pin, mcu_lower)
+            function = _get_special_function(pin, mcu_lower, canonical_dict)
             lines.append(f"- **{pin}**: {function}")
 
         lines.extend(["", "---", ""])
@@ -215,11 +215,10 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
         if len(pin_list) == 1:
             pin = pin_list[0]
             num_match = re.search(r"\d+", pin)
-            if num_match:
-                pin_num = int(num_match.group())
-                function = _get_special_function(pin, mcu)
-                notes = _get_pin_notes(net_name, pin, canonical_dict)
-                pin_data.append((pin_num, net_name, pin, function, notes))
+            pin_num = int(num_match.group()) if num_match else float("inf")
+            function = _get_special_function(pin, mcu, canonical_dict)
+            notes = _get_pin_notes(net_name, pin, canonical_dict)
+            pin_data.append((pin_num, net_name, pin, function, notes))
         elif len(pin_list) > 1:
             multi_pin_nets.append((net_name, pin_list))
 

@@ -105,9 +105,8 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
         if len(pin_list) == 1:
             pin = pin_list[0]
             num_match = re.search(r"\d+", pin)
-            if num_match:
-                pin_num = int(num_match.group())
-                pin_data.append((pin_num, net_name, pin))
+            pin_num = int(num_match.group()) if num_match else float("inf")
+            pin_data.append((pin_num, net_name, pin))
         elif len(pin_list) > 1:
             multi_pin_nets.append((net_name, pin_list))
 
@@ -264,7 +263,10 @@ def _group_pins_by_function(
             groups["Analog"].append((pin_num, net_name, pin))
         elif any(
             keyword in net_upper
-            for keyword in ["I2C", "SPI", "UART", "CAN", "SDA", "SCL", "MOSI", "MISO"]
+            for keyword in [
+                "I2C", "SPI", "UART", "CAN", "SDA", "SCL",
+                "MOSI", "MISO", "SCK", "TX", "RX", "CS", "SS",
+            ]
         ):
             groups["Communication"].append((pin_num, net_name, pin))
         else:
@@ -324,7 +326,10 @@ def _get_node_style(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> 
         return "analog"
     if any(
         keyword in net_upper
-        for keyword in ["I2C", "SPI", "UART", "CAN", "SDA", "SCL", "MOSI", "MISO"]
+        for keyword in [
+            "I2C", "SPI", "UART", "CAN", "SDA", "SCL",
+            "MOSI", "MISO", "SCK", "TX", "RX", "CS", "SS",
+        ]
     ):
         return "communication"
     return "digital"
