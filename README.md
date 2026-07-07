@@ -1,265 +1,251 @@
-# PinmapGen — Fusion Electronics Pinmap Toolchain
+# PinmapGen — from Fusion 360 schematic to working code
 
 [![License: Custom](https://img.shields.io/badge/License-PinmapGen%20Community-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)
 [![CI/CD](https://img.shields.io/github/actions/workflow/status/zcohen-nerd/PinmapGen/build-test.yml?branch=main&label=CI%2FCD)](https://github.com/zcohen-nerd/PinmapGen/actions)
 [![Issues](https://img.shields.io/github/issues/zcohen-nerd/PinmapGen)](https://github.com/zcohen-nerd/PinmapGen/issues)
 
-PinmapGen converts Fusion 360 Electronics / EAGLE CAD exports (CSV netlists,
-`.sch` schematics) into firmware-ready pin-mapping artifacts: MicroPython
-modules, Arduino headers, JSON, Markdown docs, and Mermaid diagrams. It ships
-with **13 MCU profiles** (RP2040, RP2350, ESP32, ESP32-S3, ESP32-C3, STM32G0,
-STM32F411, STM32H743, nRF52840, ATmega328P, ATmega2560, ATSAMD21, ATSAMD51) and
-supports adding new MCUs via declarative TOML files — no Python required.
+You've drawn your circuit in Fusion 360 Electronics. Now someone has to look
+at the schematic and carefully type out which pin the LED is on, which pins
+the sensor uses, and so on — and re-do it every time the design changes. One
+typo and the firmware talks to the wrong pin.
+
+**PinmapGen does that step for you.** It reads your schematic and writes the
+pin definitions automatically:
+
+```
+Your schematic says:          PinmapGen writes for you:
+─────────────────────         ─────────────────────────────
+LED_STATUS  → pin GP15   →    LED_STATUS = 15        (MicroPython)
+BUTTON_1    → pin GP5    →    #define BUTTON_1 5     (Arduino)
+                              ...plus a readable pinout document
+```
+
+It also **checks your design** while it works — it warns you if two signals
+share a pin, if you used a special pin (like a boot or debug pin) by
+accident, or if a USB data pair is missing its partner.
 
 ---
 
-## Table of contents
+## What you get
 
-1. [Highlights](#highlights)
-2. [Who is this for?](#who-is-this-for)
-3. [Installation](#installation)
-4. [Quick starts](#quick-starts)
-5. [Generated outputs](#generated-outputs)
-6. [Command-line workflow](#command-line-workflow)
-7. [Fusion 360 ULP workflow](#fusion-360-ulp-workflow)
-8. [MCU support](#mcu-support)
-9. [Troubleshooting](#troubleshooting)
-10. [Project roadmap](#project-roadmap)
-11. [Contributing](#contributing)
-12. [License](#license)
+Every time you run PinmapGen, it creates a folder containing:
+
+| File | What it's for |
+|------|---------------|
+| `pinmap_micropython.py` | Drop onto your board — pin names ready to use in MicroPython |
+| `pinmap_arduino.h` | Include in your Arduino / PlatformIO project |
+| `PINOUT.md` | A human-readable table of every pin — great for sharing with your team |
+| `pinout.mmd` | A wiring diagram you can view with any Mermaid viewer |
+| `pinmap.json` | Machine-readable data, for scripts and automation |
 
 ---
 
-## Highlights
+## What you'll need
 
-- **Fusion ULP integration** — ULP prompts for metadata, exports the netlist, and launches the CLI without leaving Fusion
-- **MCU-aware validation** — Detects conflicting pin assignments, special-function usage, and likely differential pairs
-- **Multiple entry points** — CLI for automation and CI; ULP for designers who prefer a graphical workflow
-- **Automation friendly** — VS Code tasks, a polling watcher, and a pytest suite for regression coverage
-- **Extensible profiles** — Add new MCUs with a short TOML file (`--profile-dir`) or by subclassing `MCUProfile` in Python
-- **Schema-validated profiles** — TOML profiles are validated on load with actionable error messages for typos, missing fields, and type mismatches
+1. **Windows PC** with **Fusion 360** (the Electronics workspace).
+   *On Mac or Linux? The [command line](#using-the-command-line) works there too.*
+2. **Python 3.11 or newer** — a free download, installed once (steps below).
+3. **This project's files** — also a one-time download.
 
----
-
-## Who is this for?
-
-| Role | What you get | Key docs |
-|------|--------------|----------|
-| PCB designer (Fusion) | Guided pinmap export from the Electronics workspace via ULP | [ULP guide](fusion_addin/ULP_GUIDE.md) |
-| Firmware engineer | CLI for generating and validating pinmaps from CAD exports | [Usage guide](docs/usage.md) |
-| Educator / Lab lead | Repeatable workflows, warnings, classroom-ready outputs | [Team workflows](docs/workflows.md) |
+No programming experience needed for the Fusion workflow.
 
 ---
 
-## Installation
+## One-time setup (about 10 minutes)
 
-### Clone the repository
+### Step 1 — Install Python
+
+1. Go to [python.org/downloads](https://www.python.org/downloads/) and click
+   the big **Download Python** button.
+2. Run the installer. **Important:** on the first screen, tick the box that
+   says **"Add python.exe to PATH"** before clicking Install. (If you miss
+   it, just run the installer again — it's the checkbox at the bottom.)
+3. That's it. You never have to touch Python directly — Fusion will use it
+   behind the scenes.
+
+### Step 2 — Download PinmapGen
+
+1. On this page, click the green **`<> Code`** button (top right), then
+   **Download ZIP**.
+2. Right-click the downloaded ZIP → **Extract All**.
+3. Put the extracted `PinmapGen` folder somewhere easy to find and permanent,
+   for example `Documents\PinmapGen`. **Remember this location** — you'll
+   point Fusion at it in Step 4.
+
+*(If you're comfortable with git: `git clone https://github.com/zcohen-nerd/PinmapGen.git` does the same thing.)*
+
+### Step 3 — Install the ULP into Fusion
+
+A ULP is a small script that runs inside Fusion's Electronics workspace.
+
+1. Open File Explorer, click in the address bar, paste this, and press Enter:
+   ```
+   %APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs
+   ```
+2. Copy `PinmapGen.ulp` from the `fusion_addin` folder of your PinmapGen
+   download into that window.
+3. Restart Fusion 360.
+
+### Step 4 — First run
+
+1. Open your design in the **Electronics** workspace (schematic view).
+2. Go to **Automation → Run ULP** and pick **PinmapGen**.
+3. In the dialog:
+   - **PinmapGen repository** — enter the folder from Step 2, e.g.
+     `C:\Users\YourName\Documents\PinmapGen`. You only do this once; it's
+     remembered for next time.
+   - **MCU Type** — click the button for your chip (RP2040 for a Pico,
+     ATmega328P for an Uno, and so on — see the [chip list](#supported-chips)).
+   - **MCU Reference** — the name of your microcontroller in the schematic,
+     usually `U1`. Not sure? Click your MCU in the schematic and check its
+     name, or use the **Analyze** button in the dialog.
+   - **Output directory** — where the generated files should go (a sensible
+     default is filled in).
+4. Click **Generate Pinmap**. When it finishes, the output folder opens in
+   File Explorer with your files ready to use.
+
+From now on, whenever the schematic changes, just run the ULP again —
+everything is remembered, so it's two clicks.
+
+---
+
+## Using the generated files
+
+**MicroPython** (Raspberry Pi Pico and similar): copy
+`pinmap_micropython.py` onto your board alongside your code, then:
+
+```python
+from pinmap_micropython import *
+from machine import Pin
+
+led = Pin(LED_STATUS, Pin.OUT)   # no pin numbers to look up — just names
+led.on()
+```
+
+**Arduino / PlatformIO**: copy `pinmap_arduino.h` into your sketch or
+project's include folder, then:
+
+```cpp
+#include "pinmap_arduino.h"
+
+void setup() {
+  pinMode(LED_STATUS, OUTPUT);
+  digitalWrite(LED_STATUS, HIGH);
+}
+```
+
+**For your team**: `PINOUT.md` is a plain document listing every net, its
+pin, and any warnings — perfect to attach to a design review.
+
+Read about every output in [docs/output-formats.md](docs/output-formats.md).
+
+---
+
+## Supported chips
+
+PinmapGen knows the pin rules for 13 microcontrollers out of the box:
+
+| If your board is a… | Choose this MCU type |
+|---------------------|----------------------|
+| Raspberry Pi Pico / Pico W | `rp2040` |
+| Raspberry Pi Pico 2 | `rp2350` |
+| ESP32 dev board (WROOM) | `esp32` |
+| ESP32-S3 board | `esp32s3` |
+| ESP32-C3 board | `esp32c3` |
+| STM32 Nucleo / custom STM32G0 | `stm32g0` |
+| "BlackPill" (STM32F411) | `stm32f411` |
+| STM32H743 board | `stm32h743` |
+| nRF52840 (Feather nRF52840, DK) | `nrf52840` |
+| Arduino Uno / Nano | `atmega328p` |
+| Arduino Mega 2560 | `atmega2560` |
+| Arduino Zero / Adafruit M0 | `atsamd21` |
+| Adafruit M4 boards | `atsamd51` |
+
+Using a chip that isn't listed? You can add one by writing a small text file —
+no programming required. See [docs/extending.md](docs/extending.md).
+
+---
+
+## When something goes wrong
+
+**"MCU 'U1' not found"** — the reference name doesn't match your schematic.
+Click your microcontroller in Fusion and check its name (it might be `IC1`
+or `U2`), then enter that instead.
+
+**"Python not found"** — Python isn't installed, or the "Add to PATH" box
+wasn't ticked. Re-run the Python installer from Step 1 and tick the box.
+
+**The ULP doesn't appear in Fusion** — make sure `PinmapGen.ulp` is in the
+ULPs folder from Step 3, then restart Fusion completely.
+
+**"does not look like the PinmapGen repository"** — the repository path in
+the dialog should point at the folder that contains `tools` and `README.md`
+(if you extracted a ZIP, watch out for a doubled folder like
+`PinmapGen-main\PinmapGen-main`).
+
+**Warnings about strapping / boot / debug pins** — not errors! PinmapGen is
+telling you a pin has a special job on your chip. Double-check those pins
+are safe to use for your signal, or move the signal to another pin.
+
+More answers: [docs/troubleshooting.md](docs/troubleshooting.md) and
+[docs/faq.md](docs/faq.md).
+
+---
+
+## Using the command line
+
+If you're comfortable in a terminal (or you're on Mac/Linux), you can skip
+the ULP entirely. Export a netlist CSV from your CAD tool with the columns
+`Net, Pin, Component, RefDes`, then from the PinmapGen folder:
 
 ```bash
-git clone https://github.com/zcohen-nerd/PinmapGen.git
-cd PinmapGen
+python -m tools.pinmapgen.cli --csv my_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root output --mermaid
 ```
 
-### Python environment (developers)
+Handy extras:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate   # Windows
-# source .venv/bin/activate  # Linux/macOS
-pip install -e .
+python -m tools.pinmapgen.cli --list-mcus     # see every supported chip
+python -m tools.pinmapgen.cli ... --strict    # fail (exit code 2) on any pin conflict — great for CI
+python -m tools.pinmapgen.watch hardware/exports/   # auto-regenerate whenever a CSV changes
 ```
 
-### Fusion 360 ULP (designers)
+Tip for Windows: open the PinmapGen folder in File Explorer, click the
+address bar, type `cmd`, and press Enter — that opens a terminal already in
+the right place.
 
-1. Copy the production ULP to Fusion's ULP directory:
-```bash
-copy fusion_addin/PinmapGen.ulp "%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\"
-```
-
-2. In the Electronics workspace: **Automation → Run ULP → PinmapGen**
-
-`PinmapGen_Manual.ulp` is available when file dialogs are restricted or you
-prefer to launch the CLI yourself.
+Full reference: [docs/usage.md](docs/usage.md). Team workflows and CI
+recipes: [docs/workflows.md](docs/workflows.md).
 
 ---
 
-## Quick starts
+## Examples
 
-### Firmware engineer (CLI)
+Three complete worked examples live in [`examples/`](examples/) — each has
+the input netlist and every generated file, so you can see exactly what you'll
+get before installing anything:
 
-```bash
-# Generate pinmaps from a CSV netlist (RP2040)
-python -m tools.pinmapgen.cli \
-  --csv hardware/exports/sample_netlist.csv \
-  --mcu rp2040 \
-  --mcu-ref U1 \
-  --out-root build/pinmaps
-
-# Watch a directory for new exports
-python -m tools.pinmapgen.watch hardware/exports --mermaid
-```
-
-### PCB designer (Fusion ULP)
-
-1. Open your design in the **Electronics** workspace.
-2. **Automation → Run ULP → PinmapGen**.
-3. Configure project name, MCU reference, and output directory.
-4. Click **Generate Pinmaps** — the ULP exports the netlist and runs the CLI.
-5. Generated files open in Explorer for handoff to the firmware team.
-
-See the [ULP guide](fusion_addin/ULP_GUIDE.md) for full instructions.
-
----
-
-## Generated outputs
-
-```
-pinmaps/
-└── pinmap.json                # Canonical machine-readable pinmap
-
-firmware/
-├── include/pinmap_arduino.h   # Arduino/PlatformIO header
-├── micropython/pinmap_micropython.py
-└── docs/
-    ├── PINOUT.md              # Human-readable pinout
-    └── pinout.mmd             # Mermaid diagram source
-```
-
-Each file includes generation metadata and role annotations. See
-[`docs/output-formats.md`](docs/output-formats.md) for details.
-
----
-
-## Command-line workflow
-
-The CLI accepts either EAGLE `.sch` files or CSV exports from Fusion.
-
-```bash
-python -m tools.pinmapgen.cli [OPTIONS]
-
-Required arguments:
-  --sch PATH | --csv PATH     Input schematic or CSV export
-  --mcu NAME                  MCU profile name (use --list-mcus to see all)
-  --mcu-ref TEXT              Reference designator (e.g., U1)
-
-Useful flags:
-  --out-root PATH             Output directory (default: current dir)
-  --mermaid                   Emit Mermaid diagram
-  --verbose, -v               Print normalization summary
-  --reproducible              Fixed timestamps for reproducible builds
-  --profile-dir PATH          Additional directory with custom TOML profiles
-  --list-mcus                 List all available MCU profiles and exit
-
-Profile management:
-  profiles list               List all registered profiles with metadata
-  profiles check <name>       Validate and inspect a profile
-```
-
-More examples (STM32G0, ESP32, watch mode) are in
-[`docs/usage.md`](docs/usage.md).
-
----
-
-## Fusion 360 ULP workflow
-
-The ULP integrates PinmapGen into the Electronics workspace without requiring
-add-in installation. After copying the ULP file:
-
-- Access via **Automation → Run ULP → PinmapGen**
-- Confirm MCU reference designator, project name, and output directory
-- Trigger the export; the ULP invokes the CLI and streams warnings back
-- Open the generated folder for review or firmware handoff
-
-See the [ULP guide](fusion_addin/ULP_GUIDE.md) for step-by-step walkthroughs
-and troubleshooting.
-
----
-
-## MCU support
-
-PinmapGen ships with **13 built-in TOML profiles**:
-
-| Family | Profiles | Highlights |
-|--------|----------|------------|
-| RP2 | `rp2040`, `rp2350` | GPIO normalization, USB diff pair detection, ADC hints |
-| ESP | `esp32`, `esp32s3`, `esp32c3` | GPIO matrix, strapping pin warnings, ADC2 Wi-Fi guard |
-| STM32 | `stm32g0`, `stm32f411`, `stm32h743` | Port-based naming, alternate functions, boot/SWD warnings |
-| nRF | `nrf52840` | BLE/USB, NFC pin detection, port.pin naming |
-| AVR | `atmega328p`, `atmega2560` | Arduino digital/analog aliases, port-based naming |
-| SAM | `atsamd21`, `atsamd51` | ARM Cortex-M0+/M4F, port-based naming |
-
-List them at any time:
-
-```bash
-python -m tools.pinmapgen.cli --list-mcus
-# or with detailed metadata:
-python -m tools.pinmapgen.cli profiles list
-```
-
-Validate a profile before first use:
-
-```bash
-python -m tools.pinmapgen.cli profiles check rp2040
-```
-
-### Adding new MCUs
-
-Drop a TOML file into a directory and point PinmapGen at it — no Python needed:
-
-```bash
-python -m tools.pinmapgen.cli \
-  --csv netlist.csv --mcu my_mcu --mcu-ref U1 \
-  --profile-dir ./my_profiles
-```
-
-See [`docs/extending.md`](docs/extending.md) for the full TOML schema and
-advanced Python profile classes.
-
----
-
-## Troubleshooting
-
-Common issues are documented in
-[`docs/troubleshooting.md`](docs/troubleshooting.md). Quick pointers:
-
-- **"MCU 'U1' not found"** — Confirm the reference designator in your CAD
-- **"Input-only pin used as output"** — Choose another pin supported by the
-  MCU profile
-- **"Cannot write output"** — Pick a writable folder and close open handles
-- **ULP not found** — Re-copy `PinmapGen.ulp` to the Fusion ULP directory and
-  restart Fusion 360
-
----
-
-## Project roadmap
-
-A milestone-driven roadmap is maintained in [`MILESTONES.md`](MILESTONES.md).
+- [`simple_led`](examples/simple_led/) — LEDs and buttons (beginner)
+- [`sensor_hub`](examples/sensor_hub/) — I²C/SPI sensors (intermediate)
+- [`communication_module`](examples/communication_module/) — UART/CAN/USB (advanced)
 
 ---
 
 ## Contributing
 
-Pull requests and issues are welcome. Start with
-[`CONTRIBUTING.md`](CONTRIBUTING.md), then:
-
-1. Create a feature branch: `git checkout -b feature/my-update`
-2. Make changes and run the test suite: `pytest` (or `python -m pytest`)
-3. Use conventional commits when possible
-4. Submit a pull request with context and screenshots when relevant
-
-Pre-commit hooks and GitHub Actions validate that generated pinmaps stay in
-sync.
+Bug reports and pull requests are welcome — start with
+[CONTRIBUTING.md](CONTRIBUTING.md). Run the test suite with `python -m pytest`
+before submitting.
 
 ---
 
 ## License
 
-PinmapGen is released under the **PinmapGen Community License** with
-dual-licensing:
+PinmapGen is released under the **PinmapGen Community License**:
 
-- **Free for non-commercial use** — Personal projects, education, open source
-- **Commercial license required** — Business use, client work, commercial
-  products
+- **Free** for personal projects, education, and open source
+- **Commercial license required** for business use, client work, and
+  commercial products
 
-See [`LICENSE`](LICENSE) for complete terms.
+See [LICENSE](LICENSE) for the complete terms.
