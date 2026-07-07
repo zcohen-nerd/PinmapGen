@@ -16,8 +16,14 @@ from tools.pinmapgen.emit_micropython import (
     _sanitize_net_name as micropython_sanitize,
 )
 from tools.pinmapgen.mcu_profiles import PinCapability
+from tools.pinmapgen.profile_registry import ProfileRegistry
 from tools.pinmapgen.roles import PinRole, RoleInferencer
-from tools.pinmapgen.rp2040_profile import RP2040Profile
+
+_registry = ProfileRegistry()
+
+
+def RP2040Profile():  # noqa: N802 — keeps historical test call sites readable
+    return _registry.get_profile("rp2040")
 
 
 class TestIssue35BomEncoding(unittest.TestCase):

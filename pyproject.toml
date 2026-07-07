@@ -65,6 +65,9 @@ ignore = [
 "tools/pinmapgen/mcu_profiles.py" = [
     "T201",    # print — validation errors printed to stderr
 ]
+"tools/pinmapgen/bom_csv.py" = [
+    "T201",    # print — skipped-row warnings printed to stderr
+]
 "tools/pinmapgen/normalize.py" = [
     "T201",    # print — validation errors printed to stderr
 ]

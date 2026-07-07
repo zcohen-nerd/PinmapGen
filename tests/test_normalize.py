@@ -4,9 +4,21 @@ Test cases for pin name normalization functionality.
 
 import unittest
 
-from tools.pinmapgen.esp32_profile import ESP32Profile
-from tools.pinmapgen.rp2040_profile import RP2040Profile
-from tools.pinmapgen.stm32g0_profile import STM32G0Profile
+from tools.pinmapgen.profile_registry import ProfileRegistry
+
+_registry = ProfileRegistry()
+
+
+def RP2040Profile():  # noqa: N802 — keeps historical test call sites readable
+    return _registry.get_profile("rp2040")
+
+
+def STM32G0Profile():  # noqa: N802
+    return _registry.get_profile("stm32g0")
+
+
+def ESP32Profile():  # noqa: N802
+    return _registry.get_profile("esp32")
 
 
 class TestNormalize(unittest.TestCase):

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
-from .pin_metadata import SPECIAL_FUNCTIONS_SHORT
+from .pin_metadata import get_special_functions_short
 
 
 def emit_mermaid_diagram(
@@ -296,11 +296,11 @@ def _create_node_label(net_name: str, pin: str, canonical_dict: dict[str, Any]) 
     label_parts = [net_name, pin]
 
     mcu = canonical_dict.get("mcu", "unknown")
-    # Prefer embedded metadata (TOML profiles), fall back to hardcoded table.
+    # Prefer embedded metadata; fall back to the profile-derived table.
     meta_funcs = (
         canonical_dict.get("metadata", {}).get("special_functions_short", {})
     )
-    mcu_funcs = meta_funcs or SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
+    mcu_funcs = meta_funcs or get_special_functions_short(mcu)
     if pin in mcu_funcs:
         label_parts.append(mcu_funcs[pin])
 

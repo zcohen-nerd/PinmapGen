@@ -60,6 +60,9 @@ _PERIPHERAL_KEYS = frozenset({"name", "instance", "pins"})
 # Safe identifier: lowercase letter followed by lowercase letters/digits/-/_
 _SAFE_ID_RE = re.compile(r"[a-z][a-z0-9_-]*$")
 
+# Output-template placeholders: {0}, {1}, {0:02} … (mirrors profile_loader).
+_PLACEHOLDER_RE = re.compile(r"\{(\d+)(?::0(\d+))?\}")
+
 
 # ── Public API ────────────────────────────────────────────────────────────
 
@@ -264,14 +267,37 @@ def _validate_normalization_section(
                     errors.append(f"{ctx} must be a table")
                     continue
                 _check_unknown_keys(pat, _NORM_PATTERN_KEYS, ctx, errors)
+
+                compiled = None
                 if "regex" not in pat:
                     errors.append(f"{ctx}: missing required key 'regex'")
                 elif not isinstance(pat["regex"], str):
                     errors.append(f"{ctx}.regex must be str")
+                else:
+                    try:
+                        compiled = re.compile(pat["regex"], re.IGNORECASE)
+                    except re.error as exc:
+                        errors.append(
+                            f"{ctx}.regex: invalid regular expression "
+                            f"'{pat['regex']}': {exc}"
+                        )
+
                 if "output" not in pat:
                     errors.append(f"{ctx}: missing required key 'output'")
                 elif not isinstance(pat["output"], str):
                     errors.append(f"{ctx}.output must be str")
+                elif compiled is not None:
+                    # Every {n} placeholder must reference a capture group
+                    # that actually exists in the regex.
+                    for ph in _PLACEHOLDER_RE.finditer(pat["output"]):
+                        idx = int(ph.group(1))
+                        if idx >= compiled.groups:
+                            errors.append(
+                                f"{ctx}.output: placeholder "
+                                f"'{ph.group(0)}' refers to capture group "
+                                f"{idx}, but the regex only has "
+                                f"{compiled.groups} group(s)"
+                            )
 
     # aliases
     aliases = cfg.get("aliases")

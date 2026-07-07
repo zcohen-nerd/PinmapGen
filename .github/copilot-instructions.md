@@ -66,12 +66,13 @@ tools/pinmapgen/         ← core package (stdlib only)
   watch.py               ← polling-based SimpleFileWatcher
   bom_csv.py             ← CSV parser (csv.DictReader); columns: Net,Pin,Component,RefDes
   eagle_sch.py           ← EAGLE .sch XML parser (xml.etree)
-  normalize.py           ← legacy RP2040Profile (duplicate of rp2040_profile)
+  normalize.py           ← thin compat layer over the profile registry
   roles.py               ← PinRole enum, RoleInferencer, PinInfo dataclass
   mcu_profiles.py        ← MCUProfile ABC + PinCapability, PinInfo, PeripheralInfo
-  rp2040_profile.py      ← RP2040 concrete profile
-  stm32g0_profile.py     ← STM32G0 concrete profile
-  esp32_profile.py       ← ESP32 concrete profile
+  profile_registry.py    ← auto-discovers TOML profiles; canonical profile source
+  profile_loader.py      ← TOMLProfile (MCUProfile hydrated from TOML)
+  profile_schema.py      ← stdlib-only TOML profile validation
+  profiles/*.toml        ← the 13 MCU profiles (single source of pin data)
   emit_json.py           ← JSON emitter (with role enrichment)
   emit_micropython.py    ← MicroPython .py emitter
   emit_arduino.py        ← Arduino .h emitter
@@ -97,12 +98,11 @@ docs/                    ← usage, troubleshooting, extending, workflows, outpu
 |--------|---------|-------|
 | `bom_csv.py` | Parse Fusion/EAGLE CSV exports | Requires columns: `Net, Pin, Component, RefDes`; whitespace-stripped; empty rows skipped |
 | `eagle_sch.py` | Parse EAGLE XML `.sch` files | Walks `drawing/schematic/sheets/sheet/nets/net/segment/pinref` |
-| `normalize.py` | **Legacy** RP2040 normalizer | Duplicates `rp2040_profile.py`; kept for backward compat; `get_mcu_profile()` only supports rp2040 |
+| `normalize.py` | Compat layer over the registry | `get_mcu_profile()`/`normalize_pinmap()` accept any registered profile; legacy `RP2040Profile` class delegates to the TOML profile |
 | `roles.py` | Net-name → PinRole inference | Regex-based pattern matching; `PinRoleInferrer` is alias for `RoleInferencer` |
 | `mcu_profiles.py` | ABC for MCU profiles | `MCUProfile.create_canonical_pinmap()` is the canonical dict factory |
-| `rp2040_profile.py` | RP2040 (GP0–GP29) | USB pins: GP24=DM, GP25=DP; ADC: GP26–GP29; SMPS: GP23 |
-| `stm32g0_profile.py` | STM32G071 48-pin | Port-based naming (PAxn); SWD=PA13/PA14; Boot=PB2; Crystal=PC14-15, PF0-1 |
-| `esp32_profile.py` | ESP32-WROOM-32 | GPIOxx naming; strapping pins 0,2,5,12,15; input-only 34-39; ADC2+WiFi conflict |
+| `profile_registry.py` | Profile discovery/instantiation | Scans `profiles/*.toml` plus `--profile-dir`; Python classes can override via `register()` |
+| `profiles/*.toml` | All MCU pin data | 13 built-in profiles; schema-validated on load (`profile_schema.py`) |
 | `emit_*.py` | Output generators | All accept `(canonical_dict, output_path)`, create parent dirs, write UTF-8 |
 | `cli.py` | CLI entry point | `MCU_PROFILES` registry dict; `main()` orchestrates parse → normalize → emit |
 | `watch.py` | File watcher | stdlib `time.sleep` polling; invokes CLI via `subprocess.run` |
@@ -173,10 +173,8 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 
 ## Known Issues / Technical Debt
 
-1. **`normalize.py` duplicates `rp2040_profile.py`** – the old `RP2040Profile` in normalize.py does not use the `mcu_profiles.MCUProfile` ABC. The CLI uses the profile-based one from `rp2040_profile.py`.
-2. **`fixtures/minimal_netlist.csv` uses different column names** (`Designator` vs `RefDes`, `Part` header) — not fully compatible with `bom_csv.parse_csv()`.
-3. **Validation error handling inconsistency** – `mcu_profiles.MCUProfile.create_canonical_pinmap()` prints errors; legacy `normalize.RP2040Profile.create_canonical_pinmap()` raises.
-4. **Timestamps in output** prevent true deterministic/reproducible builds.
+1. **`fixtures/minimal_netlist.csv` uses different column names** (`Designator` vs `RefDes`, `Part` header) — not fully compatible with `bom_csv.parse_csv()`.
+2. **Timestamps in output** prevent deterministic builds unless `--reproducible` (or `SOURCE_DATE_EPOCH`) is used.
 5. **`emit_arduino.py` `_get_pin_comment()` hardcodes RP2040 special pin names** — not MCU-agnostic.
 6. **`emit_mermaid.py` assumes `GP<n>` pin format** in `_group_pins_by_function()` via `re.match(r"GP(\d+)", pin)`.
 7. **Example netlists use inconsistent CSV column orders** — `simple_led`, `sensor_hub`, `communication_module` use `RefDes,Pin,Component,Net` order (works because DictReader is order-agnostic), but `RefDes` is column name not `Designator`.

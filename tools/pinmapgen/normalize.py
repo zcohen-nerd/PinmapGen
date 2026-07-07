@@ -1,25 +1,26 @@
 """Pin Normalization for PinmapGen.
 
-Handles MCU-specific pin name normalization and validation.
-Provides backward-compatible legacy RP2040Profile that delegates
-to the canonical rp2040_profile.RP2040Profile.
+Thin compatibility layer over the profile registry. All MCU pin data lives
+in the TOML profiles under ``tools/pinmapgen/profiles/`` — this module keeps
+the historical entry points (``get_mcu_profile``, ``normalize_pinmap``, and
+the legacy ``RP2040Profile`` class) working on top of them.
 """
 
 import sys  # noqa: F401  # kept for backward-compat with downstream importers
 from typing import Any
 
+from .profile_registry import registry
+
 
 class RP2040Profile:
-    """Legacy RP2040 profile — delegates to rp2040_profile.RP2040Profile.
+    """Legacy RP2040 profile — delegates to the registry's TOML profile.
 
-    Kept for backward compatibility.  All real logic lives in
-    ``tools.pinmapgen.rp2040_profile.RP2040Profile``.
+    Kept for backward compatibility. All real pin data lives in
+    ``tools/pinmapgen/profiles/rp2040.toml``.
     """
 
     def __init__(self):
-        from .rp2040_profile import RP2040Profile as _Real
-
-        self._delegate = _Real()
+        self._delegate = registry.get_profile("rp2040")
 
     # --- Expose common attributes via the delegate ---
 
@@ -57,35 +58,27 @@ class RP2040Profile:
 
     def create_canonical_pinmap(self, nets: dict[str, list[str]]) -> dict[str, Any]:
         """Create canonical pinmap dictionary."""
-        # Delegate handles all validation output; no need to re-print here.
         return self._delegate.create_canonical_pinmap(nets)
-
 
 
 def get_mcu_profile(mcu_name: str):
     """
-    Get MCU profile by name.
+    Get MCU profile by name from the profile registry.
 
     Args:
         mcu_name: MCU name (e.g., "rp2040", "stm32g0", "esp32")
 
     Returns:
         MCU profile instance
-    """
-    from .esp32_profile import ESP32Profile
-    from .rp2040_profile import RP2040Profile as RP2040ProfileNew
-    from .stm32g0_profile import STM32G0Profile
 
-    profiles = {
-        "rp2040": RP2040ProfileNew,
-        "stm32g0": STM32G0Profile,
-        "esp32": ESP32Profile,
-    }
-    key = mcu_name.lower()
-    if key in profiles:
-        return profiles[key]()
-    msg = f"Unsupported MCU: {mcu_name}"
-    raise ValueError(msg)
+    Raises:
+        ValueError: If no profile with that name is registered
+    """
+    try:
+        return registry.get_profile(mcu_name)
+    except KeyError as exc:
+        msg = f"Unsupported MCU: {mcu_name}"
+        raise ValueError(msg) from exc
 
 
 def normalize_pinmap(nets: dict[str, list[str]], mcu_name: str) -> dict[str, Any]:

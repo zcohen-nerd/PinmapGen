@@ -108,12 +108,12 @@ the profile checks every net assignment against these rules and emits warnings.
 Warnings appear in CLI output and in the `metadata.validation_warnings` field
 of `pinmap.json`.
 
-### Why are there two RP2040 profiles?
+### Why does `normalize.py` still have an `RP2040Profile` class?
 
-`normalize.py` contains a legacy `RP2040Profile` from before the `MCUProfile`
-ABC was introduced. The CLI uses the profile from `rp2040_profile.py`. The
-legacy copy is kept for backward compatibility but should not be used for new
-work.
+It's a backward-compatibility shim from before the profile registry existed.
+It now delegates to the same TOML profile the CLI uses
+(`tools/pinmapgen/profiles/rp2040.toml`), so there is a single source of pin
+data. Use `profile_registry.registry.get_profile(...)` for new work.
 
 ---
 

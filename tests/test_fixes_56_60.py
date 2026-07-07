@@ -8,8 +8,14 @@ from unittest.mock import patch
 from tools.pinmapgen.bom_csv import get_mcu_nets, parse_netlist_tuples
 from tools.pinmapgen.emit_markdown import generate_differential_pairs_table
 from tools.pinmapgen.emit_micropython import generate_micropython_with_roles
-from tools.pinmapgen.rp2040_profile import RP2040Profile
+from tools.pinmapgen.profile_registry import ProfileRegistry
 from tools.pinmapgen.watch import watch_and_regenerate
+
+_registry = ProfileRegistry()
+
+
+def RP2040Profile():  # noqa: N802 — keeps historical test call sites readable
+    return _registry.get_profile("rp2040")
 
 
 class TestIssue56MicroPythonImports(unittest.TestCase):

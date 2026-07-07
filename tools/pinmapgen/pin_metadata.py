@@ -1,80 +1,56 @@
 """Shared pin metadata for PinmapGen emitters.
 
-Single source of truth for MCU-specific special-function descriptions.
-All emitters import from here rather than maintaining their own copies.
+Special-function descriptions come from the MCU profiles (the same TOML
+data used for normalization/validation), so there is a single source of
+truth. Emitters normally pass the canonical pinmap dict, whose metadata
+already embeds these tables; when it is absent, the tables are derived
+from the profile registry on demand and cached.
 """
 
-# Concise labels used by emit_arduino, emit_micropython, and emit_mermaid.
-SPECIAL_FUNCTIONS_SHORT: dict[str, dict[str, str]] = {
-    "rp2040": {
-        "GP23": "SMPS_MODE",
-        "GP24": "USB D-",
-        "GP25": "USB D+",
-        "GP26": "ADC0",
-        "GP27": "ADC1",
-        "GP28": "ADC2",
-        "GP29": "ADC3",
-    },
-    "stm32g0": {
-        "PA13": "SWDIO",
-        "PA14": "SWCLK",
-        "PB2": "BOOT1",
-        "PC14": "LSE",
-        "PC15": "LSE",
-        "PF0": "HSE_IN",
-        "PF1": "HSE_OUT",
-        "PF2": "NRST",
-    },
-    "esp32": {
-        "GPIO0": "BOOT_MODE",
-        "GPIO1": "UART0_TX",
-        "GPIO2": "BOOT_MODE",
-        "GPIO3": "UART0_RX",
-        "GPIO5": "VSPI_CS0",
-        "GPIO12": "BOOT_VOLTAGE",
-        "GPIO15": "BOOT_SILENCE",
-        "GPIO25": "DAC1",
-        "GPIO26": "DAC2",
-        "GPIO36": "VP",
-        "GPIO39": "VN",
-    },
-}
+from __future__ import annotations
 
-# Verbose, documentation-quality labels used by emit_markdown.
-SPECIAL_FUNCTIONS_LONG: dict[str, dict[str, str]] = {
-    "rp2040": {
-        "GP23": "SMPS Power Mode",
-        "GP24": "USB D- (Data Minus)",
-        "GP25": "USB D+ (Data Plus)",
-        "GP26": "ADC Channel 0",
-        "GP27": "ADC Channel 1",
-        "GP28": "ADC Channel 2",
-        "GP29": "ADC Channel 3",
-    },
-    "stm32g0": {
-        "PA13": "SWD Debug IO (SWDIO)",
-        "PA14": "SWD Debug Clock (SWCLK)",
-        "PB2": "Boot1 Pin",
-        "PC14": "LSE Crystal (32kHz)",
-        "PC15": "LSE Crystal (32kHz)",
-        "PF0": "HSE Crystal Input",
-        "PF1": "HSE Crystal Output",
-        "PF2": "NRST (Reset)",
-    },
-    "esp32": {
-        "GPIO0": "Strapping Pin / Boot Mode",
-        "GPIO1": "UART0 TX (Console)",
-        "GPIO2": "Strapping Pin / Boot Mode",
-        "GPIO3": "UART0 RX (Console)",
-        "GPIO5": "Strapping Pin / VSPI CS0",
-        "GPIO12": "Strapping Pin / Boot Voltage",
-        "GPIO15": "Strapping Pin / Boot Silence",
-        "GPIO25": "DAC1",
-        "GPIO26": "DAC2",
-        "GPIO36": "VP (Input Only)",
-        "GPIO39": "VN (Input Only)",
-    },
-}
+# Cache of mcu name → (short_table, long_table). Populated lazily so that
+# importing this module does not load every profile.
+_FUNCTION_TABLES: dict[str, tuple[dict[str, str], dict[str, str]]] = {}
+
+
+def _function_tables(mcu: str) -> tuple[dict[str, str], dict[str, str]]:
+    """Return ``(short, long)`` special-function tables for *mcu*.
+
+    Derived from the registered profile's pin definitions. Unknown MCU
+    names yield empty tables rather than raising, since callers use these
+    purely for decorative comments.
+    """
+    key = mcu.lower()
+    if key not in _FUNCTION_TABLES:
+        short: dict[str, str] = {}
+        long_: dict[str, str] = {}
+        try:
+            from .profile_registry import registry
+
+            profile = registry.get_profile(key)
+        except Exception:  # noqa: BLE001 — missing/broken profile → no labels
+            profile = None
+        if profile is not None:
+            for pin_name, pin_info in profile.pins.items():
+                if pin_info.special_function:
+                    long_[pin_name] = pin_info.special_function
+                    short[pin_name] = (
+                        pin_info.special_function_short
+                        or pin_info.special_function
+                    )
+        _FUNCTION_TABLES[key] = (short, long_)
+    return _FUNCTION_TABLES[key]
+
+
+def get_special_functions_short(mcu: str) -> dict[str, str]:
+    """Return the pin → concise special-function label table for *mcu*."""
+    return _function_tables(mcu)[0]
+
+
+def get_special_functions_long(mcu: str) -> dict[str, str]:
+    """Return the pin → verbose special-function label table for *mcu*."""
+    return _function_tables(mcu)[1]
 
 
 def get_pin_comment(
@@ -85,9 +61,8 @@ def get_pin_comment(
     """Return a concise pin comment such as ``"GP24 - USB D-"``.
 
     When *canonical_dict* is provided the special-function data embedded in
-    its ``metadata.special_functions_short`` is used, which makes the
-    function work for TOML-defined profiles without any hard-coded tables.
-    Falls back to the built-in ``SPECIAL_FUNCTIONS_SHORT`` dict.
+    its ``metadata.special_functions_short`` is used. Otherwise the table is
+    derived from the registered profile for *mcu*.
 
     Args:
         pin: Normalised pin name (e.g. ``"GP24"``, ``"PA13"``).
@@ -104,7 +79,7 @@ def get_pin_comment(
             .get("special_functions_short", {})
         )
     else:
-        mcu_funcs = SPECIAL_FUNCTIONS_SHORT.get(mcu.lower(), {})
+        mcu_funcs = get_special_functions_short(mcu)
     if pin in mcu_funcs:
         comments.append(mcu_funcs[pin])
     return " - ".join(comments)
@@ -131,5 +106,5 @@ def get_special_function(
             .get("special_functions_long", {})
         )
     else:
-        mcu_funcs = SPECIAL_FUNCTIONS_LONG.get(mcu.lower(), {})
+        mcu_funcs = get_special_functions_long(mcu)
     return mcu_funcs.get(pin, "General Purpose I/O")

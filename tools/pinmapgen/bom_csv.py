@@ -6,6 +6,7 @@ Uses csv.DictReader for parsing.
 """
 
 import csv
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,10 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
                 msg = f"CSV missing required columns: {missing}"
                 raise ValueError(msg)
 
-            # Read all rows
+            # Read all rows. Rows with missing required fields are skipped
+            # with a warning rather than aborting the whole file — real CAD
+            # exports routinely contain no-connect pins or partial rows for
+            # components that aren't relevant to the pinmap.
             for row_num, row in enumerate(
                 reader, start=2
             ):  # Start at 2 (header is line 1)
@@ -61,11 +65,18 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
                 # Clean up whitespace
                 cleaned_row = {k: v.strip() if v else "" for k, v in row.items()}
 
-                # Validate required fields are not empty
-                for field in required_columns:
-                    if not cleaned_row.get(field):
-                        msg = f"Empty {field} at line {row_num}"
-                        raise ValueError(msg)
+                missing = sorted(
+                    field
+                    for field in required_columns
+                    if not cleaned_row.get(field)
+                )
+                if missing:
+                    print(
+                        f"Warning: Skipping CSV line {row_num}: "
+                        f"empty {', '.join(missing)}",
+                        file=sys.stderr,
+                    )
+                    continue
 
                 rows.append(cleaned_row)
 
