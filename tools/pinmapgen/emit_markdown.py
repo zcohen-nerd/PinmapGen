@@ -333,7 +333,9 @@ def _sanitize_identifier(name: str) -> str:
 
     Shares the emitters' sanitizer so the usage examples reference the
     same constant names that pinmap_micropython.py / pinmap_arduino.h
-    actually define.
+    actually define. Note: no collision tracker is used here, so in the
+    rare case two nets sanitize to the same name, the code emitters add
+    a ``_2`` suffix that these examples won't reflect.
     """
     return sanitize_net_name(name)
 

@@ -82,10 +82,14 @@ def _micropython_pin_literal(pin_name: str) -> str:
     if gpio_match:
         return str(int(gpio_match.group(1)))
 
-    # nRF52840: P<port>_<pin> → "P<port>.<pin>" (MicroPython nrf port)
+    # nRF52840: P<port>_<pin> → flat int (port * 32 + pin). The MicroPython
+    # nrf port names pins "P13"/"P34" and matches integers against those
+    # numbers; dotted strings like "P0.13" are rejected by machine.Pin().
     nrf_match = re.fullmatch(r"P(\d+)_(\d+)", token)
     if nrf_match:
-        return f'"P{nrf_match.group(1)}.{nrf_match.group(2)}"'
+        port = int(nrf_match.group(1))
+        pin = int(nrf_match.group(2))
+        return str(port * 32 + pin)
 
     # STM32 / AVR / SAM: P<letter><n> → quoted string
     stm_match = re.fullmatch(r"P[A-Z]\d+", token)

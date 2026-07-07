@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Maximum number of per-row skip warnings printed before summarizing.
+_MAX_SKIP_WARNINGS = 10
+
 
 def _normalize_refdes(value: str) -> str:
     """Normalize reference designator for stable comparisons."""
@@ -55,6 +58,7 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
             # with a warning rather than aborting the whole file — real CAD
             # exports routinely contain no-connect pins or partial rows for
             # components that aren't relevant to the pinmap.
+            skipped: list[str] = []
             for row_num, row in enumerate(
                 reader, start=2
             ):  # Start at 2 (header is line 1)
@@ -71,14 +75,23 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
                     if not cleaned_row.get(field)
                 )
                 if missing:
-                    print(
-                        f"Warning: Skipping CSV line {row_num}: "
-                        f"empty {', '.join(missing)}",
-                        file=sys.stderr,
+                    skipped.append(
+                        f"line {row_num}: empty {', '.join(missing)}"
                     )
                     continue
 
                 rows.append(cleaned_row)
+
+            # Cap the per-row warnings so a large export full of no-connect
+            # rows doesn't flood the console.
+            for entry in skipped[:_MAX_SKIP_WARNINGS]:
+                print(f"Warning: Skipping CSV {entry}", file=sys.stderr)
+            if len(skipped) > _MAX_SKIP_WARNINGS:
+                print(
+                    f"Warning: ...and {len(skipped) - _MAX_SKIP_WARNINGS} "
+                    f"more rows skipped ({len(skipped)} total)",
+                    file=sys.stderr,
+                )
 
     except UnicodeDecodeError:
         msg = f"CSV file encoding error: {csv_path}"

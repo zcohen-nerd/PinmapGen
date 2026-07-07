@@ -129,7 +129,7 @@ def watch_and_regenerate(
     Watch directory for changes and regenerate pinmaps automatically.
 
     Args:
-        watch_dir: Directory to watch for .sch/.csv files
+        watch_dir: Directory (or single .csv/.sch file) to watch
         mcu: MCU profile to use
         mcu_ref: MCU reference designator
         out_root: Output root directory
@@ -145,22 +145,31 @@ def watch_and_regenerate(
         out_root = Path(out_root)
 
     if not watch_dir.exists():
-        print(f"ERROR: Watch directory does not exist: {watch_dir}")
+        print(f"ERROR: Watch path does not exist: {watch_dir}")
         return
 
-    # Verify the directory has watchable files at startup
-    initial_files = set()
-    for pattern in ["*.csv", "*.sch"]:
-        initial_files.update(watch_dir.rglob(pattern))
+    # A single .csv/.sch file may be watched instead of a directory —
+    # useful when a directory holds netlists for several different MCUs.
+    if watch_dir.is_file():
+        if watch_dir.suffix.lower() not in (".csv", ".sch"):
+            print(f"ERROR: Unsupported file type: {watch_dir.suffix}")
+            return
+        initial_files = {watch_dir}
+    else:
+        # Verify the directory has watchable files at startup
+        initial_files = set()
+        for pattern in ["*.csv", "*.sch"]:
+            initial_files.update(watch_dir.rglob(pattern))
 
-    if not initial_files:
-        print(f"ERROR: No .csv or .sch files found in {watch_dir}")
-        return
+        if not initial_files:
+            print(f"ERROR: No .csv or .sch files found in {watch_dir}")
+            return
 
     print(f"Found {len(initial_files)} files to watch:")
     for file_path in sorted(initial_files):
         print(f"  - {file_path.name}")
-    print("(New files added to the directory will also be detected)")
+    if watch_dir.is_dir():
+        print("(New files added to the directory will also be detected)")
 
     def regenerate_callback(changed_file: Path) -> None:
         """Callback to regenerate pinmaps when files change."""
@@ -199,6 +208,10 @@ def watch_and_regenerate(
                 print("Generated OK")
                 if result.stdout and result.stdout.strip():
                     print(f"Output: {result.stdout.strip()}")
+                # Validation warnings/errors go to stderr even on success —
+                # surface them so watch mode doesn't hide a broken pinmap.
+                if result.stderr and result.stderr.strip():
+                    print(f"Warnings:\n{result.stderr.strip()}")
             else:
                 error_msg = "Generation failed"
                 if result.stderr:
@@ -232,7 +245,9 @@ def main() -> None:
         description="Watch for changes to .sch/.csv files and regenerate pinmaps automatically"
     )
     parser.add_argument(
-        "watch_dir", type=Path, help="Directory to watch for .sch/.csv files"
+        "watch_dir",
+        type=Path,
+        help="Directory (or single .csv/.sch file) to watch",
     )
     parser.add_argument(
         "--mcu",

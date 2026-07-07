@@ -28,13 +28,17 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Watch Pinmap",
+			"label": "Watch Pinmap (rp2040 sample)",
 			"type": "shell",
 			"command": "python",
 			"args": [
 				"-m",
 				"tools.pinmapgen.watch",
-				"hardware/exports/",
+				"hardware/exports/sample_netlist.csv",
+				"--mcu",
+				"rp2040",
+				"--mcu-ref",
+				"U1",
 				"--mermaid",
 				"--interval",
 				"1.0"

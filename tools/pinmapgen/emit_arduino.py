@@ -239,6 +239,19 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
             ]
         )
 
+        if _mcu_family(canonical_dict.get("mcu", "")) == "nrf":
+            lines.extend(
+                [
+                    "// NOTE: values are raw Nordic pin numbers"
+                    " (P0.13 = 13, P1.02 = 34).",
+                    "// Cores that use board variant tables (e.g. the"
+                    " Adafruit nRF52 core) map",
+                    "// Arduino pin numbers differently - translate via your"
+                    " board's variant if needed.",
+                    "",
+                ]
+            )
+
         # Track emitted #define names to avoid collisions
         seen_names: dict[str, int] = {}
         name_lookup: dict[str, str] = {}
@@ -266,7 +279,7 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                     if pin_val == _NO_ARDUINO_PIN:
                         comment += (
                             f" [{pin_info.pin_name}: no Arduino pin mapping"
-                            " — replace manually]"
+                            " - replace manually]"
                         )
                     all_pins = multi_pin_nets.get(pin_info.net_name)
                     if all_pins:

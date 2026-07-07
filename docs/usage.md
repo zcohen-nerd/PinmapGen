@@ -67,8 +67,13 @@ python -m tools.pinmapgen.watch hardware/exports/ --interval 1.0 --mermaid
 ```
 
 The watcher accepts the same `--mcu` names as the CLI (all 13 built-in
-profiles) plus `--profile-dir` for custom TOML profiles. Note that a single
-watcher run uses one MCU profile for every file in the watched directory.
+profiles) plus `--profile-dir` for custom TOML profiles. A single watcher
+run uses one MCU profile for every file it watches — if a directory mixes
+netlists for different MCUs, point the watcher at a single file instead:
+
+```bash
+python -m tools.pinmapgen.watch hardware/exports/sample_netlist.csv --mcu rp2040
+```
 
 Useful during active schematic iteration or in classroom labs where students
 save CSV files to a shared folder.
