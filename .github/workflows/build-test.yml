@@ -141,18 +141,34 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Test with different MCU references
+    - name: Test MCU reference handling
       run: |
-        # Test with different MCU reference designators
-        for ref in U1 IC1 MCU1; do
-          echo "Testing with MCU ref: $ref"
-          python -m tools.pinmapgen.cli \
-            --csv hardware/exports/sample_netlist.csv \
-            --mcu rp2040 \
-            --mcu-ref $ref \
-            --out-root "test_$ref" \
-            --mermaid
-        done
+        # Positive: the sample netlist's MCU is U1
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref U1 \
+          --out-root test_U1 \
+          --mermaid
+
+        # Reference matching is case-insensitive
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref u1 \
+          --out-root test_u1_lower
+
+        # Negative: a reference that isn't in the netlist must fail clearly
+        if python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv \
+          --mcu rp2040 \
+          --mcu-ref IC9 \
+          --out-root test_missing; then
+          echo "Expected failure for missing refdes IC9"
+          exit 1
+        else
+          echo "Correctly rejected missing refdes"
+        fi
         
     - name: Test error handling
       run: |
