@@ -33,31 +33,40 @@ jobs:
           --mcu rp2040 \
           --mcu-ref U1 \
           --out-root . \
-          --mermaid
+          --mermaid \
+          --strict
           
-    - name: Check for uncommitted changes
+    # NOTE: root-level pinmaps/ and firmware/ outputs are gitignored scratch
+    # artifacts, so there is deliberately no "git diff" drift check on them —
+    # the committed examples below are the tracked generated outputs.
+    - name: Check committed examples are up to date
       run: |
-        echo "🔍 Checking if generated files are up to date..."
-        
-        # Check if there are any uncommitted changes to generated files
-        if ! git diff --quiet -- pinmaps/ firmware/; then
-          echo "❌ Generated pinmap files are out of date!"
+        echo "🔍 Regenerating examples with current emitters..."
+        for example in simple_led sensor_hub communication_module; do
+          python -m tools.pinmapgen.cli \
+            --csv "examples/$example/netlist.csv" \
+            --mcu rp2040 \
+            --mcu-ref U1 \
+            --out-root "examples/$example/generated" \
+            --mermaid \
+            --reproducible \
+            --strict
+        done
+
+        if ! git diff --exit-code -- examples/; then
           echo ""
-          echo "The following files have uncommitted changes:"
-          git diff --name-only -- pinmaps/ firmware/
-          echo ""
-          echo "Diff of changes:"
-          git diff -- pinmaps/ firmware/
-          echo ""
-          echo "💡 To fix this:"
-          echo "1. Run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid"
-          echo "2. Commit the updated files"
-          echo "3. Or install the pre-commit hook: bash .githooks/install-hooks.sh"
+          echo "❌ Committed example outputs are out of date with the emitters!"
+          echo "💡 Regenerate them locally with:"
+          echo "   for e in simple_led sensor_hub communication_module; do"
+          echo "     python -m tools.pinmapgen.cli --csv examples/\$e/netlist.csv \\"
+          echo "       --mcu rp2040 --mcu-ref U1 --out-root examples/\$e/generated \\"
+          echo "       --mermaid --reproducible"
+          echo "   done"
+          echo "   then commit the changes."
           exit 1
-        else
-          echo "✅ All generated files are up to date!"
         fi
-        
+        echo "✅ Example outputs match the current emitters."
+
     - name: Validate Python modules
       run: |
         echo "🐍 Validating Python modules..."

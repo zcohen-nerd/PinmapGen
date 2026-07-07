@@ -61,7 +61,8 @@ jobs:
           --mcu rp2040 \
           --mcu-ref U1 \
           --out-root test_output \
-          --mermaid
+          --mermaid \
+          --strict
           
     - name: Validate generated files (Unix)
       if: runner.os != 'Windows'
@@ -85,8 +86,9 @@ jobs:
         if (!(Test-Path "test_output/firmware/docs/pinout.mmd")) { exit 1 }
         
     - name: Test JSON output validity
+      shell: bash
       run: |
-        python3 << 'PYEOF'
+        python << 'PYEOF'
         import json
         with open('test_output/pinmaps/pinmap.json', 'r') as f:
             data = json.load(f)
@@ -95,6 +97,8 @@ jobs:
         print(f'Pins: {len(data["pins"])}')
         print(f'Differential pairs: {len(data["differential_pairs"])}')
         PYEOF
+
+    - name: Test file watcher
       if: runner.os == 'Linux'
       timeout-minutes: 2
       run: |

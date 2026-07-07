@@ -3,7 +3,7 @@
 
 /*
  * Auto-generated Arduino pinmap for RP2040
- * Generated: 2025-09-28 05:43:28
+ * Generated: 1970-01-01 00:00:00
  * Generator: PinmapGen
  *
  * This file contains pin definitions, helper structures, and macros
@@ -16,19 +16,19 @@
 // Pin Definitions
 // ========================================
 
-// Other Pins
-#define SENSOR_DATA 2  // General Purpose I/O
+// Inputs Pins
+#define BUTTON_IN 14  // Push Button Input
 
 // I2C Pins
-#define I2C_SDA 4  // I2C Serial Data (I2C)
 #define I2C_SCL 5  // I2C Serial Clock (I2C)
+#define I2C_SDA 4  // I2C Serial Data (I2C)
 
 // Indicators Pins
 #define LIGHT_ANALOG 26  // Light Emitting Diode
 #define STATUS_LED 15  // Light Emitting Diode
 
-// Inputs Pins
-#define BUTTON_IN 14  // Push Button Input
+// Other Pins
+#define SENSOR_DATA 2  // General Purpose I/O
 
 // ========================================
 // Helper Macros
@@ -44,9 +44,11 @@
 // I2C setup helpers
 #include <Wire.h>
 #define SETUP_I2C(freq) \
-    Wire.setSDA(I2C_SDA); \
-    Wire.setSCL(I2C_SCL); \
-    Wire.setClock(freq); \
-    Wire.begin()
+    do { \
+        Wire.setSDA(I2C_SDA); \
+        Wire.setSCL(I2C_SCL); \
+        Wire.begin(); \
+        Wire.setClock(freq); \
+    } while (0)
 
 #endif // PINMAP_ARDUINO_H

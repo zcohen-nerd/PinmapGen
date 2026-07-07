@@ -1,17 +1,42 @@
 #usage "PinmapGen ULP with Automatic Netlist Generation"
 
-// Default settings
+// ── Path discovery ─────────────────────────────────────────────────────────
+// All paths are derived from where this ULP lives or loaded from a settings
+// file saved next to it. Nothing is hardcoded to a specific machine.
+
+string ulpDir = filedir(argv[0]);
+string settingsFile = ulpDir + "PinmapGen_settings.txt";
+
+// Default settings (overridden by the settings file when present)
 string mcuRef = "U1";
-string outputDir = "C:/Users/ZCohe/Desktop";
-string projectName = "Test";
+string outputDir = ulpDir + "PinmapGen_Output";
+string projectName = "Project";
 string mcuType = "rp2040";
+string repoDir = "";   // Path to the cloned PinmapGen repository (required)
 int generateMicroPython = 1;
 int generateArduino = 1;
 int generateMarkdown = 1;
 int generateMermaid = 1;
 
-// Settings file path (basic save only due to ULP limitations)
-string settingsFile = "C:/Users/ZCohe/AppData/Local/PinmapGen_ULP_Settings.txt";
+// MCU profiles bundled with PinmapGen (see tools/pinmapgen/profiles/)
+string validMcuList = "rp2040 rp2350 esp32 esp32s3 esp32c3 stm32g0 stm32f411 stm32h743 nrf52840 atmega328p atmega2560 atsamd21 atsamd51";
+
+int isValidMcu(string candidate) {
+    string parts[];
+    int n = strsplit(parts, validMcuList, ' ');
+    for (int i = 0; i < n; i++) {
+        if (parts[i] == candidate) return 1;
+    }
+    return 0;
+}
+
+string trimCr(string s) {
+    int len = strlen(s);
+    if (len > 0 && s[len - 1] == '\r') {
+        return strsub(s, 0, len - 1);
+    }
+    return s;
+}
 
 // Function to generate timestamped project name
 string generateProjectName(string baseName) {
@@ -20,23 +45,43 @@ string generateProjectName(string baseName) {
     return baseName + "_" + timestamp;
 }
 
-// Function to load settings from file (simplified for ULP compatibility)
+// Load settings from the file saved next to this ULP (if it exists)
 void loadSettings() {
-    // For ULP compatibility, we'll use a simpler approach
-    // Settings persistence will be minimal due to ULP file I/O limitations
-    // Default values are already set above, so this function is a placeholder
-    // for future enhancement when better ULP file handling is needed
+    string found[];
+    if (fileglob(found, settingsFile) == 0) return;
+
+    string content;
+    if (fileread(content, settingsFile) <= 0) return;
+
+    string lines[];
+    int n = strsplit(lines, content, '\n');
+    for (int i = 0; i < n; i++) {
+        string line = trimCr(lines[i]);
+        int eq = strchr(line, '=');
+        if (eq <= 0) continue;
+        string key = strsub(line, 0, eq);
+        string val = strsub(line, eq + 1);
+        if (key == "mcuRef") mcuRef = val;
+        else if (key == "outputDir") outputDir = val;
+        else if (key == "projectName") projectName = val;
+        else if (key == "mcuType") mcuType = val;
+        else if (key == "repoDir") repoDir = val;
+        else if (key == "generateMicroPython") generateMicroPython = (val == "1");
+        else if (key == "generateArduino") generateArduino = (val == "1");
+        else if (key == "generateMarkdown") generateMarkdown = (val == "1");
+        else if (key == "generateMermaid") generateMermaid = (val == "1");
+    }
 }
 
-// Function to save settings to file (simplified for ULP compatibility)
+// Save settings next to this ULP for the next run
 void saveSettings() {
-    // Basic settings save using ULP output function
     output(settingsFile) {
-        printf("# PinmapGen Settings - Last used on: %u\n", time());
+        printf("# PinmapGen ULP settings - saved automatically\n");
         printf("mcuRef=%s\n", mcuRef);
         printf("outputDir=%s\n", outputDir);
         printf("projectName=%s\n", projectName);
         printf("mcuType=%s\n", mcuType);
+        printf("repoDir=%s\n", repoDir);
         printf("generateMicroPython=%d\n", generateMicroPython);
         printf("generateArduino=%d\n", generateArduino);
         printf("generateMarkdown=%d\n", generateMarkdown);
@@ -52,11 +97,11 @@ string analyzeSchematic(string targetMcuRef) {
     int componentCount = 0;
     int netCount = 0;
     int pinCount = 0;
-    
+
     if (!schematic) {
         return "No schematic open";
     }
-    
+
     schematic(S) {
         S.sheets(SH) {
             SH.nets(N) {
@@ -65,17 +110,17 @@ string analyzeSchematic(string targetMcuRef) {
                     SEG.pinrefs(PR) {
                         if (PR.part && PR.pin) {
                             componentCount++;
-                            
+
                             // Check if this is the target MCU
                             if (PR.part.name == targetMcuRef) {
                                 mcuFound = 1;
-                                
+
                                 string pinNum = PR.pin.name;
                                 PR.pin.contacts(C) {
                                     pinNum = C.name;
                                     break;
                                 }
-                                
+
                                 // Count pins (simplified conflict detection)
                                 pinCount++;
                             }
@@ -85,51 +130,59 @@ string analyzeSchematic(string targetMcuRef) {
             }
         }
     }
-    
+
     // Generate summary and warnings
     string summary;
     string pinCountStr;
     string componentCountStr;
     string netCountStr;
-    
+
     sprintf(pinCountStr, "%d", pinCount);
     sprintf(componentCountStr, "%d", componentCount);
     sprintf(netCountStr, "%d", netCount);
-    
+
     if (!mcuFound) {
-        summary = "❌ MCU reference '" + targetMcuRef + "' not found in schematic\n";
+        summary = "MCU reference '" + targetMcuRef + "' not found in schematic\n";
     } else {
-        summary = "✅ Found MCU " + targetMcuRef + " with " + pinCountStr + " pins\n";
+        summary = "Found MCU " + targetMcuRef + " with " + pinCountStr + " pins\n";
     }
-    
-    summary = summary + "📊 Schematic has " + componentCountStr + " connections across " + netCountStr + " nets\n";
-    
+
+    summary = summary + "Schematic has " + componentCountStr + " connections across " + netCountStr + " nets\n";
+
     if (strlen(warnings) > 0) {
-        return summary + "\n⚠️ WARNINGS:\n" + warnings;
+        return summary + "\nWARNINGS:\n" + warnings;
     } else {
-        return summary + "\n✅ Analysis complete";
+        return summary + "\nAnalysis complete";
     }
 }
 
 // Function to validate input parameters
-string validateInputs(string mcuRef, string outputDir, string mcuType) {
+string validateInputs(string mcuRefIn, string outputDirIn, string mcuTypeIn, string repoDirIn) {
     string errors = "";
-    
-    // Validate MCU reference
-    if (strlen(mcuRef) == 0) {
+
+    if (strlen(mcuRefIn) == 0) {
         errors += "- MCU Reference cannot be empty\n";
     }
-    
-    // Validate output directory path
-    if (strlen(outputDir) == 0) {
+
+    if (strlen(outputDirIn) == 0) {
         errors += "- Output Directory cannot be empty\n";
     }
-    
-    // Validate MCU type
-    if (mcuType != "rp2040" && mcuType != "stm32g0" && mcuType != "esp32") {
-        errors += "- MCU Type must be rp2040, stm32g0, or esp32\n";
+
+    if (!isValidMcu(mcuTypeIn)) {
+        errors += "- MCU Type must be one of: " + validMcuList + "\n";
     }
-    
+
+    if (strlen(repoDirIn) == 0) {
+        errors += "- PinmapGen repository path cannot be empty.\n" +
+                  "  Clone https://github.com/zcohen-nerd/PinmapGen and enter the folder path.\n";
+    } else {
+        string cliCheck[];
+        if (fileglob(cliCheck, repoDirIn + "/tools/pinmapgen/cli.py") == 0) {
+            errors += "- '" + repoDirIn + "' does not look like the PinmapGen repository\n" +
+                      "  (tools/pinmapgen/cli.py not found there)\n";
+        }
+    }
+
     return errors;
 }
 
@@ -138,11 +191,11 @@ int generateNetlistCSV(string netlistPath) {
     if (!schematic) {
         return -1; // No schematic available
     }
-    
+
     int componentCount = 0;
     int netCount = 0;
     int success = 0;
-    
+
     // First pass: count components and nets for validation
     schematic(S) {
         S.sheets(SH) {
@@ -158,19 +211,19 @@ int generateNetlistCSV(string netlistPath) {
             }
         }
     }
-    
+
     if (componentCount == 0) {
         return -2; // No components found
     }
-    
+
     if (netCount == 0) {
         return -3; // No nets found
     }
-    
+
     // Second pass: generate CSV
     output(netlistPath) {
         printf("\"RefDes\",\"Pin\",\"Component\",\"Net\"\n");
-        
+
         schematic(S) {
             S.sheets(SH) {
                 SH.nets(N) {
@@ -178,13 +231,13 @@ int generateNetlistCSV(string netlistPath) {
                         SEG.pinrefs(PR) {
                             if (PR.part && PR.pin) {
                                 string pinNum = PR.pin.name;
-                                
+
                                 // Handle multiple contacts
                                 PR.pin.contacts(C) {
                                     pinNum = C.name;
                                     break;
                                 }
-                                
+
                                 printf("\"%s\",\"%s\",\"%s\",\"%s\"\n",
                                     PR.part.name,
                                     pinNum,
@@ -198,16 +251,26 @@ int generateNetlistCSV(string netlistPath) {
             }
         }
     }
-    
+
     return success ? 1 : 0;
 }
 
-// Main execution
+// ── Main execution ─────────────────────────────────────────────────────────
+
+loadSettings();
+
 int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
     dlgVBoxLayout {
-        dlgLabel("📟 Automatic netlist generation from schematic");
+        dlgLabel("Automatic netlist generation from schematic");
         dlgSpacing(5);
-        
+
+        dlgHBoxLayout {
+            dlgLabel("PinmapGen repository:");
+            dlgStringEdit(repoDir);
+        }
+        dlgLabel("(folder containing the cloned PinmapGen repo - saved for next time)");
+        dlgSpacing(5);
+
         dlgHBoxLayout {
             dlgLabel("Project Name:");
             dlgStringEdit(projectName);
@@ -216,24 +279,32 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
             }
         }
         dlgSpacing(5);
-        
+
         dlgHBoxLayout {
             dlgLabel("MCU Type:");
             dlgStringEdit(mcuType);
         }
         dlgHBoxLayout {
-            dlgPushButton("RP2040") {
-                mcuType = "rp2040";
-            }
-            dlgPushButton("STM32G0") {
-                mcuType = "stm32g0";
-            }
-            dlgPushButton("ESP32") {
-                mcuType = "esp32";
-            }
+            dlgPushButton("RP2040")  { mcuType = "rp2040"; }
+            dlgPushButton("RP2350")  { mcuType = "rp2350"; }
+            dlgPushButton("ESP32")   { mcuType = "esp32"; }
+            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; }
+            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; }
+        }
+        dlgHBoxLayout {
+            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; }
+            dlgPushButton("STM32F411") { mcuType = "stm32f411"; }
+            dlgPushButton("STM32H743") { mcuType = "stm32h743"; }
+            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; }
+        }
+        dlgHBoxLayout {
+            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; }
+            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; }
+            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; }
+            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; }
         }
         dlgSpacing(5);
-        
+
         dlgHBoxLayout {
             dlgLabel("MCU Reference:");
             dlgStringEdit(mcuRef);
@@ -243,24 +314,18 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
             }
         }
         dlgSpacing(5);
-        
+
         dlgHBoxLayout {
             dlgLabel("Base Output Directory:");
             dlgStringEdit(outputDir);
         }
         dlgHBoxLayout {
-            dlgPushButton("Desktop") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Desktop";
-            }
-            dlgPushButton("Documents") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Documents";
-            }
-            dlgPushButton("Project") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Documents/Python Scripts/Fusion_PinMapGen/outputs";
+            dlgPushButton("ULP Folder") {
+                outputDir = ulpDir + "PinmapGen_Output";
             }
         }
         dlgSpacing(10);
-        
+
         dlgLabel("Output Formats:");
         dlgSpacing(2);
         dlgHBoxLayout {
@@ -272,11 +337,8 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
             dlgCheckBox("Mermaid Diagrams", generateMermaid);
         }
         dlgSpacing(10);
-        
-        dlgLabel("Output folder: " + outputDir + "/" + projectName);
-        dlgSpacing(5);
-        
-        dlgPushButton("🔍 Preview Generation") {
+
+        dlgPushButton("Preview Generation") {
             string preview = "Generation Preview:\n\n";
             preview += "Project: " + projectName + "\n";
             preview += "MCU: " + mcuType + " (Reference: " + mcuRef + ")\n\n";
@@ -287,10 +349,10 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
             if (generateMarkdown) preview += "- firmware/docs/PINOUT.md\n";
             if (generateMermaid) preview += "- firmware/docs/pinout.mmd\n";
             preview += "- pinmaps/pinmap.json\n\n";
-            
+
             string analysis = analyzeSchematic(mcuRef);
             preview += "Schematic Analysis:\n" + analysis;
-            
+
             dlgMessageBox(preview, "Generation Preview");
         }
     }
@@ -303,45 +365,45 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
 if (result) {
     // Save settings for next run
     saveSettings();
-    
+
     // Create full project output directory
     string fullOutputDir = outputDir + "/" + projectName;
-    
+
     // Validate inputs first
-    string validationErrors = validateInputs(mcuRef, fullOutputDir, mcuType);
+    string validationErrors = validateInputs(mcuRef, fullOutputDir, mcuType, repoDir);
     if (strlen(validationErrors) == 0) {
         // Create project output directory (simplified)
         system("mkdir \"" + fullOutputDir + "\" 2>nul");
-        
+
         // Generate netlist automatically from schematic
         string netlistFile = fullOutputDir + "/auto_netlist.csv";
         int netlistResult = generateNetlistCSV(netlistFile);
-        
+
         if (netlistResult == 1) {
-            // Use PowerShell to run PinmapGen CLI
-            string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + fullOutputDir + "'";
-            
+            // Use PowerShell to run PinmapGen CLI from the configured repo
+            string pinmapCmd = "powershell -Command \"cd '" + repoDir + "'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + fullOutputDir + "'";
+
             // Add mermaid flag if selected
             if (generateMermaid) {
                 pinmapCmd += " --mermaid";
             }
-            
+
             pinmapCmd += " --verbose\"";
-            
+
             int cliResult = system(pinmapCmd);
-            
+
             if (cliResult == 0) {
                 // Success!
-                string successMsg = "✅ Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
+                string successMsg = "Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
                 if (generateMicroPython) successMsg += "- MicroPython module\n";
                 if (generateArduino) successMsg += "- Arduino headers\n";
                 if (generateMarkdown) successMsg += "- Documentation\n";
                 if (generateMermaid) successMsg += "- Mermaid diagrams\n";
                 successMsg += "\nLocation: " + fullOutputDir;
-                
+
                 // Clean up temp netlist
                 system("del \"" + netlistFile + "\" 2>nul");
-                
+
                 dlgMessageBox(successMsg, "Generation Successful");
                 system("explorer \"" + fullOutputDir + "\"");
             } else {
@@ -349,10 +411,11 @@ if (result) {
                 string errorMsg = "The PinmapGen CLI encountered an error.\n\n";
                 errorMsg += "Possible causes:\n";
                 errorMsg += "- Python not installed or not in PATH\n";
+                errorMsg += "- PinmapGen repository path is wrong: " + repoDir + "\n";
                 errorMsg += "- Invalid netlist format\n";
                 errorMsg += "- MCU reference '" + mcuRef + "' not found in netlist\n\n";
                 errorMsg += "Check the generated netlist at:\n" + netlistFile;
-                
+
                 dlgMessageBox(errorMsg, "CLI Error");
                 system("explorer \"" + fullOutputDir + "\"");
             }
@@ -360,7 +423,7 @@ if (result) {
             // Handle specific netlist generation errors
             string errorMsg = "";
             string errorTitle = "Netlist Generation Failed";
-            
+
             if (netlistResult == -1) {
                 errorMsg = "No schematic is currently open.\n\nPlease:\n1. Open a schematic in Fusion Electronics\n2. Make sure it contains components\n3. Run this ULP again";
                 errorTitle = "No Schematic Available";
@@ -374,7 +437,7 @@ if (result) {
                 errorMsg = "Unknown error during netlist generation.\n\nPlease check that:\n1. Schematic has components with pins\n2. Components are connected with nets\n3. You have write permissions to:\n   " + fullOutputDir;
                 errorTitle = "Unknown Netlist Error";
             }
-            
+
             dlgMessageBox(errorMsg, errorTitle);
         }
     } else {

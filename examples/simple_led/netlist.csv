@@ -4,8 +4,6 @@
 "U1","4","U1","LED_BLUE"
 "U1","5","U1","BUTTON_1"
 "U1","6","U1","BUTTON_2"
-"U1","36","U1","VCC"
-"U1","38","U1","GND"
 "LED1","1","LED1","LED_RED"
 "LED1","2","LED1","GND"
 "LED2","1","LED2","LED_GREEN"

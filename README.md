@@ -2,7 +2,7 @@
 
 [![License: Custom](https://img.shields.io/badge/License-PinmapGen%20Community-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/zcohen-nerd/PinmapGen/ci.yml?branch=main&label=CI%2FCD)](https://github.com/zcohen-nerd/PinmapGen/actions)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/zcohen-nerd/PinmapGen/build-test.yml?branch=main&label=CI%2FCD)](https://github.com/zcohen-nerd/PinmapGen/actions)
 [![Issues](https://img.shields.io/github/issues/zcohen-nerd/PinmapGen)](https://github.com/zcohen-nerd/PinmapGen/issues)
 
 PinmapGen converts Fusion 360 Electronics / EAGLE CAD exports (CSV netlists,

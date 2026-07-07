@@ -60,6 +60,12 @@ def _expand_range(range_cfg: dict[str, Any]) -> list[str]:
 # Compiled normalisation pattern
 # ---------------------------------------------------------------------------
 
+# Placeholder syntax: {0}, {1}, … insert capture groups verbatim;
+# {0:02} zero-pads the group to the given width (needed by profiles whose
+# canonical names are zero-padded, e.g. nRF52840 "P0_05", SAMD "PA02").
+_PLACEHOLDER_RE = re.compile(r"\{(\d+)(?::0(\d+))?\}")
+
+
 class _NormPattern:
     """A single regex → output-template normalisation rule."""
 
@@ -74,10 +80,17 @@ class _NormPattern:
         m = self.compiled.fullmatch(text)
         if m is None:
             return None
-        result = self.output
-        for i, group in enumerate(m.groups()):
-            result = result.replace(f"{{{i}}}", group)
-        return result
+        groups = m.groups()
+
+        def _substitute(placeholder: re.Match[str]) -> str:
+            index = int(placeholder.group(1))
+            if index >= len(groups) or groups[index] is None:
+                return placeholder.group(0)
+            value = groups[index]
+            width = placeholder.group(2)
+            return value.zfill(int(width)) if width else value
+
+        return _PLACEHOLDER_RE.sub(_substitute, self.output)
 
 
 # ---------------------------------------------------------------------------

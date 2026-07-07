@@ -1,75 +1,96 @@
 {
-  "mcu": "rp2040",
-  "pins": {
-    "LED_RED": {
-      "pins": [
-        "GP2"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "LED_GREEN": {
-      "pins": [
-        "GP3"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "LED_BLUE": {
-      "pins": [
-        "GP4"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "BUTTON_1": {
-      "pins": [
-        "GP5"
-      ],
-      "role": "button",
-      "bus_group": null,
-      "description": "Push Button Input"
-    },
-    "BUTTON_2": {
-      "pins": [
-        "GP6"
-      ],
-      "role": "button",
-      "bus_group": null,
-      "description": "Push Button Input"
-    }
-  },
-  "differential_pairs": [],
-  "metadata": {
-    "total_nets": 5,
-    "total_pins": 5,
-    "differential_pairs_count": 0,
-    "special_pins_used": [],
-    "validation_warnings": [],
-    "validation_errors": []
-  },
   "bus_groups": {
     "Indicators": [
-      "LED_RED",
+      "LED_BLUE",
       "LED_GREEN",
-      "LED_BLUE"
+      "LED_RED"
     ],
     "Inputs": [
       "BUTTON_1",
       "BUTTON_2"
     ]
   },
+  "differential_pairs": [],
   "generated": {
-    "timestamp": "2025-09-28T05:41:11.937575",
-    "generator": "PinmapGen",
-    "version": "0.1.0",
     "features": [
       "role_inference",
       "bus_groups",
       "differential_pairs"
+    ],
+    "generator": "PinmapGen",
+    "timestamp": "1970-01-01T00:00:00+00:00",
+    "version": "0.1.0"
+  },
+  "mcu": "rp2040",
+  "metadata": {
+    "differential_pairs_count": 0,
+    "dropped_pins": [],
+    "special_functions_long": {
+      "GP23": "SMPS Power Mode",
+      "GP24": "USB D- (Data Minus)",
+      "GP25": "USB D+ (Data Plus)",
+      "GP26": "ADC Channel 0",
+      "GP27": "ADC Channel 1",
+      "GP28": "ADC Channel 2",
+      "GP29": "ADC Channel 3"
+    },
+    "special_functions_short": {
+      "GP23": "SMPS_MODE",
+      "GP24": "USB D-",
+      "GP25": "USB D+",
+      "GP26": "ADC0",
+      "GP27": "ADC1",
+      "GP28": "ADC2",
+      "GP29": "ADC3"
+    },
+    "special_pins_used": [],
+    "total_nets": 5,
+    "total_pins": 5,
+    "validation_errors": [],
+    "validation_warnings": []
+  },
+  "pin_roles": {
+    "BUTTON_1": {
+      "bus_group": null,
+      "description": "Push Button Input",
+      "role": "button"
+    },
+    "BUTTON_2": {
+      "bus_group": null,
+      "description": "Push Button Input",
+      "role": "button"
+    },
+    "LED_BLUE": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "LED_GREEN": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "LED_RED": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    }
+  },
+  "pins": {
+    "BUTTON_1": [
+      "GP5"
+    ],
+    "BUTTON_2": [
+      "GP6"
+    ],
+    "LED_BLUE": [
+      "GP4"
+    ],
+    "LED_GREEN": [
+      "GP3"
+    ],
+    "LED_RED": [
+      "GP2"
     ]
   }
 }

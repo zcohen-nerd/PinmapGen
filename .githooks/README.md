@@ -1,12 +1,14 @@
 # Git Hooks for PinmapGen
 
-This directory contains git hooks that help maintain the PinmapGen project by automatically regenerating pinmap files when source files change.
+This directory contains git hooks that validate netlist exports before they are committed.
 
 ## Available Hooks
 
 ### Pre-commit Hook
 
-The pre-commit hook automatically regenerates pinmap files when changes are detected in the `hardware/exports/` directory. This ensures that generated outputs always stay in sync with input files.
+When a commit stages CSV files under `hardware/exports/`, the hook runs the PinmapGen CLI against each changed netlist in a temporary directory. If generation fails (unparseable CSV, unknown pins, missing MCU reference), the commit is blocked so broken netlists never land.
+
+The hook does **not** stage or commit generated output — the root-level `pinmaps/` and `firmware/` directories are gitignored scratch artifacts produced by the quick-start commands.
 
 **Files:**
 - `pre-commit` - Bash version for Linux/macOS/Git Bash
@@ -49,17 +51,14 @@ If the automatic installation doesn't work:
 
 ## How It Works
 
-When you commit changes that include files in `hardware/exports/`:
+When you commit changes that include CSV files in `hardware/exports/`:
 
-1. The hook detects the changed files
-2. Runs the PinmapGen CLI on any CSV files found
-3. Regenerates all pinmap output files
-4. Automatically stages the regenerated files to be included in the commit
+1. The hook lists the staged `.csv` files
+2. Picks an MCU profile from each filename (`stm32*` → stm32g0, `esp32*` → esp32, `nrf52*` → nrf52840, otherwise rp2040)
+3. Runs the PinmapGen CLI on each file, writing to a temporary directory
+4. Blocks the commit if any generation run fails
 
-This ensures that:
-- Generated files are never out of sync with source data
-- Code reviews include both source and generated changes
-- Team members always have up-to-date pinmaps
+This ensures broken or malformed netlists are caught before they reach the repository.
 
 ## Testing the Hook
 
@@ -68,7 +67,7 @@ To test that the hook is working:
 1. Make a small change to `hardware/exports/sample_netlist.csv`
 2. Stage the change: `git add hardware/exports/sample_netlist.csv`
 3. Try to commit: `git commit -m "test hook"`
-4. You should see the hook run and regenerate the pinmap files automatically
+4. You should see the hook validate the netlist (and block the commit if you made it invalid)
 
 ## Bypassing the Hook
 

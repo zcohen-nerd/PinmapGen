@@ -1,58 +1,128 @@
-#usage "PinmapGen ULP - Generate firmware pinmaps from Fusion Electronics"
+#usage "PinmapGen ULP - Generate firmware pinmaps from Fusion Electronics (manual netlist export)"
+
+// ── Path discovery ─────────────────────────────────────────────────────────
+// Paths are derived from where this ULP lives or loaded from a settings file
+// saved next to it. Nothing is hardcoded to a specific machine.
+
+string ulpDir = filedir(argv[0]);
+string settingsFile = ulpDir + "PinmapGen_manual_settings.txt";
 
 string mcuRef = "U1";
-string outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
+string outputDir = ulpDir + "PinmapGen_Output";
 string mcuType = "rp2040";
+string repoDir = "";   // Path to the cloned PinmapGen repository (required)
 int generateMicroPython = 1;
 int generateArduino = 1;
 int generateMarkdown = 1;
 int generateMermaid = 1;
 
-// Main execution starts here - no main() function needed
+// MCU profiles bundled with PinmapGen (see tools/pinmapgen/profiles/)
+string validMcuList = "rp2040 rp2350 esp32 esp32s3 esp32c3 stm32g0 stm32f411 stm32h743 nrf52840 atmega328p atmega2560 atsamd21 atsamd51";
+
+int isValidMcu(string candidate) {
+    string parts[];
+    int n = strsplit(parts, validMcuList, ' ');
+    for (int i = 0; i < n; i++) {
+        if (parts[i] == candidate) return 1;
+    }
+    return 0;
+}
+
+string trimCr(string s) {
+    int len = strlen(s);
+    if (len > 0 && s[len - 1] == '\r') {
+        return strsub(s, 0, len - 1);
+    }
+    return s;
+}
+
+void loadSettings() {
+    string found[];
+    if (fileglob(found, settingsFile) == 0) return;
+
+    string content;
+    if (fileread(content, settingsFile) <= 0) return;
+
+    string lines[];
+    int n = strsplit(lines, content, '\n');
+    for (int i = 0; i < n; i++) {
+        string line = trimCr(lines[i]);
+        int eq = strchr(line, '=');
+        if (eq <= 0) continue;
+        string key = strsub(line, 0, eq);
+        string val = strsub(line, eq + 1);
+        if (key == "mcuRef") mcuRef = val;
+        else if (key == "outputDir") outputDir = val;
+        else if (key == "mcuType") mcuType = val;
+        else if (key == "repoDir") repoDir = val;
+    }
+}
+
+void saveSettings() {
+    output(settingsFile) {
+        printf("# PinmapGen manual ULP settings - saved automatically\n");
+        printf("mcuRef=%s\n", mcuRef);
+        printf("outputDir=%s\n", outputDir);
+        printf("mcuType=%s\n", mcuType);
+        printf("repoDir=%s\n", repoDir);
+    }
+}
+
+// ── Main execution ─────────────────────────────────────────────────────────
+
+loadSettings();
+
 int result = dlgDialog("PinmapGen Configuration") {
     dlgVBoxLayout {
+        dlgHBoxLayout {
+            dlgLabel("PinmapGen repository:");
+            dlgStringEdit(repoDir);
+        }
+        dlgLabel("(folder containing the cloned PinmapGen repo - saved for next time)");
+        dlgSpacing(5);
+
         dlgHBoxLayout {
             dlgLabel("MCU Type:");
             dlgStringEdit(mcuType);
         }
         dlgHBoxLayout {
-            dlgPushButton("RP2040") {
-                mcuType = "rp2040";
-            }
-            dlgPushButton("STM32G0") {
-                mcuType = "stm32g0";
-            }
-            dlgPushButton("ESP32") {
-                mcuType = "esp32";
-            }
+            dlgPushButton("RP2040")  { mcuType = "rp2040"; }
+            dlgPushButton("RP2350")  { mcuType = "rp2350"; }
+            dlgPushButton("ESP32")   { mcuType = "esp32"; }
+            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; }
+            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; }
+        }
+        dlgHBoxLayout {
+            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; }
+            dlgPushButton("STM32F411") { mcuType = "stm32f411"; }
+            dlgPushButton("STM32H743") { mcuType = "stm32h743"; }
+            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; }
+        }
+        dlgHBoxLayout {
+            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; }
+            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; }
+            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; }
+            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; }
         }
         dlgSpacing(5);
-        
+
         dlgHBoxLayout {
             dlgLabel("MCU Reference:");
             dlgStringEdit(mcuRef);
         }
         dlgSpacing(5);
-        
+
         dlgHBoxLayout {
             dlgLabel("Output Directory:");
             dlgStringEdit(outputDir);
         }
-        dlgSpacing(5);
-        
         dlgHBoxLayout {
-            dlgPushButton("Desktop") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Desktop/PinmapGen_Output";
-            }
-            dlgPushButton("Documents") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Documents/PinmapGen_Output";
-            }
-            dlgPushButton("Project") {
-                outputDir = "C:/Users/ZCohe/OneDrive/Documents/Python Scripts/Fusion_PinMapGen/outputs";
+            dlgPushButton("ULP Folder") {
+                outputDir = ulpDir + "PinmapGen_Output";
             }
         }
         dlgSpacing(10);
-        
+
         dlgLabel("Output Formats:");
         dlgSpacing(2);
         dlgHBoxLayout {
@@ -64,8 +134,8 @@ int result = dlgDialog("PinmapGen Configuration") {
             dlgCheckBox("Mermaid Diagrams", generateMermaid);
         }
         dlgSpacing(10);
-        
-        dlgLabel("Note: Place 'live_netlist.csv' in output folder or follow manual export instructions");
+
+        dlgLabel("Note: Place 'live_netlist.csv' in the output folder before running");
     }
     dlgHBoxLayout {
         dlgPushButton("-Cancel") dlgReject();
@@ -74,30 +144,58 @@ int result = dlgDialog("PinmapGen Configuration") {
 };
 
 if (result) {
-    // Create output directory with better error handling
-    int mkdirResult = system("mkdir \"" + outputDir + "\" 2>nul");
-    
+    saveSettings();
+
+    // Validate inputs before doing anything
+    string validationErrors = "";
+    if (strlen(mcuRef) == 0) {
+        validationErrors += "- MCU Reference cannot be empty\n";
+    }
+    if (strlen(outputDir) == 0) {
+        validationErrors += "- Output Directory cannot be empty\n";
+    }
+    if (!isValidMcu(mcuType)) {
+        validationErrors += "- MCU Type must be one of: " + validMcuList + "\n";
+    }
+    if (strlen(repoDir) == 0) {
+        validationErrors += "- PinmapGen repository path cannot be empty.\n" +
+                            "  Clone https://github.com/zcohen-nerd/PinmapGen and enter the folder path.\n";
+    } else {
+        string cliCheck[];
+        if (fileglob(cliCheck, repoDir + "/tools/pinmapgen/cli.py") == 0) {
+            validationErrors += "- '" + repoDir + "' does not look like the PinmapGen repository\n" +
+                                "  (tools/pinmapgen/cli.py not found there)\n";
+        }
+    }
+
+    if (strlen(validationErrors) > 0) {
+        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "Input Validation Failed");
+        exit(1);
+    }
+
+    // Create output directory
+    system("mkdir \"" + outputDir + "\" 2>nul");
+
     // Look for manually exported netlist file
     string netlistFile = outputDir + "/live_netlist.csv";
-    
+
     // Check if user has already exported a netlist file
-    int netlistExists = !system("if exist \"" + netlistFile + "\" exit 0 else exit 1");
-    
+    string netlistFound[];
+    int netlistExists = fileglob(netlistFound, netlistFile) > 0;
+
     if (netlistExists) {
-        // Use PowerShell to run with proper working directory in a single command
-        string pinmapCmd = "powershell -Command \"cd 'C:\\Users\\ZCohe\\OneDrive\\Documents\\Python Scripts\\Fusion_PinMapGen'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + outputDir + "'\"";
-        
-        // Add mermaid flag if selected
+        // Build the CLI command; the closing quote of -Command is added last
+        string pinmapCmd = "powershell -Command \"cd '" + repoDir + "'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + outputDir + "'";
+
         if (generateMermaid) {
             pinmapCmd += " --mermaid";
         }
-        
-        // Add verbose flag for debugging
+
         pinmapCmd += " --verbose\"";
-        
+
         // Debug info for error messages
-        string debugInfo = "Debug Info:\nMCU: " + mcuType + "\nRef: " + mcuRef + "\nOutput: " + outputDir + "\nCommand: " + pinmapCmd;
-        
+        string debugInfo = "Debug Info:\nMCU: " + mcuType + "\nRef: " + mcuRef + "\nRepo: " + repoDir + "\nOutput: " + outputDir + "\nCommand: " + pinmapCmd;
+
         if (system(pinmapCmd) == 0) {
             // Build success message with selected formats
             string successMsg = "Success!\n\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
@@ -106,10 +204,10 @@ if (result) {
             if (generateMarkdown) successMsg += "- Documentation\n";
             if (generateMermaid) successMsg += "- Mermaid diagrams\n";
             successMsg += "\nUsing: Your exported netlist\nLocation: " + outputDir;
-            
+
             // Clean up temp netlist
             system("del \"" + netlistFile + "\" 2>nul");
-            
+
             dlgMessageBox(successMsg, "PinmapGen Complete");
             system("explorer \"" + outputDir + "\"");
         } else {
@@ -117,26 +215,16 @@ if (result) {
             system("explorer \"" + outputDir + "\"");
         }
     } else {
-        int exportResult = dlgMessageBox("Netlist export failed!\n\n" +
-                                       "ULP cannot access the EXPORT NETLIST command.\n\n" +
-                                       "RESEARCH OPPORTUNITY:\n" +
-                                       "Try 'direct_netlist_generator.ulp' for automatic CSV generation!\n\n" +
-                                       "MANUAL WORKAROUND:\n" +
-                                       "1. In Fusion Electronics workspace\n" +
-                                       "2. Go to File -> Export -> Netlist\n" +
-                                       "3. Save as CSV to: " + outputDir + "\n" +
-                                       "4. Rename file to 'live_netlist.csv'\n" +
-                                       "5. Run this ULP again\n\n" +
-                                       "The ULP will automatically find and use your exported netlist.",
-                                       "Try Research ULP", "Manual Export", "Cancel");
-        
-        if (exportResult == 0) {
-            dlgMessageBox("To test automatic netlist generation:\n\n" +
-                         "1. Go to Automation -> Run ULP\n" +
-                         "2. Select 'direct_netlist_generator.ulp'\n" +
-                         "3. Try to generate CSV automatically\n" +
-                         "4. Report if it works!\n\n" +
-                         "If successful, we can eliminate manual exports entirely!");
-        }
+        dlgMessageBox("No netlist found!\n\n" +
+                      "This ULP expects a manually exported netlist.\n\n" +
+                      "MANUAL EXPORT STEPS:\n" +
+                      "1. In Fusion Electronics workspace\n" +
+                      "2. Go to File -> Export -> Netlist\n" +
+                      "3. Save as CSV to: " + outputDir + "\n" +
+                      "4. Rename the file to 'live_netlist.csv'\n" +
+                      "5. Run this ULP again\n\n" +
+                      "Tip: PinmapGen.ulp (the main ULP) can generate the\n" +
+                      "netlist automatically from the open schematic.",
+                      "Netlist Not Found");
     }
 }

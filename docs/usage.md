@@ -23,13 +23,17 @@ python -m tools.pinmapgen.cli [OPTIONS]
 
 Required:
   --sch PATH | --csv PATH     Input schematic or CSV file
-  --mcu {rp2040,stm32g0,esp32}
+  --mcu NAME                  MCU profile (13 built-in — use --list-mcus)
   --mcu-ref TEXT              Reference designator (e.g., U1)
 
 Optional:
   --out-root PATH             Output directory (default: current dir)
   --mermaid                   Also generate Mermaid diagram
   --verbose, -v               Print normalization summary
+  --strict                    Exit non-zero on validation errors or
+                              dropped pins (recommended for CI)
+  --profile-dir PATH          Additional directory with custom TOML profiles
+  --reproducible              Fixed timestamps for reproducible builds
 ```
 
 ### Examples by MCU
@@ -61,6 +65,10 @@ automatically.
 ```bash
 python -m tools.pinmapgen.watch hardware/exports/ --interval 1.0 --mermaid
 ```
+
+The watcher accepts the same `--mcu` names as the CLI (all 13 built-in
+profiles) plus `--profile-dir` for custom TOML profiles. Note that a single
+watcher run uses one MCU profile for every file in the watched directory.
 
 Useful during active schematic iteration or in classroom labs where students
 save CSV files to a shared folder.

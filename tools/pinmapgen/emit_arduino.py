@@ -92,16 +92,89 @@ def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
     return get_pin_comment(pin, mcu, canonical_dict=canonical_dict)
 
 
-def _arduino_pin_literal(pin_name: str) -> str:
+# Sentinel emitted when a pin has no Arduino pin number on the reference
+# board for its MCU (e.g. AVR crystal pins). 255 compiles everywhere and is
+# obviously not a usable pin; the #define comment flags it.
+_NO_ARDUINO_PIN = "255"
+
+# Arduino Uno mapping (mirrors the D0-D13/A0-A5 aliases in atmega328p.toml).
+_UNO_PIN_MAP = {
+    "PD0": "0", "PD1": "1", "PD2": "2", "PD3": "3",
+    "PD4": "4", "PD5": "5", "PD6": "6", "PD7": "7",
+    "PB0": "8", "PB1": "9", "PB2": "10", "PB3": "11",
+    "PB4": "12", "PB5": "13",
+    "PC0": "A0", "PC1": "A1", "PC2": "A2",
+    "PC3": "A3", "PC4": "A4", "PC5": "A5",
+}
+
+# Arduino Mega 2560 mapping (standard variant pins_arduino.h, digital 0-53
+# then A0-A15). Mirrors the aliases in atmega2560.toml.
+_MEGA_DIGITAL = [
+    "PE0", "PE1", "PE4", "PE5", "PG5", "PE3", "PH3", "PH4", "PH5", "PH6",
+    "PB4", "PB5", "PB6", "PB7", "PJ1", "PJ0", "PH1", "PH0", "PD3", "PD2",
+    "PD1", "PD0", "PA0", "PA1", "PA2", "PA3", "PA4", "PA5", "PA6", "PA7",
+    "PC7", "PC6", "PC5", "PC4", "PC3", "PC2", "PC1", "PC0", "PD7", "PG2",
+    "PG1", "PG0", "PL7", "PL6", "PL5", "PL4", "PL3", "PL2", "PL1", "PL0",
+    "PB3", "PB2", "PB1", "PB0",
+]
+_MEGA_ANALOG = [
+    "PF0", "PF1", "PF2", "PF3", "PF4", "PF5", "PF6", "PF7",
+    "PK0", "PK1", "PK2", "PK3", "PK4", "PK5", "PK6", "PK7",
+]
+_MEGA_PIN_MAP = {p: str(i) for i, p in enumerate(_MEGA_DIGITAL)}
+_MEGA_PIN_MAP.update({p: f"A{i}" for i, p in enumerate(_MEGA_ANALOG)})
+
+# Arduino Zero mapping (mirrors the D0-D13/A0-A5 aliases in atsamd21.toml,
+# plus the Zero's SDA/SCL pins 20/21).
+_ZERO_PIN_MAP = {
+    "PA11": "0", "PA10": "1", "PA14": "2", "PA09": "3", "PA08": "4",
+    "PA15": "5", "PA20": "6", "PA21": "7", "PA06": "8", "PA07": "9",
+    "PA18": "10", "PA16": "11", "PA19": "12", "PA17": "13",
+    "PA02": "A0", "PB08": "A1", "PB09": "A2",
+    "PA04": "A3", "PA05": "A4", "PB02": "A5",
+    "PA22": "20", "PA23": "21",
+}
+
+# Board pin maps keyed by MCU profile name. atsamd51 is absent on purpose:
+# SAMD51 boards (Metro M4, Feather M4, …) each use a different mapping, so
+# its pins fall back to _NO_ARDUINO_PIN rather than guessing a board.
+_BOARD_PIN_MAPS = {
+    "atmega328p": _UNO_PIN_MAP,
+    "atmega2560": _MEGA_PIN_MAP,
+    "atsamd21": _ZERO_PIN_MAP,
+}
+
+
+def _mcu_family(mcu: str) -> str:
+    """Classify an MCU profile name into an Arduino-core family."""
+    m = mcu.lower()
+    if m.startswith("rp2"):
+        return "rp2"
+    if m.startswith("esp32"):
+        return "esp"
+    if m.startswith("stm32"):
+        return "stm32"
+    if m.startswith("atmega"):
+        return "avr"
+    if m.startswith("atsamd"):
+        return "sam"
+    if m.startswith("nrf"):
+        return "nrf"
+    return "unknown"
+
+
+def _arduino_pin_literal(pin_name: str, mcu: str = "") -> str:
     """Return the Arduino-compatible pin literal for a given MCU pin name.
 
     RP2040:   ``GP4``    → ``4``
     ESP32:    ``GPIO21`` → ``21``
-    STM32:    ``PA10``   → ``PA_10``
-    nRF52840: ``P0_13``  → ``13``   (port * 32 + pin)
+    STM32:    ``PA10``   → ``PA10``  (STM32duino defines these as pin numbers)
+    nRF52840: ``P0_13``  → ``13``    (port * 32 + pin)
+    AVR/SAMD: board map  → ``13`` / ``A4`` (Uno, Mega, Zero mappings)
 
     Args:
         pin_name: Normalized MCU pin name.
+        mcu: MCU profile name, used to select board pin maps.
 
     Returns:
         Pin literal suitable for an Arduino ``#define`` value.
@@ -109,6 +182,13 @@ def _arduino_pin_literal(pin_name: str) -> str:
     token = pin_name.strip().upper()
     if not token:
         return "0"
+
+    family = _mcu_family(mcu)
+
+    # AVR / SAMD: look up the reference-board mapping.
+    if family in ("avr", "sam"):
+        board_map = _BOARD_PIN_MAPS.get(mcu.lower(), {})
+        return board_map.get(token, _NO_ARDUINO_PIN)
 
     # RP2040: GP<n> → bare number
     rp_match = re.fullmatch(r"GP(\d+)", token)
@@ -127,10 +207,12 @@ def _arduino_pin_literal(pin_name: str) -> str:
         pin = int(nrf_match.group(2))
         return str(port * 32 + pin)
 
-    # STM32 / AVR / SAM: P<port><n> → P<port>_<n>
+    # STM32: P<port><n> stays as-is — STM32duino cores define PA10 etc.
+    # as Arduino pin numbers (PA_10 is the low-level PinName enum, which
+    # is the wrong type for pinMode/digitalWrite).
     stm_match = re.fullmatch(r"P([A-Z])(\d+)", token)
     if stm_match:
-        return f"P{stm_match.group(1)}_{stm_match.group(2)}"
+        return token
 
     # Fallback: extract first number
     num_match = re.search(r"\d+", token)
@@ -203,17 +285,40 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
         seen_names: dict[str, int] = {}
         name_lookup: dict[str, str] = {}
 
+        # Nets connected to more than one pin: the #define uses the first
+        # pin, so the remaining pins are called out in the comment.
+        multi_pin_nets = {
+            net: pin_list
+            for net, pin_list in canonical_dict["pins"].items()
+            if isinstance(pin_list, list) and len(pin_list) > 1
+        }
+
         # Group constants by bus/function
+        mcu_name = canonical_dict.get("mcu", "")
         for group_name, pins in bus_groups.items():
             if pins:
                 lines.append(f"// {group_name} Pins")
                 for pin_info in pins:
-                    pin_val = _arduino_pin_literal(pin_info.pin_name)
+                    pin_val = _arduino_pin_literal(pin_info.pin_name, mcu_name)
                     const_name = _sanitize_net_name(
                         pin_info.net_name, seen_names
                     )
                     name_lookup[pin_info.net_name] = const_name
                     comment = f"  // {pin_info.description}"
+                    if pin_val == _NO_ARDUINO_PIN:
+                        comment += (
+                            f" [{pin_info.pin_name}: no Arduino pin mapping"
+                            " — replace manually]"
+                        )
+                    all_pins = multi_pin_nets.get(pin_info.net_name)
+                    if all_pins:
+                        others = ", ".join(
+                            p for p in all_pins if p != pin_info.pin_name
+                        )
+                        if others:
+                            comment += (
+                                f" [WARNING: net also connects to {others}]"
+                            )
                     lines.append(f"#define {const_name} {pin_val}{comment}")
                 lines.append("")
 
@@ -289,25 +394,39 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
         )
 
         # PWM helper
+        family = _mcu_family(mcu_name)
         pwm_pins = [p for p in pin_infos if p.role == PinRole.PWM]
         if pwm_pins:
-            lines.extend(
-                [
-                    "// PWM helpers",
-                    "#define PWM_WRITE(pin, val)     analogWrite(pin, val)",
-                    "#define PWM_FREQ(pin, freq)     analogWriteFreq(freq)  // ESP32/RP2040",
-                    "",
-                ]
-            )
+            pwm_lines = [
+                "// PWM helpers",
+                "#define PWM_WRITE(pin, val)     analogWrite(pin, val)",
+            ]
+            if family == "rp2":
+                pwm_lines.append(
+                    "#define PWM_FREQ(pin, freq)     analogWriteFreq(freq)"
+                )
+            pwm_lines.append("")
+            lines.extend(pwm_lines)
 
-        # ADC helper
+        # ADC helper — voltage math depends on the core's default reference
+        # and analogRead resolution.
         adc_pins = [p for p in pin_infos if p.role == PinRole.ADC]
         if adc_pins:
+            if family == "avr":
+                adc_expr = "(analogRead(pin) * 5.0f / 1023.0f)"
+                adc_note = "// 5 V reference, 10-bit analogRead"
+            elif family == "esp":
+                adc_expr = "(analogRead(pin) * 3.3f / 4095.0f)"
+                adc_note = "// 3.3 V reference, 12-bit analogRead (ESP32 default)"
+            else:
+                # RP2040, STM32, SAMD, nRF cores default analogRead to 10-bit.
+                adc_expr = "(analogRead(pin) * 3.3f / 1023.0f)"
+                adc_note = "// 3.3 V reference, 10-bit analogRead (core default)"
             lines.extend(
                 [
                     "// ADC helpers",
                     "#define ADC_READ(pin)           analogRead(pin)",
-                    "#define ADC_READ_VOLTAGE(pin)   (analogRead(pin) * 3.3f / 4095.0f)",
+                    f"#define ADC_READ_VOLTAGE(pin)   {adc_expr}  {adc_note}",
                     "",
                 ]
             )
@@ -335,13 +454,34 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                         scl_pin.net_name, _sanitize_net_name(scl_pin.net_name)
                     )
 
+                    if family in ("rp2", "stm32"):
+                        # Philhower RP2040 and STM32duino support pin remap
+                        # via Wire.setSDA/setSCL.
+                        body = [
+                            f"        Wire.setSDA({sda_const}); \\",
+                            f"        Wire.setSCL({scl_const}); \\",
+                            "        Wire.begin(); \\",
+                            "        Wire.setClock(freq); \\",
+                        ]
+                    elif family == "esp":
+                        body = [
+                            f"        Wire.begin({sda_const}, {scl_const}, freq); \\",
+                        ]
+                    else:
+                        # AVR / SAMD / nRF cores use fixed board I2C pins.
+                        body = [
+                            "        /* I2C pins are fixed by the board"
+                            " variant on this core */ \\",
+                            "        Wire.begin(); \\",
+                            "        Wire.setClock(freq); \\",
+                        ]
+
                     lines.extend(
                         [
                             f"#define {func_name}(freq) \\",
-                            f"    Wire.setSDA({sda_const}); \\",
-                            f"    Wire.setSCL({scl_const}); \\",
-                            "    Wire.setClock(freq); \\",
-                            "    Wire.begin()",
+                            "    do { \\",
+                            *body,
+                            "    } while (0)",
                             "",
                         ]
                     )
@@ -373,14 +513,39 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                         sck_pin.net_name, _sanitize_net_name(sck_pin.net_name)
                     )
 
+                    if family == "rp2":
+                        body = [
+                            f"        SPI.setMOSI({mosi_const}); \\",
+                            f"        SPI.setMISO({miso_const}); \\",
+                            f"        SPI.setSCK({sck_const}); \\",
+                            "        SPI.begin(); \\",
+                        ]
+                    elif family == "stm32":
+                        # STM32duino names the clock setter setSCLK.
+                        body = [
+                            f"        SPI.setMOSI({mosi_const}); \\",
+                            f"        SPI.setMISO({miso_const}); \\",
+                            f"        SPI.setSCLK({sck_const}); \\",
+                            "        SPI.begin(); \\",
+                        ]
+                    elif family == "esp":
+                        body = [
+                            f"        SPI.begin({sck_const}, {miso_const}, {mosi_const}); \\",
+                        ]
+                    else:
+                        # AVR / SAMD / nRF cores use fixed board SPI pins.
+                        body = [
+                            "        /* SPI pins are fixed by the board"
+                            " variant on this core */ \\",
+                            "        SPI.begin(); \\",
+                        ]
+
                     lines.extend(
                         [
-                            f"#define {func_name}(freq) \\",
-                            f"    SPI.setMOSI({mosi_const}); \\",
-                            f"    SPI.setMISO({miso_const}); \\",
-                            f"    SPI.setSCK({sck_const}); \\",
-                            "    SPI.begin(); \\",
-                            "    SPI.setClockDivider(SPI_CLOCK_DIV2)",
+                            f"#define {func_name}() \\",
+                            "    do { \\",
+                            *body,
+                            "    } while (0)",
                             "",
                         ]
                     )

@@ -3,7 +3,7 @@
 
 /*
  * Auto-generated Arduino pinmap for RP2040
- * Generated: 2025-09-28 05:41:11
+ * Generated: 1970-01-01 00:00:00
  * Generator: PinmapGen
  *
  * This file contains pin definitions, helper structures, and macros
@@ -16,14 +16,14 @@
 // Pin Definitions
 // ========================================
 
-// Indicators Pins
-#define LED_RED 2  // Light Emitting Diode
-#define LED_GREEN 3  // Light Emitting Diode
-#define LED_BLUE 4  // Light Emitting Diode
-
 // Inputs Pins
 #define BUTTON_1 5  // Push Button Input
 #define BUTTON_2 6  // Push Button Input
+
+// Indicators Pins
+#define LED_BLUE 4  // Light Emitting Diode
+#define LED_GREEN 3  // Light Emitting Diode
+#define LED_RED 2  // Light Emitting Diode
 
 // ========================================
 // Helper Macros

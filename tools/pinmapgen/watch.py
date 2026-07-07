@@ -123,6 +123,7 @@ def watch_and_regenerate(
     out_root: Path | str = ".",
     mermaid: bool = False,
     poll_interval: float = 1.0,
+    profile_dir: Path | str | None = None,
 ) -> None:
     """
     Watch directory for changes and regenerate pinmaps automatically.
@@ -134,6 +135,8 @@ def watch_and_regenerate(
         out_root: Output root directory
         mermaid: Whether to generate Mermaid diagrams
         poll_interval: Polling interval in seconds
+        profile_dir: Optional directory with custom TOML MCU profiles,
+            passed through to the CLI
     """
     # Ensure we have Path objects
     if isinstance(watch_dir, str):
@@ -175,6 +178,9 @@ def watch_and_regenerate(
             return
 
         cmd.extend(["--mcu", mcu, "--mcu-ref", mcu_ref, "--out-root", str(out_root)])
+
+        if profile_dir:
+            cmd.extend(["--profile-dir", str(profile_dir)])
 
         if mermaid:
             cmd.append("--mermaid")
@@ -220,6 +226,8 @@ def main() -> None:
     """Main entry point for watch command."""
     import argparse
 
+    from .profile_registry import registry
+
     parser = argparse.ArgumentParser(
         description="Watch for changes to .sch/.csv files and regenerate pinmaps automatically"
     )
@@ -229,8 +237,10 @@ def main() -> None:
     parser.add_argument(
         "--mcu",
         default="rp2040",
-        choices=["rp2040", "stm32g0", "esp32"],
-        help="MCU profile (default: rp2040)",
+        help=(
+            "MCU profile (default: rp2040). Available: "
+            + ", ".join(registry.list_profiles())
+        ),
     )
     parser.add_argument(
         "--mcu-ref", default="U1", help="MCU reference designator (default: U1)"
@@ -240,6 +250,11 @@ def main() -> None:
         type=Path,
         default=Path(),
         help="Output root directory (default: current directory)",
+    )
+    parser.add_argument(
+        "--profile-dir",
+        type=Path,
+        help="Additional directory containing custom TOML MCU profiles",
     )
     parser.add_argument(
         "--mermaid", action="store_true", help="Generate Mermaid diagrams"
@@ -252,6 +267,19 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    # Validate the MCU name against the registry (including any custom
+    # profile directory) instead of a hardcoded subset.
+    if args.profile_dir:
+        try:
+            registry.add_profile_dir(args.profile_dir)
+        except FileNotFoundError as exc:
+            parser.error(str(exc))
+    if args.mcu.lower() not in registry:
+        parser.error(
+            f"Unknown MCU profile '{args.mcu}'. "
+            f"Available: {', '.join(registry.list_profiles())}"
+        )
 
     # Setup signal handler for graceful shutdown
     def signal_handler(signum, frame):
@@ -270,6 +298,7 @@ def main() -> None:
         out_root=args.out_root,
         mermaid=args.mermaid,
         poll_interval=args.interval,
+        profile_dir=args.profile_dir,
     )
 
 

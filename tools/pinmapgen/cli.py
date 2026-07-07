@@ -95,6 +95,15 @@ Examples:
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit with a non-zero status (2) if the pinmap has validation "
+            "errors or pins that failed to normalize, instead of only "
+            "printing warnings. Recommended for CI."
+        ),
+    )
+    parser.add_argument(
         "--reproducible",
         action="store_true",
         help="Produce reproducible output (fixed timestamps)",
@@ -425,6 +434,23 @@ def main():
 
         # Create canonical pinmap with normalization and validation
         canonical_dict = create_canonical_pinmap(nets, args.mcu, args.verbose)
+
+        # In strict mode, refuse to write outputs from a pinmap with
+        # validation errors or dropped pins (details were already printed
+        # to stderr during normalization).
+        if args.strict:
+            metadata = canonical_dict.get("metadata", {})
+            validation_errors = metadata.get("validation_errors", [])
+            dropped_pins = metadata.get("dropped_pins", [])
+            if validation_errors or dropped_pins:
+                print(
+                    f"Strict mode: {len(validation_errors)} validation "
+                    f"error(s), {len(dropped_pins)} dropped pin(s) — "
+                    "no output written. Fix the netlist or rerun without "
+                    "--strict.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
 
         # Generate all output files
         generate_outputs(canonical_dict, args)

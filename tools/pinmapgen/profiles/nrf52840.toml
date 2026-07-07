@@ -14,20 +14,20 @@ family       = "nrf"
 canonical_prefix = "P"
 allow_numeric    = false
 
-# P0.13 → P0_13  (dot to underscore)
+# P0.13 / P0.5 → P0_13 / P0_05  (dot to underscore, zero-padded pin)
 [[normalization.patterns]]
 regex  = "P(\\d+)\\.(\\d+)"
-output = "P{0}_{1}"
+output = "P{0}_{1:02}"
 
-# P0_13 already canonical (no transform needed but validates)
+# P0_13 / P0_5 → canonical zero-padded form
 [[normalization.patterns]]
 regex  = "P(\\d+)_(\\d+)"
-output = "P{0}_{1}"
+output = "P{0}_{1:02}"
 
 # Bare GPIO number → P0_xx (for numbers 0-31) — common in Arduino cores
 [[normalization.patterns]]
 regex  = "GPIO(\\d+)"
-output = "P0_{0}"
+output = "P0_{0:02}"
 
 [normalization.aliases]
 # Common Adafruit Feather nRF52840 aliases
@@ -134,16 +134,17 @@ special_function       = "RESET"
 special_function_short = "NRST"
 warnings               = ["P0.18 is the hardware reset pin"]
 
-# USB
+# Dev-kit LEDs (nRF52840-DK). Note: the nRF52840's USB D+/D- are dedicated
+# pads (not GPIOs), so no GPIO carries a USB special function here.
 [[pins.individual]]
 name                   = "P0_13"
-special_function       = "USB D- / LED1 (dev kits)"
-special_function_short = "USB D-"
-add_capabilities       = ["usb_dm"]
+special_function       = "LED1 (nRF52840-DK)"
+special_function_short = "LED1"
 
 [[pins.individual]]
 name                   = "P0_14"
-add_capabilities       = ["usb_dp"]
+special_function       = "LED2 (nRF52840-DK)"
+special_function_short = "LED2"
 
 # ── Peripherals ───────────────────────────────────────────────────────────
 
@@ -182,7 +183,9 @@ name = "UART"
 instance = 1
 pins = { tx = "configurable", rx = "configurable" }
 
+# USB uses the chip's dedicated D+/D- pads — not GPIO-muxed, so no
+# pin mapping is listed here.
 [[peripherals]]
 name = "USB"
 instance = 0
-pins = { dp = "P0_14", dm = "P0_13" }
+pins = { dp = "dedicated", dm = "dedicated" }

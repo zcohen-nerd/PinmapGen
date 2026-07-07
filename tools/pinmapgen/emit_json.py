@@ -38,8 +38,14 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
                 stacklevel=2,
             )
 
-    # Start with canonical dictionary
+    # Start with a copy of the canonical dictionary. The differential_pairs
+    # list is copied too: role analysis below may append pairs, and mutating
+    # the caller's list would change what later emitters render (output
+    # would depend on emitter order).
     output_data = canonical_dict.copy()
+    output_data["differential_pairs"] = list(
+        canonical_dict.get("differential_pairs", [])
+    )
 
     # Analyze roles for enhanced metadata
     if "pins" in canonical_dict:

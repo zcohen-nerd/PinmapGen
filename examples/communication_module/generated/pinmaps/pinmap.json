@@ -1,160 +1,181 @@
 {
-  "mcu": "rp2040",
-  "pins": {
-    "DEBUG_TX": {
-      "pins": [
-        "GP0"
-      ],
-      "role": "uart.tx",
-      "bus_group": null,
-      "description": "UART Transmit"
-    },
-    "DEBUG_RX": {
-      "pins": [
-        "GP1"
-      ],
-      "role": "uart.rx",
-      "bus_group": null,
-      "description": "UART Receive"
-    },
-    "WIFI_TX": {
-      "pins": [
-        "GP8"
-      ],
-      "role": "uart.tx",
-      "bus_group": null,
-      "description": "UART Transmit"
-    },
-    "WIFI_RX": {
-      "pins": [
-        "GP9"
-      ],
-      "role": "uart.rx",
-      "bus_group": null,
-      "description": "UART Receive"
-    },
-    "SPI_SCK": {
-      "pins": [
-        "GP16"
-      ],
-      "role": "spi.sck",
-      "bus_group": "SPI",
-      "description": "SPI Serial Clock (SPI)"
-    },
-    "SPI_MISO": {
-      "pins": [
-        "GP18"
-      ],
-      "role": "spi.miso",
-      "bus_group": "SPI",
-      "description": "SPI Master In Slave Out (SPI)"
-    },
-    "SPI_MOSI": {
-      "pins": [
-        "GP19"
-      ],
-      "role": "spi.mosi",
-      "bus_group": "SPI",
-      "description": "SPI Master Out Slave In (SPI)"
-    },
-    "LORA_CS": {
-      "pins": [
-        "GP17"
-      ],
-      "role": "spi.cs",
-      "bus_group": null,
-      "description": "SPI Chip Select"
-    },
-    "SD_CS": {
-      "pins": [
-        "GP20"
-      ],
-      "role": "spi.cs",
-      "bus_group": null,
-      "description": "SPI Chip Select"
-    },
-    "LORA_RST": {
-      "pins": [
-        "GP21"
-      ],
-      "role": "reset",
-      "bus_group": null,
-      "description": "Reset Signal"
-    },
-    "LORA_DIO0": {
-      "pins": [
-        "GP22"
-      ],
-      "role": "unknown",
-      "bus_group": null,
-      "description": "General Purpose I/O"
-    },
-    "WIFI_LED": {
-      "pins": [
-        "GP10"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "LORA_LED": {
-      "pins": [
-        "GP11"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "SD_LED": {
-      "pins": [
-        "GP12"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    }
-  },
-  "differential_pairs": [],
-  "metadata": {
-    "total_nets": 14,
-    "total_pins": 14,
-    "differential_pairs_count": 0,
-    "special_pins_used": [],
-    "validation_warnings": [],
-    "validation_errors": []
-  },
   "bus_groups": {
-    "UART": [
-      "DEBUG_TX",
-      "DEBUG_RX",
-      "WIFI_TX",
-      "WIFI_RX"
-    ],
-    "SPI": [
-      "SPI_SCK",
-      "SPI_MISO",
-      "SPI_MOSI",
-      "LORA_CS",
-      "SD_CS"
+    "Indicators": [
+      "LORA_LED",
+      "SD_LED",
+      "WIFI_LED"
     ],
     "Other": [
-      "LORA_RST",
-      "LORA_DIO0"
+      "LORA_DIO0",
+      "LORA_RST"
     ],
-    "Indicators": [
-      "WIFI_LED",
-      "LORA_LED",
-      "SD_LED"
+    "SPI": [
+      "LORA_CS",
+      "SD_CS",
+      "SPI_MISO",
+      "SPI_MOSI",
+      "SPI_SCK"
+    ],
+    "UART": [
+      "DEBUG_RX",
+      "DEBUG_TX",
+      "WIFI_RX",
+      "WIFI_TX"
     ]
   },
+  "differential_pairs": [],
   "generated": {
-    "timestamp": "2025-09-28T05:43:31.199079",
-    "generator": "PinmapGen",
-    "version": "0.1.0",
     "features": [
       "role_inference",
       "bus_groups",
       "differential_pairs"
+    ],
+    "generator": "PinmapGen",
+    "timestamp": "1970-01-01T00:00:00+00:00",
+    "version": "0.1.0"
+  },
+  "mcu": "rp2040",
+  "metadata": {
+    "differential_pairs_count": 0,
+    "dropped_pins": [],
+    "special_functions_long": {
+      "GP23": "SMPS Power Mode",
+      "GP24": "USB D- (Data Minus)",
+      "GP25": "USB D+ (Data Plus)",
+      "GP26": "ADC Channel 0",
+      "GP27": "ADC Channel 1",
+      "GP28": "ADC Channel 2",
+      "GP29": "ADC Channel 3"
+    },
+    "special_functions_short": {
+      "GP23": "SMPS_MODE",
+      "GP24": "USB D-",
+      "GP25": "USB D+",
+      "GP26": "ADC0",
+      "GP27": "ADC1",
+      "GP28": "ADC2",
+      "GP29": "ADC3"
+    },
+    "special_pins_used": [],
+    "total_nets": 14,
+    "total_pins": 14,
+    "validation_errors": [],
+    "validation_warnings": []
+  },
+  "pin_roles": {
+    "DEBUG_RX": {
+      "bus_group": null,
+      "description": "UART Receive",
+      "role": "uart.rx"
+    },
+    "DEBUG_TX": {
+      "bus_group": null,
+      "description": "UART Transmit",
+      "role": "uart.tx"
+    },
+    "LORA_CS": {
+      "bus_group": null,
+      "description": "SPI Chip Select",
+      "role": "spi.cs"
+    },
+    "LORA_DIO0": {
+      "bus_group": null,
+      "description": "General Purpose I/O",
+      "role": "unknown"
+    },
+    "LORA_LED": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "LORA_RST": {
+      "bus_group": null,
+      "description": "Reset Signal",
+      "role": "reset"
+    },
+    "SD_CS": {
+      "bus_group": null,
+      "description": "SPI Chip Select",
+      "role": "spi.cs"
+    },
+    "SD_LED": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "SPI_MISO": {
+      "bus_group": "SPI",
+      "description": "SPI Master In Slave Out (SPI)",
+      "role": "spi.miso"
+    },
+    "SPI_MOSI": {
+      "bus_group": "SPI",
+      "description": "SPI Master Out Slave In (SPI)",
+      "role": "spi.mosi"
+    },
+    "SPI_SCK": {
+      "bus_group": "SPI",
+      "description": "SPI Serial Clock (SPI)",
+      "role": "spi.sck"
+    },
+    "WIFI_LED": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "WIFI_RX": {
+      "bus_group": null,
+      "description": "UART Receive",
+      "role": "uart.rx"
+    },
+    "WIFI_TX": {
+      "bus_group": null,
+      "description": "UART Transmit",
+      "role": "uart.tx"
+    }
+  },
+  "pins": {
+    "DEBUG_RX": [
+      "GP1"
+    ],
+    "DEBUG_TX": [
+      "GP0"
+    ],
+    "LORA_CS": [
+      "GP17"
+    ],
+    "LORA_DIO0": [
+      "GP22"
+    ],
+    "LORA_LED": [
+      "GP11"
+    ],
+    "LORA_RST": [
+      "GP21"
+    ],
+    "SD_CS": [
+      "GP20"
+    ],
+    "SD_LED": [
+      "GP12"
+    ],
+    "SPI_MISO": [
+      "GP18"
+    ],
+    "SPI_MOSI": [
+      "GP19"
+    ],
+    "SPI_SCK": [
+      "GP16"
+    ],
+    "WIFI_LED": [
+      "GP10"
+    ],
+    "WIFI_RX": [
+      "GP9"
+    ],
+    "WIFI_TX": [
+      "GP8"
     ]
   }
 }

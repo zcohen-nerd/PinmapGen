@@ -2,69 +2,67 @@
 #
 # PinmapGen Pre-commit Hook
 #
-# This hook automatically regenerates pinmap files when source files change.
-# It ensures that generated outputs stay in sync with input files.
+# Validates staged netlist exports by running the generator against them in
+# a temporary directory. The commit is blocked if generation fails, so broken
+# netlists never land. Nothing is staged automatically — the root-level
+# pinmaps/ and firmware/ outputs are gitignored scratch artifacts.
 
 set -e
 
-echo "🔧 PinmapGen pre-commit hook running..."
+echo "PinmapGen pre-commit hook running..."
 
-# Check if we have any changes in hardware/exports/
-HARDWARE_CHANGED=$(git diff --cached --name-only | grep -E '^hardware/exports/' || true)
+# Collect staged CSV netlists under hardware/exports/
+CHANGED_CSVS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^hardware/exports/.*\.csv$' || true)
 
-if [ -n "$HARDWARE_CHANGED" ]; then
-    echo "📁 Hardware export files changed:"
-    echo "$HARDWARE_CHANGED"
-    
-    # Check if we have a Python environment
-    if command -v python >/dev/null 2>&1; then
-        echo "🔄 Regenerating pinmaps..."
-        
-        # Find CSV files in hardware/exports/
-        CSV_FILES=$(find hardware/exports/ -name "*.csv" 2>/dev/null || true)
-        
-        if [ -n "$CSV_FILES" ]; then
-            for csv_file in $CSV_FILES; do
-                echo "📋 Processing $csv_file..."
-                
-                # Detect MCU type from filename or default to rp2040
-                mcu_type="rp2040"
-                if [[ "$csv_file" == *"stm32"* ]]; then
-                    mcu_type="stm32g0"
-                elif [[ "$csv_file" == *"esp32"* ]]; then
-                    mcu_type="esp32"
-                fi
-                
-                echo "🔍 Detected MCU type: $mcu_type"
-                
-                # Run the generator
-                python -m tools.pinmapgen.cli \
-                    --csv "$csv_file" \
-                    --mcu "$mcu_type" \
-                    --mcu-ref U1 \
-                    --out-root . \
-                    --mermaid
-            done
-            
-            # Stage the regenerated files
-            echo "📤 Staging regenerated pinmap files..."
-            git add pinmaps/
-            git add firmware/micropython/
-            git add firmware/include/
-            git add firmware/docs/
-            
-            echo "✅ Pinmaps regenerated and staged successfully!"
-        else
-            echo "⚠️  No CSV files found in hardware/exports/"
-        fi
-    else
-        echo "❌ Python not found! Please install Python to use auto-regeneration."
-        echo "   You can manually regenerate with:"
-        echo "   python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid"
-        exit 1
-    fi
-else
-    echo "📋 No hardware export changes detected, skipping regeneration."
+if [ -z "$CHANGED_CSVS" ]; then
+    echo "No netlist changes detected, skipping validation."
+    exit 0
 fi
 
-echo "🎉 Pre-commit hook completed successfully!"
+if ! command -v python >/dev/null 2>&1; then
+    echo "ERROR: Python not found - cannot validate netlists."
+    echo "       Install Python or commit with --no-verify to skip."
+    exit 1
+fi
+
+TMP_OUT=$(mktemp -d)
+trap 'rm -rf "$TMP_OUT"' EXIT
+
+FAILED=0
+for csv_file in $CHANGED_CSVS; do
+    echo "Validating $csv_file..."
+
+    # Detect MCU type from filename or default to rp2040
+    mcu_type="rp2040"
+    if [[ "$csv_file" == *"stm32"* ]]; then
+        mcu_type="stm32g0"
+    elif [[ "$csv_file" == *"esp32s3"* ]]; then
+        mcu_type="esp32s3"
+    elif [[ "$csv_file" == *"esp32c3"* ]]; then
+        mcu_type="esp32c3"
+    elif [[ "$csv_file" == *"esp32"* ]]; then
+        mcu_type="esp32"
+    elif [[ "$csv_file" == *"nrf52"* ]]; then
+        mcu_type="nrf52840"
+    fi
+
+    out_dir="$TMP_OUT/$(basename "$csv_file" .csv)"
+    if python -m tools.pinmapgen.cli \
+        --csv "$csv_file" \
+        --mcu "$mcu_type" \
+        --mcu-ref U1 \
+        --out-root "$out_dir" \
+        --mermaid; then
+        echo "  OK ($mcu_type)"
+    else
+        echo "  FAILED ($mcu_type) - fix the netlist or run the CLI manually to debug"
+        FAILED=1
+    fi
+done
+
+if [ "$FAILED" -ne 0 ]; then
+    echo "Pre-commit validation failed. Commit aborted."
+    exit 1
+fi
+
+echo "All changed netlists generate cleanly."

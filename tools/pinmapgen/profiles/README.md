@@ -85,6 +85,8 @@ allow_numeric    = true          # Accept bare numbers ("0" → "P0")
 
 # Regex patterns (tried in order, first match wins).
 # Capture groups → {0}, {1}, … in output template.
+# {n:0W} zero-pads group n to width W — use when canonical names are
+# zero-padded (e.g. output "P{0}_{1:02}" turns P0.5 into P0_05).
 [[normalization.patterns]]
 regex  = "GPIO(\\d+)"
 output = "P{0}"

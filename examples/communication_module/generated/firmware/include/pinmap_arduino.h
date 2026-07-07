@@ -3,7 +3,7 @@
 
 /*
  * Auto-generated Arduino pinmap for RP2040
- * Generated: 2025-09-28 05:43:31
+ * Generated: 1970-01-01 00:00:00
  * Generator: PinmapGen
  *
  * This file contains pin definitions, helper structures, and macros
@@ -17,26 +17,26 @@
 // ========================================
 
 // UART Pins
-#define DEBUG_TX 0  // UART Transmit
 #define DEBUG_RX 1  // UART Receive
-#define WIFI_TX 8  // UART Transmit
+#define DEBUG_TX 0  // UART Transmit
 #define WIFI_RX 9  // UART Receive
+#define WIFI_TX 8  // UART Transmit
 
 // SPI Pins
-#define SPI_SCK 16  // SPI Serial Clock (SPI)
-#define SPI_MISO 18  // SPI Master In Slave Out (SPI)
-#define SPI_MOSI 19  // SPI Master Out Slave In (SPI)
 #define LORA_CS 17  // SPI Chip Select
 #define SD_CS 20  // SPI Chip Select
+#define SPI_MISO 18  // SPI Master In Slave Out (SPI)
+#define SPI_MOSI 19  // SPI Master Out Slave In (SPI)
+#define SPI_SCK 16  // SPI Serial Clock (SPI)
 
 // Other Pins
-#define LORA_RST 21  // Reset Signal
 #define LORA_DIO0 22  // General Purpose I/O
+#define LORA_RST 21  // Reset Signal
 
 // Indicators Pins
-#define WIFI_LED 10  // Light Emitting Diode
 #define LORA_LED 11  // Light Emitting Diode
 #define SD_LED 12  // Light Emitting Diode
+#define WIFI_LED 10  // Light Emitting Diode
 
 // ========================================
 // Helper Macros
@@ -51,11 +51,12 @@
 
 // SPI setup helpers
 #include <SPI.h>
-#define SETUP_SPI(freq) \
-    SPI.setMOSI(SPI_MOSI); \
-    SPI.setMISO(SPI_MISO); \
-    SPI.setSCK(SPI_SCK); \
-    SPI.begin(); \
-    SPI.setClockDivider(SPI_CLOCK_DIV2)
+#define SETUP_SPI() \
+    do { \
+        SPI.setMOSI(SPI_MOSI); \
+        SPI.setMISO(SPI_MISO); \
+        SPI.setSCK(SPI_SCK); \
+        SPI.begin(); \
+    } while (0)
 
 #endif // PINMAP_ARDUINO_H

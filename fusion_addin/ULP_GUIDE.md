@@ -41,15 +41,21 @@ Make sure your schematic is open in the **Electronics** workspace.
 
 ### 3. Configure settings
 
+**PinmapGen repository** — The folder where you cloned the PinmapGen repo
+(the ULP invokes its CLI from there). Entered once and saved to a settings
+file next to the ULP for future runs.
+
 **MCU reference designator** — The ref des of your MCU (e.g., `U1`, `IC1`).
 Must match the schematic.
 
 **Project name** — Used for the output folder name. Defaults to a timestamped
 name if left blank.
 
-**Output directory** — Where generated files go. Quick buttons are available
-for Desktop, Documents, and the PinmapGen project root. You can also type a
-custom path.
+**MCU type** — Pick from the quick buttons (all 13 built-in profiles) or type
+a profile name.
+
+**Output directory** — Where generated files go. Defaults to a
+`PinmapGen_Output` folder next to the ULP; you can type any custom path.
 
 **Output formats** — Check the boxes for the formats you want (MicroPython,
 Arduino, Markdown, Mermaid).
@@ -134,7 +140,8 @@ Two additional ULPs are included for development/debugging:
 ### Python / CLI errors
 
 - Python 3.11+ must be installed and on PATH.
-- Verify the PinmapGen project path in the ULP matches the real location.
+- Verify the "PinmapGen repository" field points at your cloned repo
+  (the ULP checks for `tools/pinmapgen/cli.py` there).
 - Run the equivalent CLI command manually to isolate the issue.
 
 ### Permission errors
@@ -153,8 +160,10 @@ Two additional ULPs are included for development/debugging:
 
 ### Other MCU profiles
 
-The ULP dialog supports RP2040, STM32G0, and ESP32. To use a profile not
-listed, run the CLI directly with `--mcu <profile>`.
+The ULP dialog supports all 13 built-in profiles (RP2040, RP2350, ESP32,
+ESP32-S3, ESP32-C3, STM32G0, STM32F411, STM32H743, nRF52840, ATmega328P,
+ATmega2560, ATSAMD21, ATSAMD51). For custom TOML profiles, run the CLI
+directly with `--mcu <profile> --profile-dir <dir>`.
 
 ### Version control integration
 

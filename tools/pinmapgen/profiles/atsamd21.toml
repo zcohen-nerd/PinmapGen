@@ -14,14 +14,19 @@ family       = "sam"
 canonical_prefix = "P"
 allow_numeric    = false
 
-# Two-digit pin numbers (PA02, PB09)
+# Canonical names are zero-padded two-digit (PA02, PB09), so pad outputs.
 [[normalization.patterns]]
 regex  = "GPIO([A-Z])(\\d+)"
-output = "P{0}{1}"
+output = "P{0}{1:02}"
+
+# PA2 / PA02 → PA02
+[[normalization.patterns]]
+regex  = "P([A-Z])(\\d+)"
+output = "P{0}{1:02}"
 
 [[normalization.patterns]]
 regex  = "([A-Z])(\\d+)"
-output = "P{0}{1}"
+output = "P{0}{1:02}"
 
 # Arduino Zero aliases
 [normalization.aliases]

@@ -118,10 +118,11 @@ def _micropython_pin_literal(pin_name: str) -> str:
     if rp_match:
         return str(int(rp_match.group(1)))
 
-    # ESP32 family: GPIO<n> → quoted string
+    # ESP32 family: GPIO<n> → bare int (the MicroPython esp32 port only
+    # accepts integer pin ids; Pin("GPIO21") raises ValueError)
     gpio_match = re.fullmatch(r"GPIO(\d+)", token)
     if gpio_match:
-        return f'"GPIO{gpio_match.group(1)}"'
+        return str(int(gpio_match.group(1)))
 
     # nRF52840: P<port>_<pin> → "P<port>.<pin>" (MicroPython nrf port)
     nrf_match = re.fullmatch(r"P(\d+)_(\d+)", token)
@@ -163,11 +164,19 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
     pins_for_analysis = _prepare_pins_for_analysis(canonical_dict)
     pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
 
+    # Nets connected to more than one pin: the constant uses the first pin,
+    # so the remaining pins are called out in the comment.
+    multi_pin_nets = {
+        net: pins
+        for net, pins in canonical_dict["pins"].items()
+        if isinstance(pins, list) and len(pins) > 1
+    }
+
     # Determine which machine imports are actually needed
     needed_imports = _determine_machine_imports(bus_groups)
     lines.extend(_render_file_header(canonical_dict, needed_imports))
 
-    const_lines, name_lookup = _render_pin_constants(bus_groups)
+    const_lines, name_lookup = _render_pin_constants(bus_groups, multi_pin_nets)
     lines.extend(const_lines)
     lines.extend(
         _render_helper_functions(pin_infos, bus_groups, diff_pairs, name_lookup),
@@ -250,14 +259,23 @@ def _prepare_pins_for_analysis(
 
 def _render_pin_constants(
     bus_groups: dict[str, list[Any]],
+    multi_pin_nets: dict[str, list[str]] | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     """Render pin constant assignments and return a name lookup table.
+
+    Args:
+        bus_groups: Pins grouped by bus/function.
+        multi_pin_nets: Optional map of net name → full pin list for nets
+            connected to more than one pin. The constant uses the first
+            pin; the others are flagged in the comment.
 
     Returns:
         A tuple of ``(lines, name_lookup)`` where *name_lookup* maps each
         original net name to the (possibly collision-suffixed) constant name
         that was emitted.
     """
+    if multi_pin_nets is None:
+        multi_pin_nets = {}
     name_lookup: dict[str, str] = {}
     if not any(bus_groups.values()):
         return [], name_lookup
@@ -280,6 +298,15 @@ def _render_pin_constants(
             const_name = _sanitize_net_name(pin_info.net_name, seen_names)
             name_lookup[pin_info.net_name] = const_name
             descriptor = f"{pin_info.description} ({pin_info.pin_name})"
+            all_pins = multi_pin_nets.get(pin_info.net_name)
+            if all_pins:
+                others = ", ".join(
+                    p for p in all_pins if p != pin_info.pin_name
+                )
+                if others:
+                    descriptor += (
+                        f" [WARNING: net also connects to {others}]"
+                    )
             literal = _micropython_pin_literal(pin_info.pin_name)
             lines.append(f"{const_name} = {literal}  # {descriptor}")
         lines.append("")

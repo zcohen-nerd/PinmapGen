@@ -1,73 +1,8 @@
 {
-  "mcu": "rp2040",
-  "pins": {
-    "SENSOR_DATA": {
-      "pins": [
-        "GP2"
-      ],
-      "role": "unknown",
-      "bus_group": null,
-      "description": "General Purpose I/O"
-    },
-    "I2C_SDA": {
-      "pins": [
-        "GP4"
-      ],
-      "role": "i2c.sda",
-      "bus_group": "I2C",
-      "description": "I2C Serial Data (I2C)"
-    },
-    "I2C_SCL": {
-      "pins": [
-        "GP5"
-      ],
-      "role": "i2c.scl",
-      "bus_group": "I2C",
-      "description": "I2C Serial Clock (I2C)"
-    },
-    "LIGHT_ANALOG": {
-      "pins": [
-        "GP26"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "STATUS_LED": {
-      "pins": [
-        "GP15"
-      ],
-      "role": "led",
-      "bus_group": null,
-      "description": "Light Emitting Diode"
-    },
-    "BUTTON_IN": {
-      "pins": [
-        "GP14"
-      ],
-      "role": "button",
-      "bus_group": null,
-      "description": "Push Button Input"
-    }
-  },
-  "differential_pairs": [],
-  "metadata": {
-    "total_nets": 6,
-    "total_pins": 6,
-    "differential_pairs_count": 0,
-    "special_pins_used": [
-      "GP26"
-    ],
-    "validation_warnings": [],
-    "validation_errors": []
-  },
   "bus_groups": {
-    "Other": [
-      "SENSOR_DATA"
-    ],
     "I2C": [
-      "I2C_SDA",
-      "I2C_SCL"
+      "I2C_SCL",
+      "I2C_SDA"
     ],
     "Indicators": [
       "LIGHT_ANALOG",
@@ -75,16 +10,102 @@
     ],
     "Inputs": [
       "BUTTON_IN"
+    ],
+    "Other": [
+      "SENSOR_DATA"
     ]
   },
+  "differential_pairs": [],
   "generated": {
-    "timestamp": "2025-09-28T05:43:28.450497",
-    "generator": "PinmapGen",
-    "version": "0.1.0",
     "features": [
       "role_inference",
       "bus_groups",
       "differential_pairs"
+    ],
+    "generator": "PinmapGen",
+    "timestamp": "1970-01-01T00:00:00+00:00",
+    "version": "0.1.0"
+  },
+  "mcu": "rp2040",
+  "metadata": {
+    "differential_pairs_count": 0,
+    "dropped_pins": [],
+    "special_functions_long": {
+      "GP23": "SMPS Power Mode",
+      "GP24": "USB D- (Data Minus)",
+      "GP25": "USB D+ (Data Plus)",
+      "GP26": "ADC Channel 0",
+      "GP27": "ADC Channel 1",
+      "GP28": "ADC Channel 2",
+      "GP29": "ADC Channel 3"
+    },
+    "special_functions_short": {
+      "GP23": "SMPS_MODE",
+      "GP24": "USB D-",
+      "GP25": "USB D+",
+      "GP26": "ADC0",
+      "GP27": "ADC1",
+      "GP28": "ADC2",
+      "GP29": "ADC3"
+    },
+    "special_pins_used": [
+      "GP26"
+    ],
+    "total_nets": 6,
+    "total_pins": 6,
+    "validation_errors": [],
+    "validation_warnings": []
+  },
+  "pin_roles": {
+    "BUTTON_IN": {
+      "bus_group": null,
+      "description": "Push Button Input",
+      "role": "button"
+    },
+    "I2C_SCL": {
+      "bus_group": "I2C",
+      "description": "I2C Serial Clock (I2C)",
+      "role": "i2c.scl"
+    },
+    "I2C_SDA": {
+      "bus_group": "I2C",
+      "description": "I2C Serial Data (I2C)",
+      "role": "i2c.sda"
+    },
+    "LIGHT_ANALOG": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    },
+    "SENSOR_DATA": {
+      "bus_group": null,
+      "description": "General Purpose I/O",
+      "role": "unknown"
+    },
+    "STATUS_LED": {
+      "bus_group": null,
+      "description": "Light Emitting Diode",
+      "role": "led"
+    }
+  },
+  "pins": {
+    "BUTTON_IN": [
+      "GP14"
+    ],
+    "I2C_SCL": [
+      "GP5"
+    ],
+    "I2C_SDA": [
+      "GP4"
+    ],
+    "LIGHT_ANALOG": [
+      "GP26"
+    ],
+    "SENSOR_DATA": [
+      "GP2"
+    ],
+    "STATUS_LED": [
+      "GP15"
     ]
   }
 }

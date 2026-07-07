@@ -54,13 +54,14 @@ class TestIssue46ArduinoPinLiteral(unittest.TestCase):
         self.assertEqual(_arduino_pin_literal("GPIO21"), "21")
 
     def test_stm32_pa10(self):
-        self.assertEqual(_arduino_pin_literal("PA10"), "PA_10")
+        # STM32duino defines PA10 (not PinName PA_10) as the Arduino pin id.
+        self.assertEqual(_arduino_pin_literal("PA10", "stm32g0"), "PA10")
 
     def test_stm32_pb2(self):
-        self.assertEqual(_arduino_pin_literal("PB2"), "PB_2")
+        self.assertEqual(_arduino_pin_literal("PB2", "stm32g0"), "PB2")
 
     def test_stm32_pc14(self):
-        self.assertEqual(_arduino_pin_literal("PC14"), "PC_14")
+        self.assertEqual(_arduino_pin_literal("PC14", "stm32g0"), "PC14")
 
     def test_empty(self):
         self.assertEqual(_arduino_pin_literal(""), "0")
@@ -69,25 +70,37 @@ class TestIssue46ArduinoPinLiteral(unittest.TestCase):
         self.assertEqual(_arduino_pin_literal("XYZ"), "0")
 
     def test_stm32_in_full_header(self):
-        """STM32 canonical dict should produce PA_10 style defines."""
+        """STM32 canonical dict should produce PA10 style defines."""
         cd = _canonical(mcu="stm32g0", pins={"I2C0_SDA": ["PA10"]})
         header = generate_arduino_with_roles(cd)
-        self.assertIn("PA_10", header)
-        # Must NOT contain bare "10" as the value (unless part of PA_10)
         for line in header.splitlines():
             if line.startswith("#define I2C0_SDA"):
-                self.assertIn("PA_10", line)
+                self.assertIn(" PA10", line)
+                self.assertNotIn("PA_10", line)
                 break
+        else:
+            self.fail("no #define I2C0_SDA line emitted")
 
 
 class TestIssue47ADCResolution(unittest.TestCase):
-    """#47 — ADC_READ_VOLTAGE must use 4095 (12-bit), not 1023."""
+    """#47 — ADC_READ_VOLTAGE must match each core's analogRead default."""
 
-    def test_adc_macro_uses_4095(self):
+    def test_rp2040_adc_macro_uses_1023(self):
+        # Philhower RP2040 analogRead defaults to 10-bit.
         cd = _canonical(pins={"ADC_IN": ["GP26"]})
         header = generate_arduino_with_roles(cd)
-        self.assertIn("4095.0f", header)
-        self.assertNotIn("1023.0f", header)
+        self.assertIn("3.3f / 1023.0f", header)
+
+    def test_esp32_adc_macro_uses_4095(self):
+        # ESP32 Arduino analogRead defaults to 12-bit.
+        cd = _canonical(mcu="esp32", pins={"ADC_IN": ["GPIO32"]})
+        header = generate_arduino_with_roles(cd)
+        self.assertIn("3.3f / 4095.0f", header)
+
+    def test_avr_adc_macro_uses_5v(self):
+        cd = _canonical(mcu="atmega328p", pins={"ADC_IN": ["PC0"]})
+        header = generate_arduino_with_roles(cd)
+        self.assertIn("5.0f / 1023.0f", header)
 
 
 class TestIssue48CollisionTrackedHelpers(unittest.TestCase):
