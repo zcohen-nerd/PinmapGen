@@ -3,7 +3,6 @@ Test cases for TOML-based MCU profile loading, registry auto-discovery,
 normalization, and canonical pinmap generation.
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -14,7 +13,6 @@ from pathlib import Path
 from tools.pinmapgen.mcu_profiles import PinCapability, PinInfo
 from tools.pinmapgen.profile_loader import TOMLProfile, _parse_capabilities
 from tools.pinmapgen.profile_registry import ProfileRegistry, registry
-
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -519,7 +517,7 @@ class TestPeripherals(unittest.TestCase):
 
     def test_peripheral_pin_mapping(self):
         profile = TOMLProfile(_PROFILES_DIR / "rp2040.toml")
-        usb = [p for p in profile.peripherals if p.name == "USB"][0]
+        usb = next(p for p in profile.peripherals if p.name == "USB")
         self.assertEqual(usb.pins["dp"], "GP25")
         self.assertEqual(usb.pins["dm"], "GP24")
 
@@ -649,6 +647,7 @@ class TestCLIListMCUs(unittest.TestCase):
                 sys.executable, "-m", "tools.pinmapgen.cli",
                 "--list-mcus",
             ],
+            check=False,
             capture_output=True,
             text=True,
             cwd=str(_PROJECT_ROOT),
@@ -673,6 +672,7 @@ class TestCLIListMCUs(unittest.TestCase):
                     "--out-root", tmpdir,
                     "--mermaid",
                 ],
+                check=False,
                 capture_output=True,
                 text=True,
                 cwd=str(_PROJECT_ROOT),

@@ -135,9 +135,9 @@ except UnicodeDecodeError:
 
 ### New MCU profile
 
-1. Create `tools/pinmapgen/<mcu>_profile.py` subclassing `MCUProfile`.
-2. Implement pin definitions, normalization, and peripherals.
-3. Register in `cli.py` → `MCU_PROFILES`.
+1. Create `tools/pinmapgen/profiles/<mcu>.toml` (schema in `profiles/README.md`) — the registry auto-discovers it.
+2. For behavior TOML can't express, subclass `MCUProfile` and register it via `profile_registry.registry.register(name, cls)`.
+3. Validate with `python -m tools.pinmapgen.cli profiles check <mcu>`.
 4. Add a sample netlist in `hardware/exports/` and test coverage under `tests/`.
 
 ### New input format

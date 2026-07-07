@@ -38,6 +38,31 @@ string trimCr(string s) {
     return s;
 }
 
+// Escape a value for embedding inside a PowerShell single-quoted string
+// (single quotes are doubled). Prevents apostrophes in project names or
+// paths from breaking the generated command.
+string psEscape(string s) {
+    string result = "";
+    for (int i = 0; i < strlen(s); i++) {
+        if (s[i] == '\'') result += "''";
+        else result += strsub(s, i, 1);
+    }
+    return result;
+}
+
+// Reference designators are passed to the CLI unquoted, so restrict them
+// to safe characters (letters, digits, underscore, hyphen).
+int isSafeRefDes(string s) {
+    if (strlen(s) == 0) return 0;
+    for (int i = 0; i < strlen(s); i++) {
+        char c = s[i];
+        int ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                 (c >= '0' && c <= '9') || c == '_' || c == '-';
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 // Function to generate timestamped project name
 string generateProjectName(string baseName) {
     string timestamp;
@@ -160,8 +185,8 @@ string analyzeSchematic(string targetMcuRef) {
 string validateInputs(string mcuRefIn, string outputDirIn, string mcuTypeIn, string repoDirIn) {
     string errors = "";
 
-    if (strlen(mcuRefIn) == 0) {
-        errors += "- MCU Reference cannot be empty\n";
+    if (!isSafeRefDes(mcuRefIn)) {
+        errors += "- MCU Reference must be non-empty and contain only letters, digits, '_' or '-'\n";
     }
 
     if (strlen(outputDirIn) == 0) {
@@ -381,7 +406,7 @@ if (result) {
 
         if (netlistResult == 1) {
             // Use PowerShell to run PinmapGen CLI from the configured repo
-            string pinmapCmd = "powershell -Command \"cd '" + repoDir + "'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + fullOutputDir + "'";
+            string pinmapCmd = "powershell -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(fullOutputDir) + "'";
 
             // Add mermaid flag if selected
             if (generateMermaid) {

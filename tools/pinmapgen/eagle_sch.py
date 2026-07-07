@@ -7,7 +7,6 @@ Extracts net and pin information from schematic data.
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
 
 
 def _normalize_refdes(value: str) -> str:
@@ -205,51 +204,3 @@ def get_mcu_nets_from_schematic(
         msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"
         raise ValueError(msg)
     return net_map
-
-
-def get_schematic_info(sch_path: Path | str) -> dict[str, Any]:
-    """
-    Extract general information from EAGLE schematic.
-
-    Args:
-        sch_path: Path to the .sch file
-
-    Returns:
-        Dictionary with schematic metadata
-    """
-    root = parse_schematic(sch_path)
-
-    info = {
-        "eagle_version": root.get("version", "unknown"),
-        "sheets": [],
-        "parts": [],
-        "nets_count": 0,
-    }
-
-    schematic = root.find("drawing/schematic")
-    if schematic is None:
-        return info
-
-    # Get sheet information
-    sheets = schematic.findall("sheets/sheet")
-    for i, sheet in enumerate(sheets):
-        sheet_info = {
-            "index": i + 1,
-            "nets": len(sheet.findall("nets/net")),
-            "instances": len(sheet.findall("instances/instance")),
-        }
-        info["sheets"].append(sheet_info)
-        info["nets_count"] += sheet_info["nets"]
-
-    # Get parts information from first sheet (usually contains the parts list)
-    if sheets:
-        first_sheet = sheets[0]
-        instances = first_sheet.findall("instances/instance")
-
-        for instance in instances:
-            part_name = instance.get("part")
-            gate = instance.get("gate")
-            if part_name:
-                info["parts"].append({"name": part_name, "gate": gate or "A"})
-
-    return info

@@ -336,9 +336,13 @@ The `validate-pinmaps.yml` workflow regenerates outputs on every push and pull r
 
 ### 12.1 Adding a new MCU profile
 
-1. Subclass `tools.pinmapgen.mcu_profiles.MCUProfile`.
-2. Implement normalization, role validation, and metadata augmentation.
-3. Register the profile in `tools.pinmapgen.cli.MCU_PROFILES`.
+1. Write a TOML profile (schema in `tools/pinmapgen/profiles/README.md`)
+   and pass its directory with `--profile-dir`, or drop it into
+   `tools/pinmapgen/profiles/` to make it built-in.
+2. Validate with `python -m tools.pinmapgen.cli profiles check <mcu>`.
+3. For behavior TOML can't express, subclass
+   `tools.pinmapgen.mcu_profiles.MCUProfile` and register it via
+   `profile_registry.registry.register(name, cls)`.
 4. Provide sample exports and add unit tests under `tests/`.
 
 ### 12.2 Customizing emitters

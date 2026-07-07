@@ -129,9 +129,9 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 5. **Canonical dict is the contract** between parsers and emitters. Never change its schema without updating all emitters and tests.
 
 ### Adding a New MCU Profile
-1. Create `tools/pinmapgen/<mcu>_profile.py` subclassing `MCUProfile` from `mcu_profiles.py`.
-2. Implement `_initialize_pin_definitions()`, `_initialize_peripherals()`, `normalize_pin_name()`.
-3. Register in `cli.py` → `MCU_PROFILES` dict.
+1. Create `tools/pinmapgen/profiles/<mcu>.toml` (see `profiles/README.md` for the schema) — it is auto-discovered by the registry. No Python needed.
+2. For behavior a TOML profile can't express, subclass `MCUProfile` and call `profile_registry.registry.register(name, cls)`.
+3. Validate with `python -m tools.pinmapgen.cli profiles check <mcu>`.
 4. Add sample netlist in `hardware/exports/` and test coverage.
 
 ### Adding a New Emitter

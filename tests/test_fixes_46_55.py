@@ -163,13 +163,20 @@ class TestIssue49MermaidDiffPairNodes(unittest.TestCase):
 
 
 class TestIssue50MarkdownSanitizer(unittest.TestCase):
-    """#50 — _sanitize_identifier must collapse underscores and strip trailing."""
+    """#50 — _sanitize_identifier must collapse underscores and strip trailing.
+
+    Note: a trailing ``-`` is now treated as a differential polarity marker
+    (→ ``_N`` suffix) rather than junk to strip — see naming.sanitize_net_name.
+    """
 
     def test_consecutive_underscores_collapsed(self):
         self.assertEqual(_sanitize_identifier("A--B"), "A_B")
 
     def test_trailing_underscores_stripped(self):
-        self.assertEqual(_sanitize_identifier("FOO-"), "FOO")
+        self.assertEqual(_sanitize_identifier("FOO_"), "FOO")
+
+    def test_trailing_minus_becomes_polarity_suffix(self):
+        self.assertEqual(_sanitize_identifier("FOO-"), "FOO_N")
 
     def test_empty_becomes_unnamed(self):
         self.assertEqual(_sanitize_identifier("___"), "UNNAMED_PIN")

@@ -27,11 +27,6 @@ from . import (
 )
 from .profile_registry import registry
 
-# Legacy MCU_PROFILES dict kept for backward compatibility.  Code that
-# imports ``cli.MCU_PROFILES`` will still work; the registry is the
-# canonical source of truth at runtime.
-MCU_PROFILES = {name: name for name in registry.list_profiles()}
-
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -145,24 +140,35 @@ Examples:
     return args
 
 
-def _print_profile_list() -> None:
-    """Print a formatted list of available MCU profiles."""
+def _print_profile_list() -> int:
+    """Print a formatted table of all registered profiles.
+
+    Used by both ``--list-mcus`` and the ``profiles list`` subcommand.
+    Returns an exit code (always 0).
+    """
     profiles = registry.list_profiles()
     if not profiles:
         print("No MCU profiles found.")
-        return
+        return 0
 
-    print(f"{'Name':<16} {'Display':<16} {'Family':<8} {'Source':<8} Description")
-    print("-" * 80)
+    print(
+        f"{'Name':<16} {'Display':<16} {'Family':<8} "
+        f"{'Source':<8} {'Schema':<8} Description"
+    )
+    print("-" * 88)
     for name in profiles:
         info = registry.get_profile_info(name)
+        sv = info.get("schema_version")
+        sv_str = str(sv) if sv is not None else "-"
         print(
             f"{info['name']:<16} "
             f"{info.get('display_name', ''):<16} "
             f"{info.get('family', ''):<8} "
             f"{info['source']:<8} "
+            f"{sv_str:<8} "
             f"{info.get('description', '')}"
         )
+    return 0
 
 
 def parse_input_file(args: argparse.Namespace) -> dict[str, list[str]]:
@@ -317,37 +323,10 @@ def _profiles_main(argv: list[str]) -> int:
             return 1
 
     if args.action == "list":
-        return _profiles_list_cmd()
+        return _print_profile_list()
     if args.action == "check":
         return _profiles_check_cmd(args.name)
     return 1  # pragma: no cover
-
-
-def _profiles_list_cmd() -> int:
-    """Print a formatted table of all registered profiles."""
-    profiles = registry.list_profiles()
-    if not profiles:
-        print("No MCU profiles found.")
-        return 0
-
-    # Table header
-    print(
-        f"{'Name':<16} {'Source':<8} {'Schema':<8} "
-        f"{'Family':<8} Description"
-    )
-    print("-" * 76)
-    for name in profiles:
-        info = registry.get_profile_info(name)
-        sv = info.get("schema_version")
-        sv_str = str(sv) if sv is not None else "-"
-        print(
-            f"{info['name']:<16} "
-            f"{info['source']:<8} "
-            f"{sv_str:<8} "
-            f"{info.get('family', ''):<8} "
-            f"{info.get('description', '')}"
-        )
-    return 0
 
 
 def _profiles_check_cmd(name: str) -> int:
@@ -434,6 +413,10 @@ def main():
 
         # Create canonical pinmap with normalization and validation
         canonical_dict = create_canonical_pinmap(nets, args.mcu, args.verbose)
+
+        # Record the MCU reference designator so it appears in pinmap.json
+        # and role metadata instead of "UNKNOWN".
+        canonical_dict["mcu_ref"] = args.mcu_ref
 
         # In strict mode, refuse to write outputs from a pinmap with
         # validation errors or dropped pins (details were already printed

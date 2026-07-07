@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .naming import sanitize_net_name
 from .pin_metadata import get_special_function as _get_special_function_impl
 
 
@@ -328,22 +329,13 @@ def generate_differential_pairs_table(canonical_dict: dict[str, Any]) -> str:
 
 
 def _sanitize_identifier(name: str) -> str:
-    """Convert net name to valid identifier."""
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    """Convert net name to valid identifier.
 
-    # Prefix leading digits with underscore
-    if sanitized and sanitized[0].isdigit():
-        sanitized = "_" + sanitized
-
-    # Collapse consecutive underscores
-    sanitized = re.sub(r"_{2,}", "_", sanitized)
-
-    # Strip trailing underscores (keep leading for digit-prefixed names)
-    sanitized = sanitized.rstrip("_")
-
-    if not sanitized or sanitized == "_":
-        sanitized = "UNNAMED_PIN"
-    return sanitized.upper()
+    Shares the emitters' sanitizer so the usage examples reference the
+    same constant names that pinmap_micropython.py / pinmap_arduino.h
+    actually define.
+    """
+    return sanitize_net_name(name)
 
 
 def _sanitize_c_identifier(name: str) -> str:

@@ -27,6 +27,7 @@
     "version": "0.1.0"
   },
   "mcu": "rp2040",
+  "mcu_ref": "U1",
   "metadata": {
     "differential_pairs_count": 0,
     "dropped_pins": [],

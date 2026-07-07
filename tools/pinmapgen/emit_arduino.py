@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles
 
@@ -36,49 +37,6 @@ def emit_arduino_header(
     # Write to file
     with output_path.open("w", encoding="utf-8") as f:
         f.write(code)
-
-
-def _sanitize_net_name(
-    net_name: str, seen_names: dict[str, int] | None = None
-) -> str:
-    """Sanitize net name for use as C++ macro.
-
-    Args:
-        net_name: Raw net name from netlist.
-        seen_names: Optional dict tracking previously emitted names.
-            When provided, duplicate sanitized names receive ``_2``, ``_3``,
-            etc. suffixes to avoid collisions.
-
-    Returns:
-        Sanitized macro name (uppercase).
-    """
-    # Remove invalid characters and replace with underscores
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", net_name)
-
-    # Prefix leading digits with underscore (preserves names like 3V3)
-    if sanitized and sanitized[0].isdigit():
-        sanitized = "_" + sanitized
-
-    # Remove consecutive underscores
-    sanitized = re.sub(r"_{2,}", "_", sanitized)
-
-    # Remove trailing underscores only (keep leading _ for digit-prefixed names)
-    sanitized = sanitized.rstrip("_")
-
-    # Handle empty or invalid names
-    if not sanitized or sanitized == "_":
-        sanitized = "UNNAMED_PIN"
-
-    result = sanitized.upper()
-
-    # Collision detection: append _2, _3, … when a tracker is provided
-    if seen_names is not None:
-        count = seen_names.get(result, 0) + 1
-        seen_names[result] = count
-        if count > 1:
-            result = f"{result}_{count}"
-
-    return result
 
 
 def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:

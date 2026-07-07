@@ -156,9 +156,12 @@ also create new emitters following the same pattern. See [extending.md](extendin
 
 ### How do I add support for a custom MCU?
 
-1. Subclass `MCUProfile` in a new `tools/pinmapgen/<mcu>_profile.py`.
-2. Implement pin definitions, normalization, and peripheral metadata.
-3. Register in `cli.py` → `MCU_PROFILES`.
+1. Write a TOML profile (schema in `tools/pinmapgen/profiles/README.md`)
+   and pass its directory with `--profile-dir`, or drop it into
+   `tools/pinmapgen/profiles/` to make it built-in.
+2. Validate with `python -m tools.pinmapgen.cli profiles check <mcu>`.
+3. For behavior TOML can't express, subclass `MCUProfile` and register it
+   via `profile_registry.registry.register(name, cls)`.
 4. Add tests and a sample netlist.
 
 Detailed walkthrough: [extending.md](extending.md).

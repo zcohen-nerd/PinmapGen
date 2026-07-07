@@ -379,26 +379,3 @@ def analyze_roles(
 
 # Alias for backward compatibility and MCU profiles
 PinRoleInferrer = RoleInferencer
-
-
-if __name__ == "__main__":
-    # Test with sample data
-    sample_pinmap = {
-        "I2C0_SDA": {"pin": "GP0", "component": "RP2040", "ref_des": "U1"},
-        "I2C0_SCL": {"pin": "GP1", "component": "RP2040", "ref_des": "U1"},
-        "LED_DATA": {"pin": "GP4", "component": "RP2040", "ref_des": "U1"},
-        "BUTTON": {"pin": "GP5", "component": "RP2040", "ref_des": "U1"},
-        "USB_DP": {"pin": "GP24", "component": "RP2040", "ref_des": "U1"},
-        "USB_DN": {"pin": "GP25", "component": "RP2040", "ref_des": "U1"},
-    }
-
-    pin_infos, bus_groups, diff_pairs = analyze_roles(sample_pinmap)
-
-    for _pin in pin_infos:
-        pass
-
-    for _group, _pins in bus_groups.items():
-        pass
-
-    for _pair in diff_pairs:
-        pass

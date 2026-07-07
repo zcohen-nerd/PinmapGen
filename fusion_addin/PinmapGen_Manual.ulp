@@ -36,6 +36,31 @@ string trimCr(string s) {
     return s;
 }
 
+// Escape a value for embedding inside a PowerShell single-quoted string
+// (single quotes are doubled). Prevents apostrophes in paths from
+// breaking the generated command.
+string psEscape(string s) {
+    string result = "";
+    for (int i = 0; i < strlen(s); i++) {
+        if (s[i] == '\'') result += "''";
+        else result += strsub(s, i, 1);
+    }
+    return result;
+}
+
+// Reference designators are passed to the CLI unquoted, so restrict them
+// to safe characters (letters, digits, underscore, hyphen).
+int isSafeRefDes(string s) {
+    if (strlen(s) == 0) return 0;
+    for (int i = 0; i < strlen(s); i++) {
+        char c = s[i];
+        int ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                 (c >= '0' && c <= '9') || c == '_' || c == '-';
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 void loadSettings() {
     string found[];
     if (fileglob(found, settingsFile) == 0) return;
@@ -148,8 +173,8 @@ if (result) {
 
     // Validate inputs before doing anything
     string validationErrors = "";
-    if (strlen(mcuRef) == 0) {
-        validationErrors += "- MCU Reference cannot be empty\n";
+    if (!isSafeRefDes(mcuRef)) {
+        validationErrors += "- MCU Reference must be non-empty and contain only letters, digits, '_' or '-'\n";
     }
     if (strlen(outputDir) == 0) {
         validationErrors += "- Output Directory cannot be empty\n";
@@ -185,7 +210,7 @@ if (result) {
 
     if (netlistExists) {
         // Build the CLI command; the closing quote of -Command is added last
-        string pinmapCmd = "powershell -Command \"cd '" + repoDir + "'; python -m tools.pinmapgen.cli --csv '" + netlistFile + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + outputDir + "'";
+        string pinmapCmd = "powershell -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(outputDir) + "'";
 
         if (generateMermaid) {
             pinmapCmd += " --mermaid";
