@@ -465,8 +465,7 @@ Two workflows run on every push and pull request:
 - **README.md** — High-level project overview, installation, and highlights.
 - **docs/** — Topic guides (usage, workflows, troubleshooting, FAQ, output formats, extending) — see [docs/README.md](docs/README.md) for the index.
 - **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow.
-- **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
+- **tests/** — Unit and regression tests illustrating the canonical data flow (inputs are built inline, no fixture files).
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
-- **docs/internal/** — Historical development documents (not maintained).
 
 If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide.

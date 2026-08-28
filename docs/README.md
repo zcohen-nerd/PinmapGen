@@ -13,11 +13,8 @@ deeper on one topic each:
 | [faq.md](faq.md) | Short answers: supported MCUs, licensing, when to regenerate |
 | [output-formats.md](output-formats.md) | What each generated file contains and how to consume it |
 | [extending.md](extending.md) | Adding a new MCU as a TOML profile — no code required |
+| [FUSION_TEST_GUIDE.md](FUSION_TEST_GUIDE.md) | Manual test plan for the ULPs inside Fusion — the one part CI can't run |
 
 Fusion 360 specifics (installing and running the ULPs) live next to the
 scripts themselves in
 [fusion_addin/ULP_GUIDE.md](../fusion_addin/ULP_GUIDE.md).
-
-`internal/` holds historical development documents (milestone logs, the
-original success writeup, the manual Fusion test plan). They are kept for
-context and are not maintained as user documentation.

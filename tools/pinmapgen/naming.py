@@ -52,7 +52,10 @@ def sanitize_net_name(
         net_name: Raw net name from the netlist.
         seen_names: Optional dict tracking previously emitted names.
             When provided, duplicate sanitized names receive ``_2``, ``_3``,
-            etc. suffixes to avoid collisions.
+            etc. suffixes to avoid collisions. Compat-only: no production
+            caller supplies it (collision handling lives in
+            :func:`build_name_map`, which is reserved-name-aware and fair) —
+            fold this parameter away at v0.2.0.
 
     Returns:
         Sanitized identifier (uppercase).

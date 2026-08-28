@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.pinmapgen.bom_csv import get_mcu_nets, parse_netlist_tuples
+from tools.pinmapgen.bom_csv import get_mcu_nets
 from tools.pinmapgen.emit_markdown import generate_differential_pairs_table
 from tools.pinmapgen.emit_micropython import generate_micropython_with_roles
 from tools.pinmapgen.profile_registry import ProfileRegistry
@@ -71,10 +71,8 @@ I2C_SDA,GP0,RP2040,U1
             csv_path = Path(tmpdir) / "netlist.csv"
             csv_path.write_text(csv_content, encoding="utf-8")
 
-            tuples = parse_netlist_tuples(csv_path, "u1")
             nets = get_mcu_nets(csv_path, "u1")
 
-            self.assertEqual(len(tuples), 2)
             self.assertEqual(len(nets), 2)
             self.assertIn("LED", nets)
 

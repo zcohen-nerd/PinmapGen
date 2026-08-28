@@ -53,38 +53,6 @@ def get_special_functions_long(mcu: str) -> dict[str, str]:
     return _function_tables(mcu)[1]
 
 
-def get_pin_comment(
-    pin: str,
-    mcu: str = "rp2040",
-    canonical_dict: dict | None = None,
-) -> str:
-    """Return a concise pin comment such as ``"GP26 - ADC0"``.
-
-    When *canonical_dict* is provided the special-function data embedded in
-    its ``metadata.special_functions_short`` is used. Otherwise the table is
-    derived from the registered profile for *mcu*.
-
-    Args:
-        pin: Normalised pin name (e.g. ``"GP24"``, ``"PA13"``).
-        mcu: MCU identifier for MCU-specific lookups.
-        canonical_dict: Optional canonical pinmap dict.
-
-    Returns:
-        Human-readable comment string.
-    """
-    comments = [pin]
-    if canonical_dict:
-        mcu_funcs = (
-            canonical_dict.get("metadata", {})
-            .get("special_functions_short", {})
-        )
-    else:
-        mcu_funcs = get_special_functions_short(mcu)
-    if pin in mcu_funcs:
-        comments.append(mcu_funcs[pin])
-    return " - ".join(comments)
-
-
 def get_special_function(
     pin: str,
     mcu: str = "rp2040",

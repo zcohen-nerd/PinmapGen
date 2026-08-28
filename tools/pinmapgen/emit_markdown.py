@@ -228,7 +228,7 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
     # vocabulary the code emitters use for their section comments); the
     # pin's own special function (boot strap, ADC channel, input-only...)
     # goes in Notes so both facts stay visible.
-    pin_infos, _, _ = analyze_roles(pins)
+    pin_infos, _ = analyze_roles(pins)
     role_descriptions = {
         info.net_name: info.description or "General Purpose I/O"
         for info in pin_infos

@@ -1,8 +1,7 @@
 # Fusion 360 ULP Testing Guide
 
-> **Internal test plan** for validating the ULPs inside Fusion 360 on
-> Windows - the one part of PinmapGen CI cannot exercise. Updated to
-> match the current dialogs.
+> **Maintainer test plan** for validating the ULPs inside Fusion 360 on
+> Windows - the one part of PinmapGen CI cannot exercise.
 
 Test plan for verifying the PinmapGen ULP inside Fusion 360. Work through
 tests F1–F8 in order; earlier tests are prerequisites for later ones.
