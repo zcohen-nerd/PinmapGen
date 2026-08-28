@@ -80,7 +80,7 @@ tools/pinmapgen/         ← core package (stdlib only)
   emit_mermaid.py        ← Mermaid .mmd emitter
 
 hardware/exports/        ← sample / real netlist CSVs & .sch files
-tests/                   ← unittest suite (30 tests, all passing)
+tests/                   ← unittest suite (run: python -m unittest discover -s tests)
 examples/                ← three worked examples: simple_led, sensor_hub, communication_module
   */generated/           ← pre-generated output for each example
 firmware/                ← default output location when --out-root is '.'
