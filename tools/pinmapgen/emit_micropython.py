@@ -11,7 +11,6 @@ from typing import Any
 from . import get_build_timestamp
 from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
-from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles, pairs_from_canonical
 
 
@@ -103,10 +102,6 @@ def _micropython_pin_literal(pin_name: str) -> str:
     return f'"{pin_name}"'
 
 
-# _get_pin_comment is now in pin_metadata.py as get_pin_comment
-_get_pin_comment = get_pin_comment
-
-
 def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
     """
     Generate enhanced MicroPython pinmap with role-aware helper functions.
@@ -125,7 +120,7 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
         return "\n".join(lines)
 
     pins_for_analysis = _prepare_pins_for_analysis(canonical_dict)
-    pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
+    pin_infos, bus_groups = analyze_roles(pins_for_analysis)
     # Differential pairs come from the canonical detector, so every
     # output file agrees on the same pairs.
     diff_pairs = pairs_from_canonical(canonical_dict, pin_infos)

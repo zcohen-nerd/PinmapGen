@@ -210,44 +210,6 @@ def parse_csv(csv_path: Path | str) -> list[dict[str, Any]]:
     return rows
 
 
-def parse_netlist_tuples(
-    csv_path: Path | str, mcu_ref: str
-) -> list[tuple[str, str, str]]:
-    """
-    Parse CSV netlist into (net_name, refdes, pin) tuples, filtering for the MCU ref.
-
-    Args:
-        csv_path: Path to the CSV file
-        mcu_ref: MCU reference designator to filter for (e.g., "U1")
-
-    Returns:
-        List of (net_name, refdes, pin) tuples for the specified MCU
-
-    Raises:
-        ValueError: If no entries found for the specified MCU reference
-    """
-    csv_data = parse_csv(csv_path)
-
-    # Filter for the specified MCU reference and extract tuples
-    normalized_ref = _normalize_refdes(mcu_ref)
-    mcu_tuples = []
-    for row in csv_data:
-        if _normalize_refdes(row["RefDes"]) == normalized_ref:
-            net_name = row["Net"]
-            refdes = row["RefDes"]
-            pin = row["Pin"]
-            mcu_tuples.append((net_name, refdes, pin))
-
-    if not mcu_tuples:
-        msg = f"No entries found for MCU reference '{mcu_ref}'"
-        available = _format_available_refs(csv_data)
-        if available:
-            msg += f". Reference designators in this file: {available}"
-        raise ValueError(msg)
-
-    return mcu_tuples
-
-
 def extract_nets(
     csv_data: list[dict[str, Any]], mcu_ref: str | None = None
 ) -> dict[str, list[str]]:

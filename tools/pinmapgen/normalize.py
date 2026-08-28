@@ -1,12 +1,17 @@
 """Pin Normalization for PinmapGen.
 
+DEPRECATED compatibility shim — scheduled for removal in v0.2.0.
+
 Thin compatibility layer over the profile registry. All MCU pin data lives
 in the TOML profiles under ``tools/pinmapgen/profiles/`` — this module keeps
 the historical entry points (``get_mcu_profile``, ``normalize_pinmap``, and
-the legacy ``RP2040Profile`` class) working on top of them.
+the legacy ``RP2040Profile`` class) working on top of them. Nothing in the
+toolchain imports it anymore; new code should use
+``profile_registry.registry.get_profile(...)`` directly. When it is removed
+at v0.2.0, delete the CI import smoke line in build-test.yml, the mentions
+in docs/faq.md and docs/extending.md, and the compat tests with it.
 """
 
-import sys  # noqa: F401  # kept for backward-compat with downstream importers
 from typing import Any
 
 from .profile_registry import registry

@@ -343,38 +343,6 @@ class RoleInferencer:
 
         return groups
 
-    def detect_differential_pairs(
-        self, pin_infos: list[PinInfo]
-    ) -> list[tuple[PinInfo, PinInfo]]:
-        """Detect differential pairs from enhanced pin information.
-
-        Note: the emitters no longer use this — they consume the single
-        canonical detector's result via :func:`pairs_from_canonical`, so
-        every output file agrees on the pairs. Kept for API compatibility.
-        """
-        pairs = []
-
-        # Group by bus to find pairs
-        bus_groups = self.group_by_bus(pin_infos)
-
-        for group_name, pins in bus_groups.items():
-            if group_name == "USB":
-                # Find USB D+/D- pairs (1:1 matching, not cartesian product)
-                dp_pins = [p for p in pins if p.role == PinRole.USB_DP]
-                dn_pins = [p for p in pins if p.role == PinRole.USB_DN]
-
-                pairs.extend(zip(dp_pins, dn_pins, strict=False))
-
-            elif group_name == "CAN":
-                # Find CAN H/L pairs (1:1 matching, not cartesian product)
-                h_pins = [p for p in pins if p.role == PinRole.CAN_H]
-                l_pins = [p for p in pins if p.role == PinRole.CAN_L]
-
-                pairs.extend(zip(h_pins, l_pins, strict=False))
-
-        return pairs
-
-
 def pairs_from_canonical(
     canonical_dict: dict, pin_infos: list[PinInfo]
 ) -> list[tuple[PinInfo, PinInfo]]:
@@ -397,14 +365,17 @@ def pairs_from_canonical(
 
 def analyze_roles(
     canonical_pinmap: dict,
-) -> tuple[list[PinInfo], dict[str, list[PinInfo]], list[tuple[PinInfo, PinInfo]]]:
+) -> tuple[list[PinInfo], dict[str, list[PinInfo]]]:
     """
     Analyze pin roles from a canonical pinmap.
+
+    Differential pairs are NOT part of the result: the canonical detector
+    (``MCUProfile.detect_differential_pairs``) owns pair detection, and
+    emitters map its output onto PinInfos via :func:`pairs_from_canonical`.
 
     Returns:
         - List of enhanced pin information
         - Dictionary of pins grouped by bus/peripheral
-        - List of detected differential pairs
     """
     inferencer = RoleInferencer()
 
@@ -414,10 +385,7 @@ def analyze_roles(
     # Group by bus/peripheral
     bus_groups = inferencer.group_by_bus(pin_infos)
 
-    # Detect differential pairs
-    diff_pairs = inferencer.detect_differential_pairs(pin_infos)
-
-    return pin_infos, bus_groups, diff_pairs
+    return pin_infos, bus_groups
 
 
 # Alias for backward compatibility and MCU profiles

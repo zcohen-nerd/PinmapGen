@@ -127,7 +127,8 @@ of `pinmap.json`.
 It's a backward-compatibility shim from before the profile registry existed.
 It now delegates to the same TOML profile the CLI uses
 (`tools/pinmapgen/profiles/rp2040.toml`), so there is a single source of pin
-data. Use `profile_registry.registry.get_profile(...)` for new work.
+data. Use `profile_registry.registry.get_profile(...)` for new work — the
+shim is deprecated and scheduled for removal in v0.2.0.
 
 ---
 

@@ -54,7 +54,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
                 "ref_des": canonical_dict.get("mcu_ref", "UNKNOWN"),
             }
 
-        pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
+        pin_infos, bus_groups = analyze_roles(pins_for_analysis)
 
         # Enhance pin data with role information while preserving list format
         enhanced_pins = {}
@@ -92,26 +92,6 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     with output_path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False, sort_keys=True)
         f.write("\n")  # Add trailing newline
-
-
-def create_pinmap_structure(
-    nets: dict[str, list[str]], mcu_name: str
-) -> dict[str, Any]:
-    """
-    Create standardized pinmap data structure (legacy function).
-
-    This function is deprecated - use normalize.normalize_pinmap() instead.
-
-    Args:
-        nets: Net to pin mappings
-        mcu_name: MCU name for profile selection
-
-    Returns:
-        Pinmap data structure
-    """
-    from . import normalize
-
-    return normalize.normalize_pinmap(nets, mcu_name)
 
 
 def validate_canonical_dict(canonical_dict: dict[str, Any]) -> list[str]:

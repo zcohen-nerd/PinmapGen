@@ -19,7 +19,6 @@ from pathlib import Path
 from tools.pinmapgen import normalize
 from tools.pinmapgen.bom_csv import get_mcu_nets, parse_csv
 from tools.pinmapgen.pin_metadata import (
-    get_pin_comment,
     get_special_function,
     get_special_functions_short,
 )
@@ -67,11 +66,6 @@ class TestPinMetadataFromProfiles(unittest.TestCase):
 
     def test_unknown_mcu_yields_empty_table(self):
         self.assertEqual(get_special_functions_short("no_such_mcu"), {})
-
-    def test_get_pin_comment_without_canonical_dict(self):
-        self.assertEqual(get_pin_comment("GP26", "rp2040"), "GP26 - ADC0")
-        # Plain GPIOs get no suffix — GP24 carries no USB label anymore.
-        self.assertEqual(get_pin_comment("GP24", "rp2040"), "GP24")
 
     def test_get_special_function_without_canonical_dict(self):
         self.assertEqual(

@@ -11,7 +11,6 @@ from typing import Any
 from . import get_build_timestamp
 from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
-from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles, pairs_from_canonical
 
 
@@ -38,17 +37,6 @@ def emit_arduino_header(
     # Write to file
     with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(code)
-
-
-def _get_pin_comment(pin: str, canonical_dict: dict[str, Any]) -> str:
-    """Get descriptive comment for a pin.
-
-    Wraps :func:`pin_metadata.get_pin_comment` to accept a canonical dict.
-    When the canonical dict contains embedded special-function metadata
-    (from TOML profiles) that data is used automatically.
-    """
-    mcu = canonical_dict.get("mcu", "unknown")
-    return get_pin_comment(pin, mcu, canonical_dict=canonical_dict)
 
 
 # Sentinel emitted when a pin has no Arduino pin number on the reference
@@ -232,7 +220,7 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                 "ref_des": canonical_dict.get("mcu_ref", "UNKNOWN"),
             }
 
-        pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
+        pin_infos, bus_groups = analyze_roles(pins_for_analysis)
         # Differential pairs come from the canonical detector, so every
         # output file agrees on the same pairs.
         diff_pairs = pairs_from_canonical(canonical_dict, pin_infos)

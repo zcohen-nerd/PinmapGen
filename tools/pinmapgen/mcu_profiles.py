@@ -105,13 +105,6 @@ class MCUProfile(ABC):
             ValueError: If pin name cannot be normalized
         """
 
-    def get_pin_capabilities(self, pin_name: str) -> set[PinCapability]:
-        """Get capabilities for a specific pin."""
-        normalized_pin = self.normalize_pin_name(pin_name)
-        if normalized_pin in self.pins:
-            return self.pins[normalized_pin].capabilities
-        return set()
-
     def validate_pin_assignment(self, pin_name: str, role: str) -> list[str]:
         """
         Validate that a pin can fulfill the assigned role.

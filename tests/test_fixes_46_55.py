@@ -355,26 +355,5 @@ class TestIssue54ValidateCanonicalDict(unittest.TestCase):
             os.environ.pop("SOURCE_DATE_EPOCH", None)
 
 
-class TestIssue55EagleSchIndent(unittest.TestCase):
-    """#55 — eagle_sch.py indentation is consistent."""
-
-    def test_no_excessive_indent_in_extract_nets(self):
-        """The nets_data.append line in parse_schematic_tuples must be at 24-space indent."""
-        import inspect
-
-        from tools.pinmapgen import eagle_sch
-
-        source = inspect.getsource(eagle_sch.parse_schematic_tuples)
-        for line in source.splitlines():
-            stripped = line.lstrip()
-            if "nets_data.append" in stripped:
-                indent = len(line) - len(stripped)
-                self.assertEqual(
-                    indent,
-                    24,
-                    f"nets_data.append has {indent}-space indent, expected 24",
-                )
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -81,7 +81,6 @@ tools/pinmapgen/         ← core package (stdlib only)
 
 hardware/exports/        ← sample / real netlist CSVs & .sch files
 tests/                   ← unittest suite (30 tests, all passing)
-  fixtures/              ← minimal_netlist.csv (different column order: Part,Designator,Footprint,Quantity,Designation,Supplier and ref,Pin,Net)
 examples/                ← three worked examples: simple_led, sensor_hub, communication_module
   */generated/           ← pre-generated output for each example
 firmware/                ← default output location when --out-root is '.'
@@ -115,7 +114,7 @@ The **primary** CSV format expected by `bom_csv.py` has these exact headers:
 ```
 Net,Pin,Component,RefDes
 ```
-The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with columns `Part,Designator,Footprint,Quantity,Designation,Supplier and ref,Pin,Net` — this is parsed by the same `parse_csv()` as long as `Net,Pin,Component,RefDes` subset is present; however the fixture currently uses `Designator` not `RefDes`, so it would fail with the standard parser. This is a known inconsistency; the fixture is only used for visual reference.
+Tests build their inputs inline (temp CSVs written in setUp) rather than from checked-in fixture files.
 
 ---
 
@@ -173,10 +172,7 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 
 ## Known Issues / Technical Debt
 
-1. **`fixtures/minimal_netlist.csv` uses different column names** (`Designator` vs `RefDes`, `Part` header) — not fully compatible with `bom_csv.parse_csv()`.
 2. **Timestamps in output** prevent deterministic builds unless `--reproducible` (or `SOURCE_DATE_EPOCH`) is used.
-5. **`emit_arduino.py` `_get_pin_comment()` hardcodes RP2040 special pin names** — not MCU-agnostic.
-6. **`emit_mermaid.py` assumes `GP<n>` pin format** in `_group_pins_by_function()` via `re.match(r"GP(\d+)", pin)`.
 7. **Example netlists use inconsistent CSV column orders** — `simple_led`, `sensor_hub`, `communication_module` use `RefDes,Pin,Component,Net` order (works because DictReader is order-agnostic), but `RefDes` is column name not `Designator`.
 8. **ESP32 netlist** uses `Component,RefDes,Pin,Net` column order (different from the primary `Net,Pin,Component,RefDes`). Works with DictReader but could confuse contributors.
 
