@@ -13,11 +13,11 @@ This document describes the pin assignments for the RP2040 microcontroller.
 
 | Net Name | Pin | Function | Notes |
 |----------|-----|----------|-------|
-| `LED_RED` | `GP2` | General Purpose I/O | - |
-| `LED_GREEN` | `GP3` | General Purpose I/O | - |
-| `LED_BLUE` | `GP4` | General Purpose I/O | - |
-| `BUTTON_1` | `GP5` | General Purpose I/O | - |
-| `BUTTON_2` | `GP6` | General Purpose I/O | - |
+| `LED_RED` | `GP2` | Light Emitting Diode | - |
+| `LED_GREEN` | `GP3` | Light Emitting Diode | - |
+| `LED_BLUE` | `GP4` | Light Emitting Diode | - |
+| `BUTTON_1` | `GP5` | Push Button Input | - |
+| `BUTTON_2` | `GP6` | Push Button Input | - |
 
 ## Usage Examples
 

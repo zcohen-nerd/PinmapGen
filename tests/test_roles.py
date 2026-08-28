@@ -82,8 +82,9 @@ class TestRoles(unittest.TestCase):
         result = self.inferencer.infer_role("MOTOR_PWM")
         self.assertEqual(result, PinRole.PWM)
 
+        # A PWM-driven LED is still an indicator LED first.
         result = self.inferencer.infer_role("LED_PWM")
-        self.assertEqual(result, PinRole.PWM)
+        self.assertEqual(result, PinRole.LED)
 
     def test_infer_adc_roles(self):
         """Test inference of ADC pin roles."""

@@ -111,14 +111,28 @@ All emitters derive their outputs from this canonical structure.
 
 ### 4.2 Roles and validation
 
-`tools/pinmapgen/roles.py` infers semantic roles based on net naming patterns. The MCU profiles (13 built-in, defined in `tools/pinmapgen/profiles/*.toml`) augment validation by flagging:
+`tools/pinmapgen/roles.py` infers semantic roles based on net naming patterns. Validation distinguishes **errors** (broken pinmaps — these fail `--strict`) from **warnings** (advisories that never block generation).
 
-- Input-only pads wired as outputs
-- USB differential pairs missing a partner
-- Strapping pins or boot pins used unexpectedly
-- ADC pins assigned to digital-only roles
+Errors:
 
-Warnings appear in CLI output, Fusion dialogs, and metadata.
+- Pin conflicts — the same MCU pin claimed by two different nets
+
+Warnings:
+
+- Special pins used at all — boot strapping pins, flash-voltage pins, the
+  default console UART, pads not bonded on your module (from the MCU
+  profile's per-pin warnings)
+- Input-only pads (e.g., ESP32 GPIO34–39) carrying a net whose role
+  implies an output
+- Lonely differential-pair halves — a `_DP`/`_P`/`CAN_H`/`USB_D+`-style
+  net with no matching partner (active-low `_N` suffixes like `RESET_N`
+  are not flagged)
+- Nets spanning multiple pins that don't look like power/ground rails
+- Power/ground rails assigned to GPIO pins
+- Bare-number pins interpreted as logical GPIO numbers
+- Net names that had to be renamed to become valid identifiers
+
+Warnings appear in CLI output, Fusion dialogs, and the JSON `metadata`.
 
 ### 4.3 Generated artifacts
 
@@ -216,6 +230,7 @@ python -m tools.pinmapgen.cli \
   --mcu-ref <reference-designator> \
   [--out-root <path>] \
   [--mermaid] \
+  [--no-micropython] [--no-arduino] [--no-markdown] \
   [--verbose] \
   [--strict] \
   [--profile-dir <dir>] \
@@ -229,6 +244,9 @@ python -m tools.pinmapgen.cli \
 - `--strict` makes the CLI exit with code 2 (writing no output) when the
   pinmap has validation errors or pins that failed to normalize —
   recommended for CI.
+- `--no-micropython`, `--no-arduino`, `--no-markdown` skip individual
+  output formats (the canonical `pinmap.json` is always written); Mermaid
+  is opt-in via `--mermaid`.
 - `--profile-dir` adds a directory of custom TOML profiles.
 - `--reproducible` pins timestamps (via `SOURCE_DATE_EPOCH`) so repeated
   runs produce byte-identical output — useful for committed artifacts and

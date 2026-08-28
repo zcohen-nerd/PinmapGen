@@ -22,11 +22,11 @@ The following pins have special functions on the RP2040:
 | Net Name | Pin | Function | Notes |
 |----------|-----|----------|-------|
 | `SENSOR_DATA` | `GP2` | General Purpose I/O | - |
-| `I2C_SDA` | `GP4` | General Purpose I/O | I2C bus |
-| `I2C_SCL` | `GP5` | General Purpose I/O | I2C bus |
-| `BUTTON_IN` | `GP14` | General Purpose I/O | - |
-| `STATUS_LED` | `GP15` | General Purpose I/O | - |
-| `LIGHT_ANALOG` | `GP26` | ADC Channel 0 | Analog input capable |
+| `I2C_SDA` | `GP4` | I2C Serial Data (I2C) | - |
+| `I2C_SCL` | `GP5` | I2C Serial Clock (I2C) | - |
+| `BUTTON_IN` | `GP14` | Push Button Input | - |
+| `STATUS_LED` | `GP15` | Light Emitting Diode | - |
+| `LIGHT_ANALOG` | `GP26` | Analog to Digital Converter | ADC Channel 0 |
 
 ## Usage Examples
 

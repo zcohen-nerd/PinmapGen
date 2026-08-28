@@ -1,11 +1,13 @@
 {
   "bus_groups": {
+    "Analog": [
+      "LIGHT_ANALOG"
+    ],
     "I2C": [
       "I2C_SCL",
       "I2C_SDA"
     ],
     "Indicators": [
-      "LIGHT_ANALOG",
       "STATUS_LED"
     ],
     "Inputs": [
@@ -69,8 +71,8 @@
     },
     "LIGHT_ANALOG": {
       "bus_group": null,
-      "description": "Light Emitting Diode",
-      "role": "led"
+      "description": "Analog to Digital Converter",
+      "role": "adc"
     },
     "SENSOR_DATA": {
       "bus_group": null,

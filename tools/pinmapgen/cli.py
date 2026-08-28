@@ -175,6 +175,23 @@ Examples:
     parser.add_argument(
         "--mermaid", action="store_true", help="Generate Mermaid diagram files"
     )
+    # Output selection: pinmap.json (the canonical data) is always
+    # written; the firmware/doc formats can be skipped individually.
+    parser.add_argument(
+        "--no-micropython",
+        action="store_true",
+        help="Skip the MicroPython module (pinmap_micropython.py)",
+    )
+    parser.add_argument(
+        "--no-arduino",
+        action="store_true",
+        help="Skip the Arduino header (pinmap_arduino.h)",
+    )
+    parser.add_argument(
+        "--no-markdown",
+        action="store_true",
+        help="Skip the Markdown pinout documentation (PINOUT.md)",
+    )
 
     # Optional flags
     parser.add_argument(
@@ -349,43 +366,43 @@ def create_canonical_pinmap(
 
 
 def generate_outputs(canonical_dict: dict[str, Any], args: argparse.Namespace) -> None:
-    """Generate all output files from canonical dictionary."""
-    out_root = args.out_root
+    """Generate the selected output files from the canonical dictionary.
 
-    # Ensure output directories exist
-    (out_root / "pinmaps").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "micropython").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "include").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "docs").mkdir(parents=True, exist_ok=True)
+    pinmap.json is always written; --no-micropython / --no-arduino /
+    --no-markdown skip the corresponding format, and Mermaid is opt-in
+    via --mermaid. The emitters create their own directories.
+    """
+    out_root = args.out_root
 
     if args.verbose:
         print("Generating output files...")
 
-    # Generate canonical JSON pinmap
+    # Canonical JSON pinmap — always written
     json_path = out_root / "pinmaps" / "pinmap.json"
     emit_json.emit_json(canonical_dict, json_path)
     if args.verbose:
         print(f"  - {json_path}")
 
-    # Generate MicroPython module
-    micropython_path = out_root / "firmware" / "micropython" / "pinmap_micropython.py"
-    emit_micropython.emit_micropython(canonical_dict, micropython_path)
-    if args.verbose:
-        print(f"  - {micropython_path}")
+    if not getattr(args, "no_micropython", False):
+        micropython_path = (
+            out_root / "firmware" / "micropython" / "pinmap_micropython.py"
+        )
+        emit_micropython.emit_micropython(canonical_dict, micropython_path)
+        if args.verbose:
+            print(f"  - {micropython_path}")
 
-    # Generate Arduino header
-    arduino_path = out_root / "firmware" / "include" / "pinmap_arduino.h"
-    emit_arduino.emit_arduino_header(canonical_dict, arduino_path)
-    if args.verbose:
-        print(f"  - {arduino_path}")
+    if not getattr(args, "no_arduino", False):
+        arduino_path = out_root / "firmware" / "include" / "pinmap_arduino.h"
+        emit_arduino.emit_arduino_header(canonical_dict, arduino_path)
+        if args.verbose:
+            print(f"  - {arduino_path}")
 
-    # Generate Markdown documentation
-    markdown_path = out_root / "firmware" / "docs" / "PINOUT.md"
-    emit_markdown.emit_markdown_docs(canonical_dict, markdown_path)
-    if args.verbose:
-        print(f"  - {markdown_path}")
+    if not getattr(args, "no_markdown", False):
+        markdown_path = out_root / "firmware" / "docs" / "PINOUT.md"
+        emit_markdown.emit_markdown_docs(canonical_dict, markdown_path)
+        if args.verbose:
+            print(f"  - {markdown_path}")
 
-    # Generate Mermaid diagram (if requested)
     if args.mermaid:
         mermaid_path = out_root / "firmware" / "docs" / "pinout.mmd"
         emit_mermaid.emit_mermaid_diagram(canonical_dict, mermaid_path)

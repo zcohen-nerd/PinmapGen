@@ -11,6 +11,7 @@ from typing import Any
 from . import get_build_datetime
 from .naming import build_name_map
 from .pin_metadata import get_special_function as _get_special_function_impl
+from .roles import analyze_roles
 
 # Nets that are power/ground rails - never shown in usage examples,
 # where a copy-pasteable pinMode(..., OUTPUT) would be hardware damage.
@@ -223,6 +224,16 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
         diff_pair_nets.add(pair.get("positive", ""))
         diff_pair_nets.add(pair.get("negative", ""))
 
+    # The Function column describes what the NET does (same role
+    # vocabulary the code emitters use for their section comments); the
+    # pin's own special function (boot strap, ADC channel, input-only...)
+    # goes in Notes so both facts stay visible.
+    pin_infos, _, _ = analyze_roles(pins)
+    role_descriptions = {
+        info.net_name: info.description or "General Purpose I/O"
+        for info in pin_infos
+    }
+
     # Collect single-ended pins only
     mcu = canonical_dict.get("mcu", "unknown")
     pin_data = []
@@ -234,8 +245,9 @@ def generate_single_ended_table(canonical_dict: dict[str, Any]) -> str:
             pin = pin_list[0]
             num_match = re.search(r"\d+", pin)
             pin_num = int(num_match.group()) if num_match else float("inf")
-            function = _get_special_function(pin, mcu, canonical_dict)
-            notes = _get_pin_notes(net_name, pin, canonical_dict)
+            function = role_descriptions.get(net_name, "General Purpose I/O")
+            special = _get_special_function(pin, mcu, canonical_dict)
+            notes = special if special != "General Purpose I/O" else "-"
             pin_data.append((pin_num, net_name, pin, function, notes))
         elif len(pin_list) > 1:
             multi_pin_nets.append((net_name, pin_list))
@@ -350,27 +362,6 @@ def _get_special_function(
 ) -> str:
     """Get special function description for a pin."""
     return _get_special_function_impl(pin, mcu, canonical_dict=canonical_dict)
-
-
-def _get_pin_notes(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> str:
-    """Get additional notes for a pin (excluding differential pair info)."""
-    notes = []
-
-    # Add function-specific notes
-    if "USB" in net_name.upper():
-        notes.append("USB data line")
-    elif "ADC" in net_name.upper() or "ANALOG" in net_name.upper():
-        notes.append("Analog input capable")
-    elif "PWM" in net_name.upper():
-        notes.append("PWM output capable")
-    elif "I2C" in net_name.upper():
-        notes.append("I2C bus")
-    elif "SPI" in net_name.upper():
-        notes.append("SPI bus")
-    elif "CAN" in net_name.upper():
-        notes.append("CAN bus")
-
-    return " • ".join(notes) if notes else "-"
 
 
 def _get_differential_signal_name(pos_net: str, neg_net: str) -> str:

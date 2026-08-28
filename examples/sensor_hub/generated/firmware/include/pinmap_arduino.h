@@ -23,12 +23,14 @@
 #define I2C_SCL 5  // I2C Serial Clock (I2C)
 #define I2C_SDA 4  // I2C Serial Data (I2C)
 
-// Indicators Pins
-#define LIGHT_ANALOG 26  // Light Emitting Diode
-#define STATUS_LED 15  // Light Emitting Diode
+// Analog Pins
+#define LIGHT_ANALOG 26  // Analog to Digital Converter
 
 // Other Pins
 #define SENSOR_DATA 2  // General Purpose I/O
+
+// Indicators Pins
+#define STATUS_LED 15  // Light Emitting Diode
 
 // ========================================
 // Helper Macros
@@ -40,6 +42,10 @@
 #define PIN_OUTPUT(pin)         pinMode(pin, OUTPUT)
 #define READ_PIN(pin)           digitalRead(pin)
 #define WRITE_PIN(pin, val)     digitalWrite(pin, val)
+
+// ADC helpers
+#define ADC_READ(pin)           analogRead(pin)
+#define ADC_READ_VOLTAGE(pin)   (analogRead(pin) * 3.3f / 1023.0f)  // 3.3 V reference, 10-bit analogRead (core default)
 
 // I2C setup helpers
 #include <Wire.h>

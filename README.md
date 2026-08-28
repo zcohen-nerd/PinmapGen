@@ -169,9 +169,10 @@ no programming required. See [docs/extending.md](docs/extending.md).
 
 ## When something goes wrong
 
-**"MCU 'U1' not found"** — the reference name doesn't match your schematic.
-Click your microcontroller in Fusion and check its name (it might be `IC1`
-or `U2`), then enter that instead.
+**"No entries found for MCU reference 'U1'"** — the reference name doesn't
+match your schematic. The error lists the reference designators the export
+*does* contain — click your microcontroller in Fusion and check its name
+(it might be `IC1` or `U2`), then enter that instead.
 
 **"Python not found"** — Python isn't installed, or the "Add to PATH" box
 wasn't ticked. Re-run the Python installer from Step 1 and tick the box.
@@ -227,7 +228,7 @@ Handy extras:
 
 ```bash
 python -m tools.pinmapgen.cli --list-mcus     # see every supported chip
-python -m tools.pinmapgen.cli ... --strict    # fail (exit code 2) on any pin conflict — great for CI
+python -m tools.pinmapgen.cli ... --strict    # fail (exit code 2) on validation errors (pin conflicts, dropped pins) — great for CI
 python -m tools.pinmapgen.watch hardware/exports/   # auto-regenerate whenever a CSV changes
 ```
 

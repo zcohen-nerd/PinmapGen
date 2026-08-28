@@ -29,6 +29,10 @@ Required:
 Optional:
   --out-root PATH             Output directory (default: current dir)
   --mermaid                   Also generate Mermaid diagram
+  --no-micropython            Skip the MicroPython output
+  --no-arduino                Skip the Arduino header output
+  --no-markdown               Skip the Markdown PINOUT output
+                              (pinmap.json is always written)
   --verbose, -v               Print normalization summary
   --strict                    Exit non-zero on validation errors or
                               dropped pins (recommended for CI)

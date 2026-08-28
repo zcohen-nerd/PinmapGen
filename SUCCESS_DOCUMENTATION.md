@@ -61,11 +61,11 @@ Fusion 360 Electronics schematic
 
 ## Supported MCU profiles
 
-| MCU | Pin naming | Notable validation |
-|-----|------------|--------------------|
-| RP2040 | `GPxx` | USB diff pair detection, ADC range |
-| STM32G0 | `PAxn` | Alternate-function mux, boot/SWD pins |
-| ESP32 | `GPIOxx` | Strapping pins, ADC2+WiFi conflict, input-only pins |
+| MCU | Pin naming | Notable warnings |
+|-----|------------|------------------|
+| RP2040 | `GPxx` | USB diff pair detection, ADC channel labels |
+| STM32G0 | `PAxn` | SWD debug pins, BOOT1 strap, oscillator/reset pins |
+| ESP32 | `GPIOxx` | Strapping pins, ADC2+WiFi notes, input-only pins |
 
 ## Generated output
 

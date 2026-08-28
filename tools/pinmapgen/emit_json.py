@@ -38,10 +38,8 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
                 stacklevel=2,
             )
 
-    # Start with a copy of the canonical dictionary. The differential_pairs
-    # list is copied too: role analysis below may append pairs, and mutating
-    # the caller's list would change what later emitters render (output
-    # would depend on emitter order).
+    # Start with a copy of the canonical dictionary (defensive: never
+    # mutate the caller's structures).
     output_data = canonical_dict.copy()
     output_data["differential_pairs"] = list(
         canonical_dict.get("differential_pairs", [])
@@ -58,7 +56,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
                 "ref_des": canonical_dict.get("mcu_ref", "UNKNOWN"),
             }
 
-        pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
+        pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
 
         # Enhance pin data with role information while preserving list format
         enhanced_pins = {}
@@ -81,24 +79,8 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
         for group_name, pins in bus_groups.items():
             output_data["bus_groups"][group_name] = [pin.net_name for pin in pins]
 
-        # Merge role-analysis differential pairs with canonical ones
-        if diff_pairs:
-            # Build a set of existing pairs from canonical dict for dedup
-            existing_pairs = set()
-            for p in output_data.get("differential_pairs", []):
-                existing_pairs.add((p.get("positive", ""), p.get("negative", "")))
-
-            for pair in diff_pairs:
-                key = (pair[0].net_name, pair[1].net_name)
-                if key not in existing_pairs:
-                    output_data.setdefault("differential_pairs", []).append(
-                        {
-                            "positive": pair[0].net_name,
-                            "negative": pair[1].net_name,
-                            "type": pair[0].role.value.split(".")[0],
-                        }
-                    )
-                    existing_pairs.add(key)
+        # differential_pairs stays exactly as the canonical detector
+        # produced it - one source of truth, one schema.
 
     # Add generation metadata
     output_data["generated"] = {

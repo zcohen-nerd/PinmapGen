@@ -12,7 +12,7 @@ from . import get_build_datetime
 from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
-from .roles import PinRole, analyze_roles
+from .roles import PinRole, analyze_roles, pairs_from_canonical
 
 
 def emit_micropython(
@@ -125,7 +125,10 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
         return "\n".join(lines)
 
     pins_for_analysis = _prepare_pins_for_analysis(canonical_dict)
-    pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
+    pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
+    # Differential pairs come from the canonical detector, so every
+    # output file agrees on the same pairs.
+    diff_pairs = pairs_from_canonical(canonical_dict, pin_infos)
 
     # Nets connected to more than one pin: the constant uses the first pin,
     # so the remaining pins are called out in the comment.

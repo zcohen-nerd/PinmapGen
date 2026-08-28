@@ -137,7 +137,10 @@ class TestIssue48CollisionTrackedHelpers(unittest.TestCase):
 
     def test_micropython_can_class_generated(self):
         """CAN differential pairs produce a CANPins class (also tests #51)."""
-        cd = _canonical(pins={"CAN_H": ["GP4"], "CAN_L": ["GP5"]})
+        cd = _canonical(
+            pins={"CAN_H": ["GP4"], "CAN_L": ["GP5"]},
+            diff_pairs=[{"positive": "CAN_H", "negative": "CAN_L"}],
+        )
         code = generate_micropython_with_roles(cd)
         self.assertIn("class CANPins", code)
         self.assertIn("CAN Bus High", code)
@@ -200,7 +203,10 @@ class TestIssue51MicroPythonCAN(unittest.TestCase):
     """#51 — MicroPython emitter must generate CANPins class for CAN pairs."""
 
     def test_can_class_generated(self):
-        cd = _canonical(pins={"CAN_H": ["GP4"], "CAN_L": ["GP5"]})
+        cd = _canonical(
+            pins={"CAN_H": ["GP4"], "CAN_L": ["GP5"]},
+            diff_pairs=[{"positive": "CAN_H", "negative": "CAN_L"}],
+        )
         code = generate_micropython_with_roles(cd)
         self.assertIn("class CANPins:", code)
         self.assertIn("get_pair", code)
@@ -288,17 +294,27 @@ class TestIssue53RoleFalsePositives(unittest.TestCase):
         role = self.inferencer.infer_role("SERVO1")
         self.assertEqual(role, PinRole.PWM)
 
-    def test_motor_ctrl_still_pwm(self):
+    def test_motor_ctrl_not_assumed_pwm(self):
+        """MOTOR_CTRL is direction/enable-style GPIO, not necessarily PWM."""
         role = self.inferencer.infer_role("MOTOR_CTRL")
+        self.assertEqual(role, PinRole.UNKNOWN)
+
+    def test_motor_pwm_still_pwm(self):
+        role = self.inferencer.infer_role("MOTOR_PWM")
         self.assertEqual(role, PinRole.PWM)
 
     def test_status_led_still_led(self):
         role = self.inferencer.infer_role("STATUS_LED")
         self.assertEqual(role, PinRole.LED)
 
-    def test_light1_still_led(self):
+    def test_light_is_not_an_led(self):
+        """'light' nets are sensors, not indicator LEDs (audit P2.6)."""
         role = self.inferencer.infer_role("LIGHT1")
-        self.assertEqual(role, PinRole.LED)
+        self.assertNotEqual(role, PinRole.LED)
+
+    def test_light_analog_is_adc(self):
+        role = self.inferencer.infer_role("LIGHT_ANALOG")
+        self.assertEqual(role, PinRole.ADC)
 
     def test_button1_still_button(self):
         role = self.inferencer.infer_role("BUTTON1")

@@ -13,19 +13,19 @@ This document describes the pin assignments for the RP2040 microcontroller.
 
 | Net Name | Pin | Function | Notes |
 |----------|-----|----------|-------|
-| `DEBUG_TX` | `GP0` | General Purpose I/O | - |
-| `DEBUG_RX` | `GP1` | General Purpose I/O | - |
-| `WIFI_TX` | `GP8` | General Purpose I/O | - |
-| `WIFI_RX` | `GP9` | General Purpose I/O | - |
-| `WIFI_LED` | `GP10` | General Purpose I/O | - |
-| `LORA_LED` | `GP11` | General Purpose I/O | - |
-| `SD_LED` | `GP12` | General Purpose I/O | - |
-| `SPI_SCK` | `GP16` | General Purpose I/O | SPI bus |
-| `LORA_CS` | `GP17` | General Purpose I/O | - |
-| `SPI_MISO` | `GP18` | General Purpose I/O | SPI bus |
-| `SPI_MOSI` | `GP19` | General Purpose I/O | SPI bus |
-| `SD_CS` | `GP20` | General Purpose I/O | - |
-| `LORA_RST` | `GP21` | General Purpose I/O | - |
+| `DEBUG_TX` | `GP0` | UART Transmit | - |
+| `DEBUG_RX` | `GP1` | UART Receive | - |
+| `WIFI_TX` | `GP8` | UART Transmit | - |
+| `WIFI_RX` | `GP9` | UART Receive | - |
+| `WIFI_LED` | `GP10` | Light Emitting Diode | - |
+| `LORA_LED` | `GP11` | Light Emitting Diode | - |
+| `SD_LED` | `GP12` | Light Emitting Diode | - |
+| `SPI_SCK` | `GP16` | SPI Serial Clock (SPI) | - |
+| `LORA_CS` | `GP17` | SPI Chip Select | - |
+| `SPI_MISO` | `GP18` | SPI Master In Slave Out (SPI) | - |
+| `SPI_MOSI` | `GP19` | SPI Master Out Slave In (SPI) | - |
+| `SD_CS` | `GP20` | SPI Chip Select | - |
+| `LORA_RST` | `GP21` | Reset Signal | - |
 | `LORA_DIO0` | `GP22` | General Purpose I/O | - |
 
 ## Usage Examples
