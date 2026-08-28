@@ -315,6 +315,12 @@ class MCUProfile(ABC):
         role_inferrer = PinRoleInferrer()
 
         dropped_pins: list[dict[str, str]] = []
+        # Bare-number pins ("2") are ambiguous: profiles interpret them as
+        # logical GPIO numbers, but CAD exports often put the *physical
+        # package pad* number in the Pin column, which would produce a
+        # plausible-looking but wrong pinmap. Track them so one summary
+        # warning can flag the assumption.
+        numeric_pins: list[tuple[str, str]] = []
 
         for net_name, pins in nets.items():
             normalized_pins = []
@@ -322,6 +328,10 @@ class MCUProfile(ABC):
                 try:
                     normalized_pin = self.normalize_pin_name(pin)
                     normalized_pins.append(normalized_pin)
+
+                    raw = pin.strip()
+                    if raw.isascii() and raw.isdecimal():
+                        numeric_pins.append((raw, normalized_pin))
 
                     # Collect validation warnings for this pin assignment
                     role = role_inferrer.infer_role(net_name)
@@ -342,6 +352,21 @@ class MCUProfile(ABC):
 
             if normalized_pins:
                 normalized_nets[net_name] = normalized_pins
+
+        # One summary warning for bare-number pins (see numeric_pins above).
+        if numeric_pins:
+            examples = ", ".join(
+                f"'{raw}' -> {norm}" for raw, norm in numeric_pins[:3]
+            )
+            if len(numeric_pins) > 3:
+                examples += ", ..."
+            validation_warnings.append(
+                f"{len(numeric_pins)} pin(s) were bare numbers and were "
+                f"interpreted as logical GPIO numbers ({examples}). If the "
+                "netlist's Pin column holds physical package pad numbers "
+                "instead, the generated pinmap will be wrong - verify one "
+                "pin against the schematic before trusting it."
+            )
 
         # Surface advisory per-pin warnings (strapping/boot/USB/debug pins).
         # Deduplicated: the same pin warning can be collected once per net

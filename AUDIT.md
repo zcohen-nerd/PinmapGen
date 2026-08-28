@@ -15,6 +15,8 @@ PinmapGen has three audiences: **Fusion 360 designers** (non-programmers using t
 
 ### P0.1 The Fusion ULP can generate confidently *wrong* pinmaps (physical pad numbers read as GPIO numbers)
 
+> **Status: FIXED.** The ULP now exports the symbol pin name in the Pin column (the physical pad moves to an extra `Pad` column the parser ignores), and the CLI prints one summary warning whenever bare numbers are interpreted as GPIO numbers — counted in the status line and shown by the ULP's issues dialog. Example netlists were converted to explicit `GP*` names; docs state the Pin-column contract.
+
 The ULP exports each pin as the **physical package pad name** whenever the part has a package: `fusion_addin/PinmapGen.ulp:258-264` sets `pinNum = PR.pin.name`, then overwrites it with `C.name` from `PR.pin.contacts(C)`. `SUCCESS_DOCUMENTATION.md:14-33` confirms this is the intended design ("pinrefs → pin → contacts").
 
 On the Python side, `rp2040`, `rp2350`, `esp32`, `esp32s3`, `esp32c3` set `allow_numeric = true` (`profiles/rp2040.toml:15`), so a bare `"2"` silently becomes `GP2`/`GPIO2`. Physical pad 2 of an RP2040 QFN-56 is **GPIO0**, not GP2. For the flagship Fusion → Pico workflow, the generated header compiles, looks plausible, and drives the wrong pins — with zero warnings (reproduced: `Pin,2` → `LED_STATUS = 2  # (GP2)`, no diagnostic).
@@ -53,6 +55,8 @@ Seven places instruct the broken command: `CONTRIBUTING.md:20` (contributor quic
 ## P1 — A whole audience hits a broken promise
 
 ### P1.1 The RP2040 profile's USB pin data is factually wrong (and other profile-data errors)
+
+> **Status: FIXED.** rp2040.toml now matches rp2350's treatment: USB aliases, GP24/GP25 USB labels, and the USB peripheral are gone (USB names drop with a visible warning; GP23–25 are plain chip GPIOs with Pico-board notes in comments). stm32g0.toml loses its phantom CAN peripheral/capabilities and its description now names the LQFP-64 part its pin list describes. esp32.toml labels GPIO34/35 input-only and warns on GPIO37/38 (not bonded on WROOM-32). Sample netlist/schematic now demo an RS485 pair instead of USB-on-GPIO; tests updated to encode the corrected data.
 
 `profiles/rp2040.toml:26-31` aliases `USB_DP → GP25`, `USB_DM → GP24`, and `:56-70` labels GP24/GP25 as "USB D-/D+". On the RP2040 die, USB D+/D− are **dedicated pins (QFN-56 pins 47/46), not GPIO-muxed**; on a Pico, **GP25 is the on-board LED and GP24 is VBUS sense**. Reproduced: a `USB_DP` net emits `USB_DP = 25` — firmware "driving USB" toggles the LED. The sibling `rp2350.toml:106-107` models this correctly ("dedicated, not GPIO-muxed … not in pin groups"), making the rp2040 entry a plain bug. Also in this class: `stm32g0.toml` declares a CAN peripheral (PB8/PB9) on an STM32G071, which **has no FDCAN**, and its pin list includes LQFP-64-only pins while the description says LQFP-48; `esp32.toml` declares GPIO37/38, which aren't bonded out on the WROOM-32 module it names. Wrong reference data is worse than no data — this tool's whole pitch is "no more pin-mapping mistakes."
 

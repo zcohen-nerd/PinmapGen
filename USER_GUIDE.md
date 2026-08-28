@@ -343,12 +343,12 @@ Refer to `fusion_addin/ULP_GUIDE.md` for configuration tips and detailed trouble
 
 | Warning | Interpretation | Suggested action |
 |---------|----------------|------------------|
-| `GP24 is USB D- pin - avoid for general GPIO if USB needed` | USB differential pair pad used for GPIO | Reserve for USB or justify override |
+| `... pin(s) were bare numbers and were interpreted as logical GPIO numbers` | The Pin column held numbers like `2`; they were read as GPIO numbers, not package pad numbers | Verify one pin against the schematic; use pin names (`GP2`, `PA0`) in the export |
 | `GPIO0 is a boot strapping pin` | Strapping pin's boot-time state matters | Add pull-ups/pull-downs per datasheet |
+| `GPIO37 is not bonded out on ESP32-WROOM-32 modules` | The pin exists on the die but not on the named module | Move the signal to a bonded pin (or use a custom profile for your module) |
 | `Potential lonely differential pair: '...' has no partner` | A `*_P`/`*_N`-style net is missing its mate | Connect and name both halves of the pair |
 | `Pin ... used by multiple nets` | Two signals share one pin — a real conflict | Fix the schematic; `--strict` turns this into a hard failure |
 | `Net '...' connects to multiple pins` | One net touches several MCU pins | Fine for power rails; a routing error otherwise. Code emitters use the first pin and flag the rest in a comment |
-| `GPIO34 is input-only - cannot drive outputs` | Role mismatch for MCU capability | Reassign net or add level shifting |
 
 ### 10.2 Diagnosing empty or partial outputs
 

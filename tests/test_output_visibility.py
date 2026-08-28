@@ -25,33 +25,33 @@ class TestWarningPrinting(unittest.TestCase):
 
     def test_special_pin_warnings_printed(self):
         """A net on a special pin prints that pin's advisory warning."""
-        profile = registry.get_profile("rp2040")
+        profile = registry.get_profile("esp32")
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
-            result = profile.create_canonical_pinmap({"VBUS_SENSE": ["GP24"]})
+            result = profile.create_canonical_pinmap({"BOOT_BTN": ["GPIO0"]})
 
         output = stderr.getvalue()
-        self.assertIn("Warning: GP24 is USB D- pin", output)
+        self.assertIn("Warning: GPIO0 is a boot strapping pin", output)
         self.assertIn(
-            "GP24 is USB D- pin - avoid for general GPIO if USB needed",
+            "GPIO0 is a boot strapping pin",
             result["metadata"]["validation_warnings"],
         )
 
     def test_duplicate_warnings_printed_once(self):
         """The same pin warning is not repeated for every net touching it."""
-        profile = registry.get_profile("rp2040")
+        profile = registry.get_profile("esp32")
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             result = profile.create_canonical_pinmap(
-                {"NET_A": ["GP24"], "NET_B": ["GP24"]}
+                {"NET_A": ["GPIO0"], "NET_B": ["GPIO0"]}
             )
 
         output = stderr.getvalue()
-        self.assertEqual(output.count("GP24 is USB D- pin"), 1)
+        self.assertEqual(output.count("GPIO0 is a boot strapping pin"), 1)
         # Metadata is deduplicated too, so counts match what was printed.
         warnings = result["metadata"]["validation_warnings"]
         self.assertEqual(
-            len([w for w in warnings if "GP24" in w]), 1
+            len([w for w in warnings if "boot strapping" in w]), 1
         )
 
 
@@ -91,10 +91,10 @@ class TestFinalStatusLine(unittest.TestCase):
     def test_issues_change_the_status_line(self):
         """Errors, dropped pins, and warnings all appear in the summary."""
         csv_path = self._write_csv(
-            "A,GP5,RP2040,U1\n"      # conflicts with B -> validation error
+            "A,GP5,RP2040,U1\n"   # conflicts with B -> validation error
             "B,GP5,RP2040,U1\n"
-            "C,GP99,RP2040,U1\n"     # out of range -> dropped pin
-            "VBUS,GP24,RP2040,U1\n"  # special pin -> warning
+            "C,GP99,RP2040,U1\n"  # out of range -> dropped pin
+            "SENSE,7,RP2040,U1\n"  # bare number -> interpretation warning
         )
         result = self._run_cli(
             "--csv", csv_path, "--mcu", "rp2040", "--mcu-ref", "U1",
@@ -133,18 +133,18 @@ class TestLogFile(unittest.TestCase):
 
     def test_log_mirrors_warnings_and_status(self):
         """Warnings and the final status line land in the log file."""
-        csv_path = self._write_csv("VBUS,GP24,RP2040,U1\n")
+        csv_path = self._write_csv("BOOT_BTN,GPIO0,ESP32,U1\n")
         result = self._run_cli(
-            "--csv", csv_path, "--mcu", "rp2040", "--mcu-ref", "U1",
+            "--csv", csv_path, "--mcu", "esp32", "--mcu-ref", "U1",
             "--out-root", self.temp_dir,
             "--log-file", str(self.log_path),
         )
         self.assertEqual(result.returncode, 0)
         log_text = self.log_path.read_text(encoding="utf-8")
-        self.assertIn("Warning: GP24 is USB D- pin", log_text)
-        self.assertIn("1 warning(s)", log_text)
+        self.assertIn("Warning: GPIO0 is a boot strapping pin", log_text)
+        self.assertIn("warning(s)", log_text)
         # Console output is unchanged by the tee.
-        self.assertIn("Warning: GP24 is USB D- pin", result.stderr)
+        self.assertIn("Warning: GPIO0 is a boot strapping pin", result.stderr)
 
     def test_log_captures_argument_errors(self):
         """Even argparse usage errors reach the log (exit before parse)."""

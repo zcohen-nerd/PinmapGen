@@ -51,6 +51,12 @@ python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu s
 python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root . --mermaid
 ```
 
+The CSV needs the columns `Net`, `Pin`, `Component`, `RefDes` (extra
+columns are ignored). The `Pin` column must hold the chip's **logical pin
+name** (`GP15`, `GPIO4`, `PA0`), not the physical package pad number — a
+bare number like `2` is interpreted as GPIO 2, and the CLI warns when it
+makes that assumption.
+
 ### EAGLE schematic input
 
 ```bash

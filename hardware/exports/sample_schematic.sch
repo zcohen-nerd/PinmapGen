@@ -103,14 +103,14 @@
 <label x="25.4" y="50.8" size="1.778" layer="95"/>
 </segment>
 </net>
-<net name="USB_DP" class="0">
+<net name="RS485_P" class="0">
 <segment>
 <pinref part="U1" gate="G$1" pin="GP24"/>
 <wire x1="66.04" y1="60.96" x2="76.2" y2="60.96" width="0.1524" layer="91"/>
 <label x="76.2" y="60.96" size="1.778" layer="95"/>
 </segment>
 </net>
-<net name="USB_DN" class="0">
+<net name="RS485_N" class="0">
 <segment>
 <pinref part="U1" gate="G$1" pin="GP25"/>
 <wire x1="66.04" y1="58.42" x2="76.2" y2="58.42" width="0.1524" layer="91"/>

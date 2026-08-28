@@ -30,7 +30,8 @@ schematic(SCH) {
     SH.nets(N) {
       N.segments(SEG) {
         SEG.pinrefs(PR) {
-          PR.pin.contacts(C) { pinNum = C.name; }
+          pinNum = PR.pin.name;                  // SYMBOL pin name (GP4, PA0)
+          PR.pin.contacts(C) { padNum = C.name; } // physical pad, extra column
         }
       }
     }
@@ -38,8 +39,13 @@ schematic(SCH) {
 }
 ```
 
-The generated CSV uses the standard `RefDes,Pin,Component,Net` headers
-expected by `bom_csv.parse_csv()`.
+The Pin column carries the **symbol pin name**, never the package pad
+number: pad 2 of an RP2040 is GPIO0, and the CLI would read a bare "2" as
+GP2 — a plausible but wrong pinmap. The physical pad goes into an extra
+`Pad` column for debugging.
+
+The generated CSV uses the standard `RefDes,Pin,Component,Net,Pad` headers;
+`bom_csv.parse_csv()` requires the first four and ignores the rest.
 
 ## Architecture
 

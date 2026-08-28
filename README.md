@@ -204,6 +204,11 @@ If you're comfortable in a terminal (or you're on Mac/Linux), you can skip
 the ULP entirely. Export a netlist CSV from your CAD tool with the columns
 `Net, Pin, Component, RefDes`, then from the PinmapGen folder:
 
+> **The `Pin` column must hold the chip's logical pin name** (`GP15`,
+> `GPIO4`, `PA0`) — not the physical package pad number. A bare number like
+> `2` is read as *GPIO 2*, and PinmapGen prints a warning when it makes
+> that assumption, because pad 2 of an RP2040 is actually GPIO 0.
+
 ```bash
 python -m tools.pinmapgen.cli --csv my_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root output --mermaid
 ```

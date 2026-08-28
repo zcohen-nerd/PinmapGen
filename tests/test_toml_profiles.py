@@ -228,12 +228,15 @@ class TestRP2040TOMLNormalization(unittest.TestCase):
     def test_io_format(self):
         self.assertEqual(self.profile.normalize_pin_name("IO5"), "GP5")
 
-    def test_usb_aliases(self):
-        self.assertEqual(self.profile.normalize_pin_name("USB_DP"), "GP25")
-        self.assertEqual(self.profile.normalize_pin_name("USB_DM"), "GP24")
-        self.assertEqual(self.profile.normalize_pin_name("USB_DN"), "GP24")
-        self.assertEqual(self.profile.normalize_pin_name("USBDP"), "GP25")
-        self.assertEqual(self.profile.normalize_pin_name("USBDM"), "GP24")
+    def test_usb_pin_names_rejected(self):
+        """USB D+/D- are dedicated RP2040 pins, not GPIO-muxed.
+
+        They must never silently map onto GP24/GP25 (which are ordinary
+        GPIOs — on a Pico board they are VBUS sense and the LED).
+        """
+        for usb_name in ("USB_DP", "USB_DM", "USB_DN", "USBDP", "USBDM"):
+            with self.assertRaises(ValueError):
+                self.profile.normalize_pin_name(usb_name)
 
     def test_adc_aliases(self):
         self.assertEqual(self.profile.normalize_pin_name("ADC0"), "GP26")
@@ -244,7 +247,6 @@ class TestRP2040TOMLNormalization(unittest.TestCase):
     def test_case_insensitive(self):
         self.assertEqual(self.profile.normalize_pin_name("gpio0"), "GP0")
         self.assertEqual(self.profile.normalize_pin_name("Gpio15"), "GP15")
-        self.assertEqual(self.profile.normalize_pin_name("usb_dp"), "GP25")
         self.assertEqual(self.profile.normalize_pin_name("adc0"), "GP26")
 
     def test_invalid_pin_raises(self):
@@ -431,13 +433,17 @@ class TestCapabilities(unittest.TestCase):
         self.assertIn(PinCapability.I2C_SDA, gp0.capabilities)
         self.assertIn(PinCapability.UART_TX, gp0.capabilities)
 
-    def test_rp2040_limited_pin(self):
-        """GP23 (SMPS) should only have GPIO capability."""
+    def test_rp2040_gp23_is_plain_gpio(self):
+        """GP23 is a full-mux GPIO on the RP2040 chip.
+
+        (Its SMPS power-save role is Raspberry Pi Pico board wiring, not
+        a chip fact, so the chip profile declares nothing special.)
+        """
         profile = TOMLProfile(_PROFILES_DIR / "rp2040.toml")
         gp23 = profile.pins["GP23"]
-        self.assertEqual(gp23.capabilities, {PinCapability.GPIO})
-        self.assertIsNotNone(gp23.special_function)
-        self.assertIn("SMPS", gp23.special_function)
+        self.assertIn(PinCapability.GPIO, gp23.capabilities)
+        self.assertIn(PinCapability.PWM, gp23.capabilities)
+        self.assertIsNone(gp23.special_function)
 
     def test_rp2040_adc_additive(self):
         """GP26-GP29 should inherit group caps PLUS adc."""
@@ -471,11 +477,17 @@ class TestCapabilities(unittest.TestCase):
 class TestSpecialFunctions(unittest.TestCase):
     """Test special_function and special_function_short fields."""
 
-    def test_rp2040_usb_special_functions(self):
+    def test_rp2040_gp24_gp25_are_plain_gpios(self):
+        """GP24/GP25 carry no USB labels — RP2040 USB is on dedicated pins.
+
+        (On a Pico board these GPIOs are VBUS sense and the on-board LED;
+        labelling them USB D-/D+ produced wrong firmware and wrong docs.)
+        """
         profile = TOMLProfile(_PROFILES_DIR / "rp2040.toml")
-        gp25 = profile.pins["GP25"]
-        self.assertIn("USB", gp25.special_function)
-        self.assertEqual(gp25.special_function_short, "USB D+")
+        for name in ("GP24", "GP25"):
+            pin = profile.pins[name]
+            self.assertIsNone(pin.special_function)
+            self.assertFalse(pin.warnings)
 
     def test_nrf52840_nfc_special_functions(self):
         profile = TOMLProfile(_PROFILES_DIR / "nrf52840.toml")
@@ -486,7 +498,7 @@ class TestSpecialFunctions(unittest.TestCase):
     def test_special_functions_in_canonical_dict(self):
         """Canonical dict metadata should contain special_functions dicts."""
         profile = TOMLProfile(_PROFILES_DIR / "rp2040.toml")
-        nets = {"LED": ["GP0"], "USB_DP": ["GP25"]}
+        nets = {"LED": ["GP0"], "LIGHT_SENSOR": ["GP26"]}
         canonical = profile.create_canonical_pinmap(nets)
 
         metadata = canonical["metadata"]
@@ -494,8 +506,11 @@ class TestSpecialFunctions(unittest.TestCase):
         self.assertIn("special_functions_long", metadata)
 
         short = metadata["special_functions_short"]
-        self.assertIn("GP25", short)
-        self.assertEqual(short["GP25"], "USB D+")
+        self.assertIn("GP26", short)
+        self.assertEqual(short["GP26"], "ADC0")
+        # GP24/GP25 are plain GPIOs — no phantom USB entries.
+        self.assertNotIn("GP24", short)
+        self.assertNotIn("GP25", short)
 
 
 # ============================================================================
@@ -512,14 +527,16 @@ class TestPeripherals(unittest.TestCase):
         self.assertIn("I2C", names)
         self.assertIn("SPI", names)
         self.assertIn("UART", names)
-        self.assertIn("USB", names)
         self.assertIn("ADC", names)
+        # USB uses dedicated (non-GPIO) pins, so no USB peripheral with
+        # GPIO assignments may be declared.
+        self.assertNotIn("USB", names)
 
     def test_peripheral_pin_mapping(self):
         profile = TOMLProfile(_PROFILES_DIR / "rp2040.toml")
-        usb = next(p for p in profile.peripherals if p.name == "USB")
-        self.assertEqual(usb.pins["dp"], "GP25")
-        self.assertEqual(usb.pins["dm"], "GP24")
+        adc = next(p for p in profile.peripherals if p.name == "ADC")
+        self.assertEqual(adc.pins["ch0"], "GP26")
+        self.assertEqual(adc.pins["ch3"], "GP29")
 
 
 # ============================================================================

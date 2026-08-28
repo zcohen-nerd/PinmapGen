@@ -291,7 +291,7 @@ int generateNetlistCSV(string netlistPath) {
 
     // Second pass: generate CSV
     output(netlistPath) {
-        printf("\"RefDes\",\"Pin\",\"Component\",\"Net\"\n");
+        printf("\"RefDes\",\"Pin\",\"Component\",\"Net\",\"Pad\"\n");
 
         schematic(S) {
             S.sheets(SH) {
@@ -299,19 +299,27 @@ int generateNetlistCSV(string netlistPath) {
                     N.segments(SEG) {
                         SEG.pinrefs(PR) {
                             if (PR.part && PR.pin) {
+                                // Use the SYMBOL pin name (GP4, PA0,
+                                // GPIO15...) for the Pin column, never the
+                                // package pad number: pad 2 of an RP2040
+                                // is GPIO0, and the CLI reads a bare "2"
+                                // as GP2 - a plausible but wrong pinmap.
+                                // The physical pad is still exported in
+                                // the extra Pad column for debugging;
+                                // the CLI ignores columns it doesn't use.
                                 string pinNum = PR.pin.name;
-
-                                // Handle multiple contacts
+                                string padNum = "";
                                 PR.pin.contacts(C) {
-                                    pinNum = C.name;
+                                    padNum = C.name;
                                     break;
                                 }
 
-                                printf("\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                                printf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
                                     PR.part.name,
                                     pinNum,
                                     PR.part.name,
-                                    N.name);
+                                    N.name,
+                                    padNum);
                                 success = 1;
                             }
                         }

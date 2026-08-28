@@ -131,6 +131,13 @@ error: 'PIN_XYZ' was not declared in this scope
 ### Pin numbers look wrong
 
 - The emitters use the GPIO number, not the physical package pin number.
+- Check the input side too: the CSV's `Pin` column must hold logical pin
+  names (`GP15`, `GPIO4`, `PA0`). A bare number like `2` is interpreted
+  as *GPIO 2* — and the CLI prints a warning when it does — but many CAD
+  exports put the physical *pad* number there, which produces a
+  plausible-looking pinmap that is wrong on nearly every pin (pad 2 of
+  an RP2040 is GPIO 0). The Fusion ULP exports symbol pin names for
+  exactly this reason.
 - Compare the generated output against `pinmaps/pinmap.json` and the MCU
   datasheet.
 

@@ -45,7 +45,10 @@ class TestNormalizeUsesRegistry(unittest.TestCase):
         legacy = normalize.RP2040Profile()
         self.assertEqual(legacy.normalize_pin_name("GPIO5"), "GP5")
         self.assertIn(25, legacy.valid_gpio_pins)
-        self.assertIn("GP24", legacy.special_pins)
+        # ADC channels are the remaining special pins; GP24/GP25 are
+        # plain GPIOs (USB is on dedicated pins, not GPIO-muxed).
+        self.assertIn("GP26", legacy.special_pins)
+        self.assertNotIn("GP24", legacy.special_pins)
 
 
 class TestPinMetadataFromProfiles(unittest.TestCase):
@@ -53,8 +56,9 @@ class TestPinMetadataFromProfiles(unittest.TestCase):
 
     def test_rp2040_short_table(self):
         table = get_special_functions_short("rp2040")
-        self.assertEqual(table.get("GP25"), "USB D+")
         self.assertEqual(table.get("GP26"), "ADC0")
+        # GP25 is a plain GPIO — no USB entry (USB is on dedicated pins).
+        self.assertIsNone(table.get("GP25"))
 
     def test_covers_profiles_beyond_original_three(self):
         # The old hardcoded dicts only knew rp2040/stm32g0/esp32.
@@ -65,7 +69,9 @@ class TestPinMetadataFromProfiles(unittest.TestCase):
         self.assertEqual(get_special_functions_short("no_such_mcu"), {})
 
     def test_get_pin_comment_without_canonical_dict(self):
-        self.assertEqual(get_pin_comment("GP24", "rp2040"), "GP24 - USB D-")
+        self.assertEqual(get_pin_comment("GP26", "rp2040"), "GP26 - ADC0")
+        # Plain GPIOs get no suffix — GP24 carries no USB label anymore.
+        self.assertEqual(get_pin_comment("GP24", "rp2040"), "GP24")
 
     def test_get_special_function_without_canonical_dict(self):
         self.assertEqual(
