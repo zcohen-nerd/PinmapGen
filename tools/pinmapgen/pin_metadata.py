@@ -58,7 +58,7 @@ def get_pin_comment(
     mcu: str = "rp2040",
     canonical_dict: dict | None = None,
 ) -> str:
-    """Return a concise pin comment such as ``"GP24 - USB D-"``.
+    """Return a concise pin comment such as ``"GP26 - ADC0"``.
 
     When *canonical_dict* is provided the special-function data embedded in
     its ``metadata.special_functions_short`` is used. Otherwise the table is

@@ -13,7 +13,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 # Import parser and MCU profile modules
 from . import (
@@ -25,7 +25,118 @@ from . import (
     emit_mermaid,
     emit_micropython,
 )
+from .naming import build_name_map
 from .profile_registry import registry
+
+
+class _LogTee:
+    """Duplicate a console stream into the --log-file handle.
+
+    GUI front ends (the Fusion ULP in particular) cannot reliably capture
+    console output, so the CLI mirrors everything it prints — status,
+    warnings, errors — into a file they can read back and display.
+    """
+
+    def __init__(self, console: TextIO, log_handle: TextIO) -> None:
+        self.console = console
+        self._log = log_handle
+
+    def write(self, text: str) -> int:
+        # Log first: a console encoding error must not lose the log line.
+        self._log.write(text)
+        return self.console.write(text)
+
+    def flush(self) -> None:
+        self._log.flush()
+        self.console.flush()
+
+    def __getattr__(self, name: str) -> Any:
+        # Delegate everything else (encoding, isatty, ...) to the console.
+        return getattr(self.console, name)
+
+
+def _install_log_tee(argv: list[str]) -> TextIO | None:
+    """Mirror stdout/stderr to the file named by ``--log-file``, if given.
+
+    Scans argv directly instead of waiting for argparse so that argparse's
+    own error output (usage errors print and exit before parsing finishes)
+    reaches the log as well. Returns the open log handle, or None when no
+    --log-file was requested or the file could not be opened.
+    """
+    path_str = None
+    for i, arg in enumerate(argv):
+        if arg == "--log-file" and i + 1 < len(argv):
+            path_str = argv[i + 1]
+        elif arg.startswith("--log-file="):
+            path_str = arg.split("=", 1)[1]
+    if not path_str:
+        return None
+
+    log_path = Path(path_str)
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Held open for the whole run; closed in main()'s finally block.
+        handle = log_path.open(  # noqa: SIM115
+            "w", encoding="utf-8", errors="replace"
+        )
+    except OSError as exc:
+        print(
+            f"Warning: could not open log file {log_path}: {exc}",
+            file=sys.stderr,
+        )
+        return None
+
+    sys.stdout = _LogTee(sys.stdout, handle)
+    sys.stderr = _LogTee(sys.stderr, handle)
+    return handle
+
+
+def _remove_log_tee(handle: TextIO) -> None:
+    """Restore the real console streams and close the log file."""
+    if isinstance(sys.stdout, _LogTee):
+        sys.stdout = sys.stdout.console
+    if isinstance(sys.stderr, _LogTee):
+        sys.stderr = sys.stderr.console
+    handle.close()
+
+
+def _issue_summary(canonical_dict: dict[str, Any]) -> str:
+    """Build the issue-count phrase for the final status line.
+
+    Returns an empty string when the run was clean.
+    """
+    metadata = canonical_dict.get("metadata", {})
+    bits = []
+    n_errors = len(metadata.get("validation_errors", []))
+    n_dropped = len(metadata.get("dropped_pins", []))
+    n_warnings = len(metadata.get("validation_warnings", []))
+    if n_errors:
+        bits.append(f"{n_errors} validation error(s)")
+    if n_dropped:
+        bits.append(f"{n_dropped} dropped pin(s)")
+    if n_warnings:
+        bits.append(f"{n_warnings} warning(s)")
+    return ", ".join(bits)
+
+
+# Fallback when the package isn't pip-installed (plain source checkout).
+# Keep in sync with pyproject.toml's [project] version.
+_FALLBACK_VERSION = "0.1.0"
+
+
+def _version_string() -> str:
+    """Version from installed package metadata, or the source fallback.
+
+    Reading importlib.metadata keeps ``--version`` and pyproject.toml in
+    agreement for installed copies instead of maintaining two hardcoded
+    strings.
+    """
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("pinmapgen")
+    except PackageNotFoundError:
+        return _FALLBACK_VERSION
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -41,6 +152,10 @@ Examples:
   python -m tools.pinmapgen.cli --sch hardware/exports/project.sch --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
   python -m tools.pinmapgen.cli --list-mcus
   python -m tools.pinmapgen.cli --csv netlist.csv --mcu my_mcu --mcu-ref U1 --profile-dir ./my_profiles
+
+Subcommands:
+  profiles list [--profile-dir DIR]         table of available MCU profiles
+  profiles check <name> [--profile-dir DIR] validate and inspect one profile
         """,
     )
 
@@ -84,6 +199,23 @@ Examples:
     parser.add_argument(
         "--mermaid", action="store_true", help="Generate Mermaid diagram files"
     )
+    # Output selection: pinmap.json (the canonical data) is always
+    # written; the firmware/doc formats can be skipped individually.
+    parser.add_argument(
+        "--no-micropython",
+        action="store_true",
+        help="Skip the MicroPython module (pinmap_micropython.py)",
+    )
+    parser.add_argument(
+        "--no-arduino",
+        action="store_true",
+        help="Skip the Arduino header (pinmap_arduino.h)",
+    )
+    parser.add_argument(
+        "--no-markdown",
+        action="store_true",
+        help="Skip the Markdown pinout documentation (PINOUT.md)",
+    )
 
     # Optional flags
     parser.add_argument(
@@ -103,8 +235,20 @@ Examples:
         action="store_true",
         help="Produce reproducible output (fixed timestamps)",
     )
+    # The tee itself is installed in main() by scanning argv before argparse
+    # runs (see _install_log_tee); this entry documents the flag and keeps
+    # argparse from rejecting it.
     parser.add_argument(
-        "--version", action="version", version="%(prog)s 0.1.0",
+        "--log-file",
+        type=Path,
+        help=(
+            "Mirror all console output (status, warnings, errors) to this "
+            "file. The Fusion ULP passes this so it can display the run's "
+            "diagnostics afterwards."
+        ),
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {_version_string()}",
     )
 
     args = parser.parse_args()
@@ -118,8 +262,7 @@ Examples:
 
     # Handle --list-mcus early.
     if args.list_mcus:
-        _print_profile_list()
-        sys.exit(0)
+        sys.exit(_print_profile_list())
 
     # When not listing, --csv/--sch, --mcu, and --mcu-ref are required.
     if not args.csv and not args.sch:
@@ -144,7 +287,7 @@ def _print_profile_list() -> int:
     """Print a formatted table of all registered profiles.
 
     Used by both ``--list-mcus`` and the ``profiles list`` subcommand.
-    Returns an exit code (always 0).
+    Returns an exit code: 0, or 1 when any profile failed to parse.
     """
     profiles = registry.list_profiles()
     if not profiles:
@@ -156,8 +299,16 @@ def _print_profile_list() -> int:
         f"{'Source':<8} {'Schema':<8} Description"
     )
     print("-" * 88)
+    broken = 0
     for name in profiles:
-        info = registry.get_profile_info(name)
+        # One malformed TOML must not take down the whole listing - show
+        # it as broken (with the file named) and keep going.
+        try:
+            info = registry.get_profile_info(name)
+        except ValueError as exc:
+            print(f"{name:<16} [BROKEN] {exc}")
+            broken += 1
+            continue
         sv = info.get("schema_version")
         sv_str = str(sv) if sv is not None else "-"
         print(
@@ -168,7 +319,7 @@ def _print_profile_list() -> int:
             f"{sv_str:<8} "
             f"{info.get('description', '')}"
         )
-    return 0
+    return 1 if broken else 0
 
 
 def parse_input_file(args: argparse.Namespace) -> dict[str, list[str]]:
@@ -246,43 +397,43 @@ def create_canonical_pinmap(
 
 
 def generate_outputs(canonical_dict: dict[str, Any], args: argparse.Namespace) -> None:
-    """Generate all output files from canonical dictionary."""
-    out_root = args.out_root
+    """Generate the selected output files from the canonical dictionary.
 
-    # Ensure output directories exist
-    (out_root / "pinmaps").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "micropython").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "include").mkdir(parents=True, exist_ok=True)
-    (out_root / "firmware" / "docs").mkdir(parents=True, exist_ok=True)
+    pinmap.json is always written; --no-micropython / --no-arduino /
+    --no-markdown skip the corresponding format, and Mermaid is opt-in
+    via --mermaid. The emitters create their own directories.
+    """
+    out_root = args.out_root
 
     if args.verbose:
         print("Generating output files...")
 
-    # Generate canonical JSON pinmap
+    # Canonical JSON pinmap — always written
     json_path = out_root / "pinmaps" / "pinmap.json"
     emit_json.emit_json(canonical_dict, json_path)
     if args.verbose:
         print(f"  - {json_path}")
 
-    # Generate MicroPython module
-    micropython_path = out_root / "firmware" / "micropython" / "pinmap_micropython.py"
-    emit_micropython.emit_micropython(canonical_dict, micropython_path)
-    if args.verbose:
-        print(f"  - {micropython_path}")
+    if not getattr(args, "no_micropython", False):
+        micropython_path = (
+            out_root / "firmware" / "micropython" / "pinmap_micropython.py"
+        )
+        emit_micropython.emit_micropython(canonical_dict, micropython_path)
+        if args.verbose:
+            print(f"  - {micropython_path}")
 
-    # Generate Arduino header
-    arduino_path = out_root / "firmware" / "include" / "pinmap_arduino.h"
-    emit_arduino.emit_arduino_header(canonical_dict, arduino_path)
-    if args.verbose:
-        print(f"  - {arduino_path}")
+    if not getattr(args, "no_arduino", False):
+        arduino_path = out_root / "firmware" / "include" / "pinmap_arduino.h"
+        emit_arduino.emit_arduino_header(canonical_dict, arduino_path)
+        if args.verbose:
+            print(f"  - {arduino_path}")
 
-    # Generate Markdown documentation
-    markdown_path = out_root / "firmware" / "docs" / "PINOUT.md"
-    emit_markdown.emit_markdown_docs(canonical_dict, markdown_path)
-    if args.verbose:
-        print(f"  - {markdown_path}")
+    if not getattr(args, "no_markdown", False):
+        markdown_path = out_root / "firmware" / "docs" / "PINOUT.md"
+        emit_markdown.emit_markdown_docs(canonical_dict, markdown_path)
+        if args.verbose:
+            print(f"  - {markdown_path}")
 
-    # Generate Mermaid diagram (if requested)
     if args.mermaid:
         mermaid_path = out_root / "firmware" / "docs" / "pinout.mmd"
         emit_mermaid.emit_mermaid_diagram(canonical_dict, mermaid_path)
@@ -307,10 +458,20 @@ def _profiles_main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="action")
     sub.required = True
 
-    sub.add_parser("list", help="List available MCU profiles")
+    # --profile-dir is accepted both before and after the subcommand, so
+    # the documented `profiles check <name> --profile-dir DIR` order works.
+    list_p = sub.add_parser("list", help="List available MCU profiles")
+    list_p.add_argument(
+        "--profile-dir", type=Path, dest="profile_dir",
+        default=argparse.SUPPRESS,
+    )
 
     check_p = sub.add_parser("check", help="Validate and inspect a profile")
     check_p.add_argument("name", help="Profile name to check")
+    check_p.add_argument(
+        "--profile-dir", type=Path, dest="profile_dir",
+        default=argparse.SUPPRESS,
+    )
 
     args = parser.parse_args(argv)
 
@@ -341,7 +502,11 @@ def _profiles_check_cmd(name: str) -> int:
             )
         return 1
 
-    info = registry.get_profile_info(key)
+    try:
+        info = registry.get_profile_info(key)
+    except ValueError as exc:
+        print(f"Validation FAILED: {exc}", file=sys.stderr)
+        return 1
     print(f"Profile:         {info['name']}")
     print(f"Source:          {info['source']}")
     if info.get("path"):
@@ -389,6 +554,19 @@ def _profiles_check_cmd(name: str) -> int:
 
 def main():
     """Main CLI entry point."""
+    # Install the --log-file tee before anything can print, and tear it
+    # down (restoring the real streams, flushing the file) on every exit
+    # path, including sys.exit() and KeyboardInterrupt.
+    log_handle = _install_log_tee(sys.argv)
+    try:
+        _run_cli()
+    finally:
+        if log_handle is not None:
+            _remove_log_tee(log_handle)
+
+
+def _run_cli() -> None:
+    """Parse arguments and run one generation (wrapped by main)."""
     # Check for ``profiles`` subcommand before normal argparse.
     if len(sys.argv) > 1 and sys.argv[1] == "profiles":
         sys.exit(_profiles_main(sys.argv[2:]))
@@ -404,9 +582,13 @@ def main():
             print(f"Output root: {args.out_root}")
             print()
 
-        # Enable reproducible builds
+        # Enable reproducible builds. A pre-existing valid value is
+        # honored (that's the SOURCE_DATE_EPOCH convention), but a
+        # garbage one is replaced rather than left to poison the run.
         if args.reproducible:
-            os.environ.setdefault("SOURCE_DATE_EPOCH", "0")
+            existing = os.environ.get("SOURCE_DATE_EPOCH")
+            if existing is None or not existing.strip().lstrip("-").isdigit():
+                os.environ["SOURCE_DATE_EPOCH"] = "0"
 
         # Parse input file and extract nets
         nets = parse_input_file(args)
@@ -417,6 +599,18 @@ def main():
         # Record the MCU reference designator so it appears in pinmap.json
         # and role metadata instead of "UNKNOWN".
         canonical_dict["mcu_ref"] = args.mcu_ref
+
+        # The emitters rename identifiers that are reserved (a net named
+        # SPI or MOSI must not shadow language/core symbols) or that
+        # collide after sanitization. Surface those renames as warnings so
+        # nobody hunts for a constant that was quietly renamed.
+        _, rename_notes = build_name_map(list(canonical_dict.get("pins", {})))
+        if rename_notes:
+            metadata = canonical_dict.setdefault("metadata", {})
+            warning_list = metadata.setdefault("validation_warnings", [])
+            for note in rename_notes:
+                print(f"Warning: {note}", file=sys.stderr)
+                warning_list.append(note)
 
         # In strict mode, refuse to write outputs from a pinmap with
         # validation errors or dropped pins (details were already printed
@@ -438,7 +632,17 @@ def main():
         # Generate all output files
         generate_outputs(canonical_dict, args)
 
-        if args.verbose:
+        # Honest final status: never print a bare success line when the
+        # run produced errors, warnings, or dropped pins. The Fusion ULP
+        # keys off this summary to decide which dialog to show.
+        issues = _issue_summary(canonical_dict)
+        prefix = "\n" if args.verbose else ""
+        if issues:
+            print(
+                f"{prefix}Pinmap files generated with {issues} - "
+                "review the messages above"
+            )
+        elif args.verbose:
             print("\nPinmap generation completed successfully!")
         else:
             print("Pinmap files generated successfully")

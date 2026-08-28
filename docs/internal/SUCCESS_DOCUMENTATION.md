@@ -1,5 +1,11 @@
 # ULP Automation — Technical Notes
 
+> **Internal development document.** Kept for project history; counts,
+> tier lists, and feature claims reflect the moment they were written
+> and are not maintained. Current user documentation lives in
+> [README.md](../../README.md), [USER_GUIDE.md](../../USER_GUIDE.md),
+> and [docs/](../).
+
 This document records the key technical decisions and discoveries made while
 building the Fusion 360 ULP integration.
 
@@ -30,7 +36,8 @@ schematic(SCH) {
     SH.nets(N) {
       N.segments(SEG) {
         SEG.pinrefs(PR) {
-          PR.pin.contacts(C) { pinNum = C.name; }
+          pinNum = PR.pin.name;                  // SYMBOL pin name (GP4, PA0)
+          PR.pin.contacts(C) { padNum = C.name; } // physical pad, extra column
         }
       }
     }
@@ -38,8 +45,13 @@ schematic(SCH) {
 }
 ```
 
-The generated CSV uses the standard `RefDes,Pin,Component,Net` headers
-expected by `bom_csv.parse_csv()`.
+The Pin column carries the **symbol pin name**, never the package pad
+number: pad 2 of an RP2040 is GPIO0, and the CLI would read a bare "2" as
+GP2 — a plausible but wrong pinmap. The physical pad goes into an extra
+`Pad` column for debugging.
+
+The generated CSV uses the standard `RefDes,Pin,Component,Net,Pad` headers;
+`bom_csv.parse_csv()` requires the first four and ignores the rest.
 
 ## Architecture
 
@@ -55,11 +67,11 @@ Fusion 360 Electronics schematic
 
 ## Supported MCU profiles
 
-| MCU | Pin naming | Notable validation |
-|-----|------------|--------------------|
-| RP2040 | `GPxx` | USB diff pair detection, ADC range |
-| STM32G0 | `PAxn` | Alternate-function mux, boot/SWD pins |
-| ESP32 | `GPIOxx` | Strapping pins, ADC2+WiFi conflict, input-only pins |
+| MCU | Pin naming | Notable warnings |
+|-----|------------|------------------|
+| RP2040 | `GPxx` | USB diff pair detection, ADC channel labels |
+| STM32G0 | `PAxn` | SWD debug pins, BOOT1 strap, oscillator/reset pins |
+| ESP32 | `GPIOxx` | Strapping pins, ADC2+WiFi notes, input-only pins |
 
 ## Generated output
 

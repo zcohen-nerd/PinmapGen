@@ -77,7 +77,9 @@ python -m venv .venv
 source .venv/bin/activate          # macOS/Linux
 # .venv\Scripts\Activate.ps1      # Windows PowerShell
 
-# Install PinmapGen in editable mode
+# Optional: editable install. Adds the `pinmapgen` command and lets the
+# CLI run from any directory. PinmapGen is stdlib-only, so you can also
+# skip this and run `python -m tools.pinmapgen.cli` from the repo root.
 pip install -e .
 ```
 
@@ -109,14 +111,28 @@ All emitters derive their outputs from this canonical structure.
 
 ### 4.2 Roles and validation
 
-`tools/pinmapgen/roles.py` infers semantic roles based on net naming patterns. The MCU profiles (13 built-in, defined in `tools/pinmapgen/profiles/*.toml`) augment validation by flagging:
+`tools/pinmapgen/roles.py` infers semantic roles based on net naming patterns. Validation distinguishes **errors** (broken pinmaps — these fail `--strict`) from **warnings** (advisories that never block generation).
 
-- Input-only pads wired as outputs
-- USB differential pairs missing a partner
-- Strapping pins or boot pins used unexpectedly
-- ADC pins assigned to digital-only roles
+Errors:
 
-Warnings appear in CLI output, Fusion dialogs, and metadata.
+- Pin conflicts — the same MCU pin claimed by two different nets
+
+Warnings:
+
+- Special pins used at all — boot strapping pins, flash-voltage pins, the
+  default console UART, pads not bonded on your module (from the MCU
+  profile's per-pin warnings)
+- Input-only pads (e.g., ESP32 GPIO34–39) carrying a net whose role
+  implies an output
+- Lonely differential-pair halves — a `_DP`/`_P`/`CAN_H`/`USB_D+`-style
+  net with no matching partner (active-low `_N` suffixes like `RESET_N`
+  are not flagged)
+- Nets spanning multiple pins that don't look like power/ground rails
+- Power/ground rails assigned to GPIO pins
+- Bare-number pins interpreted as logical GPIO numbers
+- Net names that had to be renamed to become valid identifiers
+
+Warnings appear in CLI output, Fusion dialogs, and the JSON `metadata`.
 
 ### 4.3 Generated artifacts
 
@@ -184,8 +200,14 @@ The full walkthrough lives in `fusion_addin/ULP_GUIDE.md`.
 
 ### 6.3 Exporting source data
 
-- **CSV netlist:** `Design Workspace → Output → Netlist (CSV)`.
-- **EAGLE `.sch`:** Save the schematic and export from Fusion or legacy EAGLE.
+- **CSV netlist:** run `fusion_addin/export_netlist.ulp` from Fusion's
+  **Automation → Run ULP** — a pure export that works on Windows and
+  macOS and writes exactly the format the CLI expects. (Fusion's built-in
+  File → Export → Netlist does *not* produce this format.) Hand-written
+  CSVs also work: `Net`, `Pin`, `RefDes` required, `Component` optional,
+  headers case-insensitive with common aliases.
+- **EAGLE `.sch`:** legacy EAGLE XML schematics can be passed directly
+  with `--sch`.
 - For multi-MCU projects, export once and run the CLI per MCU reference designator.
 
 ### 6.4 Design validation checklist
@@ -208,10 +230,12 @@ python -m tools.pinmapgen.cli \
   --mcu-ref <reference-designator> \
   [--out-root <path>] \
   [--mermaid] \
+  [--no-micropython] [--no-arduino] [--no-markdown] \
   [--verbose] \
   [--strict] \
   [--profile-dir <dir>] \
-  [--reproducible]
+  [--reproducible] \
+  [--log-file <path>]
 ```
 
 - `--mcu` accepts any of the 13 built-in profiles — run `--list-mcus` to
@@ -220,10 +244,16 @@ python -m tools.pinmapgen.cli \
 - `--strict` makes the CLI exit with code 2 (writing no output) when the
   pinmap has validation errors or pins that failed to normalize —
   recommended for CI.
+- `--no-micropython`, `--no-arduino`, `--no-markdown` skip individual
+  output formats (the canonical `pinmap.json` is always written); Mermaid
+  is opt-in via `--mermaid`.
 - `--profile-dir` adds a directory of custom TOML profiles.
 - `--reproducible` pins timestamps (via `SOURCE_DATE_EPOCH`) so repeated
   runs produce byte-identical output — useful for committed artifacts and
   drift checks.
+- `--log-file` mirrors everything the run prints (status, warnings,
+  validation errors) into a file. The Fusion ULP passes this automatically
+  and displays the log when a run needs review.
 
 ### 7.2 Output management
 
@@ -335,16 +365,19 @@ Refer to `fusion_addin/ULP_GUIDE.md` for configuration tips and detailed trouble
 
 ## 10. Validation and troubleshooting
 
-### 10.1 Common warnings
+### 10.1 Understanding the messages
 
-| Warning | Interpretation | Suggested action |
-|---------|----------------|------------------|
-| `GP24 is USB D- pin - avoid for general GPIO if USB needed` | USB differential pair pad used for GPIO | Reserve for USB or justify override |
-| `GPIO0 is a boot strapping pin` | Strapping pin's boot-time state matters | Add pull-ups/pull-downs per datasheet |
-| `Potential lonely differential pair: '...' has no partner` | A `*_P`/`*_N`-style net is missing its mate | Connect and name both halves of the pair |
-| `Pin ... used by multiple nets` | Two signals share one pin — a real conflict | Fix the schematic; `--strict` turns this into a hard failure |
-| `Net '...' connects to multiple pins` | One net touches several MCU pins | Fine for power rails; a routing error otherwise. Code emitters use the first pin and flag the rest in a comment |
-| `GPIO34 is input-only - cannot drive outputs` | Role mismatch for MCU capability | Reassign net or add level shifting |
+The rule of thumb: **errors** (pin conflicts, dropped pins) mean the
+pinmap is broken and fail `--strict`; **warnings** (special pins,
+multi-pin nets, lonely pair halves, bare-number interpretation,
+renamed identifiers) are advisories worth a look that never block
+generation — the full list of checks is in
+[section 4.2](#42-roles-and-validation).
+
+Every message the tool prints is catalogued verbatim — with what it
+means and what to do — in
+[docs/troubleshooting.md § Validation messages](docs/troubleshooting.md#validation-messages),
+so you can search that page for the exact text you saw.
 
 ### 10.2 Diagnosing empty or partial outputs
 
@@ -389,9 +422,10 @@ Launch tasks via `Ctrl+Shift+P → Tasks: Run Task`.
 
 Two workflows run on every push and pull request:
 
-- **`build-test.yml`** — runs generation end-to-end (with `--strict`) on
-  Linux/Windows/macOS across Python 3.11/3.12, plus module-import and
-  file-watcher smoke tests.
+- **`build-test.yml`** — runs the full test suite and generation
+  end-to-end (with `--strict`) on Linux/Windows/macOS across Python
+  3.11–3.14, plus module-import, file-watcher, and packaging
+  (`pip install -e .` / wheel) checks.
 - **`validate-pinmaps.yml`** — regenerates from the sample netlist with
   `--strict`, verifies output structure and content, and regenerates the
   committed `examples/` outputs with `--reproducible`, failing the build
@@ -429,9 +463,10 @@ Two workflows run on every push and pull request:
 ## 13. Reference
 
 - **README.md** — High-level project overview, installation, and highlights.
-- **MILESTONES.md** — Roadmap with current priorities (Classroom readiness & documentation sprint).
-- **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow with screenshots.
+- **docs/** — Topic guides (usage, workflows, troubleshooting, FAQ, output formats, extending) — see [docs/README.md](docs/README.md) for the index.
+- **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow.
 - **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
+- **docs/internal/** — Historical development documents (not maintained).
 
 If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide.

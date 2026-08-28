@@ -22,13 +22,13 @@ output = "GP{0}"
 regex  = "IO(\\d+)"
 output = "GP{0}"
 
+# NOTE: USB D+/D- are dedicated pins on the RP2040 (QFN-56 pins 47/46),
+# not GPIO-muxed — so there are deliberately no USB aliases here. A pin
+# named USB_DP/USB_DM in a netlist is dropped with a warning rather than
+# silently mapped onto a GPIO. (GP24/GP25 are ordinary GPIOs on the chip;
+# the Raspberry Pi Pico *board* happens to wire GP24 to VBUS sense and
+# GP25 to the on-board LED.)
 [normalization.aliases]
-USB_DP  = "GP25"
-USB_DM  = "GP24"
-USB_DN  = "GP24"
-USBDP   = "GP25"
-USBDM   = "GP24"
-USBDN   = "GP24"
 ADC0    = "GP26"
 ADC1    = "GP27"
 ADC2    = "GP28"
@@ -45,29 +45,12 @@ capabilities = [
     "uart_tx", "uart_rx",
 ]
 
-# GP23 — SMPS mode (limited — override to restrict capabilities)
-[[pins.individual]]
-name                  = "GP23"
-capabilities          = ["gpio"]
-special_function      = "SMPS Power Mode"
-special_function_short = "SMPS_MODE"
-warnings              = ["GP23 controls SMPS power mode - use with caution"]
-
-# GP24 — USB D-
-[[pins.individual]]
-name                  = "GP24"
-capabilities          = ["gpio", "usb_dm"]
-special_function      = "USB D- (Data Minus)"
-special_function_short = "USB D-"
-warnings              = ["GP24 is USB D- pin - avoid for general GPIO if USB needed"]
-
-# GP25 — USB D+
-[[pins.individual]]
-name                  = "GP25"
-capabilities          = ["gpio", "usb_dp"]
-special_function      = "USB D+ (Data Plus)"
-special_function_short = "USB D+"
-warnings              = ["GP25 is USB D+ pin - avoid for general GPIO if USB needed"]
+# GP23–GP25 are ordinary full-mux GPIOs on the RP2040 *chip*. On the
+# Raspberry Pi Pico *board* they are wired to SMPS power-save (GP23),
+# VBUS sense (GP24), and the on-board LED (GP25) — board facts that do
+# not belong in a chip profile, so no special functions are declared.
+# USB D+/D- are dedicated pins (QFN-56 47/46), not GPIOs; they are
+# intentionally absent from this pin list (same treatment as rp2350).
 
 # GP26–GP29 — ADC channels (also have full peripheral mux)
 [[pins.individual]]
@@ -126,10 +109,8 @@ name     = "UART"
 instance = 1
 pins     = { tx = "configurable", rx = "configurable" }
 
-[[peripherals]]
-name     = "USB"
-instance = 0
-pins     = { dp = "GP25", dm = "GP24" }
+# USB is served by dedicated (non-GPIO) pins, so no USB peripheral with
+# GPIO pin assignments is declared — matching rp2350.toml.
 
 [[peripherals]]
 name     = "ADC"

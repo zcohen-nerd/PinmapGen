@@ -31,8 +31,12 @@ After running PinmapGen, you'll get:
 - `pinmaps/pinmap.json` - JSON pin mapping
 
 ## Usage
+
+From the repository root (the CLI is run as a module, so the
+`tools/` package must be importable from where you run it):
+
 ```bash
-python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root generated --mermaid
+python -m tools.pinmapgen.cli --csv examples/sensor_hub/netlist.csv --mcu rp2040 --mcu-ref U1 --out-root examples/sensor_hub/generated --mermaid
 ```
 
 This example covers:

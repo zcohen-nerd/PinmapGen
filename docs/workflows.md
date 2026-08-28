@@ -64,7 +64,8 @@ Now pin changes only require a CSV update and regeneration.
 3. Feed back requirements (e.g., "need a PWM-capable pin for LED dimming").
 
 **Phase 3 — Iteration:**
-1. Hardware changes trigger regeneration (via CI or pre-commit hook).
+1. On hardware changes, the designer regenerates (CLI, watcher, or ULP);
+   the pre-commit hook and CI validate the result.
 2. Firmware developers get notified of pin changes through PRs.
 3. Repeat until the system works.
 
@@ -207,16 +208,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - run: pip install -e .
+    # PinmapGen is stdlib-only — no install step needed when running
+    # from the repo root.
     - run: |
         python -m tools.pinmapgen.cli \
           --csv hardware/exports/sample_netlist.csv \
-          --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
-    - run: git diff --exit-code pinmaps/ firmware/
+          --mcu rp2040 --mcu-ref U1 --out-root generated \
+          --mermaid --strict
 ```
+
+`--strict` fails the build on validation errors or dropped pins. A
+`git diff --exit-code` drift gate only works on generated outputs that
+are **committed** (regenerate with `--reproducible` into their tracked
+path first) — the root-level `pinmaps/` and `firmware/` outputs are
+gitignored, so diffing them never fails.
 
 ### Pre-commit hook
 
 See [.githooks/README.md](../.githooks/README.md) for installation. The hook
-regenerates pinmaps when `hardware/exports/` files are staged and automatically
-adds the updated outputs to the commit.
+validates staged `hardware/exports/*.csv` netlists in a temporary directory
+and blocks the commit if generation fails - it does not write or stage any
+outputs itself.

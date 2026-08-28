@@ -11,6 +11,7 @@ string mcuRef = "U1";
 string outputDir = ulpDir + "PinmapGen_Output";
 string mcuType = "rp2040";
 string repoDir = "";   // Path to the cloned PinmapGen repository (required)
+int settingsLoaded = 0;  // set by loadSettings when a settings file was read
 int generateMicroPython = 1;
 int generateArduino = 1;
 int generateMarkdown = 1;
@@ -48,6 +49,109 @@ string psEscape(string s) {
     return result;
 }
 
+// Convert an EAGLE-style forward-slash path to backslashes for cmd.exe,
+// which rejects forward-slash separators.
+string toWindowsPath(string path) {
+    string parts[];
+    strsplit(parts, path, '/');
+    return strjoin(parts, '\\');
+}
+
+// Clean a user-entered path or field: trim whitespace, strip the
+// wrapping quotes Explorer's "Copy as path" adds, and normalize
+// backslashes to forward slashes.
+string cleanPath(string p) {
+    int start = 0;
+    int end = strlen(p);
+    while (start < end && (p[start] == ' ' || p[start] == '\t' || p[start] == '"')) start++;
+    while (end > start && (p[end - 1] == ' ' || p[end - 1] == '\t' || p[end - 1] == '"' || p[end - 1] == '\r')) end--;
+    string trimmed = strsub(p, start, end - start);
+    string parts[];
+    strsplit(parts, trimmed, '\\');
+    return strjoin(parts, '/');
+}
+
+// Default output location: the user's Documents folder when this ULP
+// lives in the usual AppData ULP directory.
+string defaultOutputDir() {
+    int at = strstr(ulpDir, "/AppData/");
+    if (at > 0) {
+        return strsub(ulpDir, 0, at) + "/Documents/PinmapGen_Output";
+    }
+    return ulpDir + "PinmapGen_Output";
+}
+
+// Read the CLI's --log-file back in; returns "" when the file is missing
+// (which means Python never started).
+string readLogFile(string path) {
+    string found[];
+    if (fileglob(found, path) == 0) return "";
+    string content = "";
+    if (fileread(content, path) <= 0) return "";
+    return content;
+}
+
+// The CLI prefixes every problem line with one of these markers; any hit
+// means the run deserves review even though files were written.
+int logHasIssues(string logText) {
+    if (strstr(logText, "Warning:") >= 0) return 1;
+    if (strstr(logText, "Validation error:") >= 0) return 1;
+    if (strstr(logText, "Error:") >= 0) return 1;
+    return 0;
+}
+
+// Show a run's outcome with the full CLI log in a scrollable view -
+// dlgMessageBox cannot scroll long output.
+void showRunLog(string title, string message, string logText) {
+    int r = dlgDialog(title) {
+        dlgVBoxLayout {
+            dlgLabel(message);
+            dlgSpacing(5);
+            dlgTextView(logText);
+            dlgSpacing(5);
+            dlgHBoxLayout {
+                dlgStretch(1);
+                dlgPushButton("+OK") dlgAccept();
+            }
+        }
+    };
+}
+
+// Probe one interpreter candidate: run "<candidate> --version" via
+// cmd.exe, capture the output, and require exit code 0 plus a version
+// of 3.11 or newer. The Microsoft Store's fake python.exe alias fails
+// this probe (it exits non-zero), so it can't be picked by mistake.
+int probePython(string candidate, string probeFile) {
+    string winProbe = toWindowsPath(probeFile);
+    int rc = system("cmd.exe /c " + candidate + " --version > \"" + winProbe + "\" 2>&1");
+    if (rc != 0) return 0;
+    string out = "";
+    if (fileread(out, probeFile) <= 0) return 0;
+    int at = strstr(out, "Python ");
+    if (at < 0) return 0;
+    string parts[];
+    int n = strsplit(parts, strsub(out, at + 7), '.');
+    if (n < 2) return 0;
+    int major = strtol(parts[0]);
+    int minor = strtol(parts[1]);
+    if (major > 3) return 1;
+    if (major == 3 && minor >= 11) return 1;
+    return 0;
+}
+
+// Find a Python 3.11+ interpreter: try "python" on PATH first, then the
+// "py -3" launcher, which the python.org installer provides even when
+// the "Add python.exe to PATH" box was left unticked. Returns the
+// command to use, or "" when no suitable interpreter exists.
+string findPython(string probeDir) {
+    string probeFile = probeDir + "/python_probe.txt";
+    string found = "";
+    if (probePython("python", probeFile)) found = "python";
+    else if (probePython("py -3", probeFile)) found = "py -3";
+    system("cmd.exe /c del \"" + toWindowsPath(probeFile) + "\" 2>nul");
+    return found;
+}
+
 // Reference designators are passed to the CLI unquoted, so restrict them
 // to safe characters (letters, digits, underscore, hyphen).
 int isSafeRefDes(string s) {
@@ -61,12 +165,13 @@ int isSafeRefDes(string s) {
     return 1;
 }
 
-void loadSettings() {
+// Parse one key=value settings file. Returns 1 when the file was read.
+int readSettingsFile(string path) {
     string found[];
-    if (fileglob(found, settingsFile) == 0) return;
+    if (fileglob(found, path) == 0) return 0;
 
     string content;
-    if (fileread(content, settingsFile) <= 0) return;
+    if (fileread(content, path) <= 0) return 0;
 
     string lines[];
     int n = strsplit(lines, content, '\n');
@@ -76,11 +181,26 @@ void loadSettings() {
         if (eq <= 0) continue;
         string key = strsub(line, 0, eq);
         string val = strsub(line, eq + 1);
-        if (key == "mcuRef") mcuRef = val;
-        else if (key == "outputDir") outputDir = val;
-        else if (key == "mcuType") mcuType = val;
-        else if (key == "repoDir") repoDir = val;
+        if (key == "mcuRef") mcuRef = cleanPath(val);
+        else if (key == "outputDir") outputDir = cleanPath(val);
+        else if (key == "mcuType") mcuType = cleanPath(val);
+        else if (key == "repoDir") repoDir = cleanPath(val);
+        else if (key == "generateMicroPython") generateMicroPython = (val == "1");
+        else if (key == "generateArduino") generateArduino = (val == "1");
+        else if (key == "generateMarkdown") generateMarkdown = (val == "1");
+        else if (key == "generateMermaid") generateMermaid = (val == "1");
     }
+    return 1;
+}
+
+void loadSettings() {
+    // Prefer this ULP's own settings; fall back to the main ULP's file
+    // so the repository path never has to be typed twice.
+    if (readSettingsFile(settingsFile)) {
+        settingsLoaded = 1;
+        return;
+    }
+    settingsLoaded = readSettingsFile(ulpDir + "PinmapGen_settings.txt");
 }
 
 void saveSettings() {
@@ -90,6 +210,10 @@ void saveSettings() {
         printf("outputDir=%s\n", outputDir);
         printf("mcuType=%s\n", mcuType);
         printf("repoDir=%s\n", repoDir);
+        printf("generateMicroPython=%d\n", generateMicroPython);
+        printf("generateArduino=%d\n", generateArduino);
+        printf("generateMarkdown=%d\n", generateMarkdown);
+        printf("generateMermaid=%d\n", generateMermaid);
     }
 }
 
@@ -97,11 +221,37 @@ void saveSettings() {
 
 loadSettings();
 
+// First run (no settings yet): default the output away from the hidden,
+// often write-protected AppData ULP folder.
+if (!settingsLoaded) {
+    outputDir = defaultOutputDir();
+}
+
+// This ULP automates generation through PowerShell and cmd.exe, so it is
+// Windows-only. EAGLE/Fusion normalizes Windows paths to "C:/...", so a
+// missing drive letter in this ULP's own location means macOS/Linux.
+if (strlen(ulpDir) < 2 || ulpDir[1] != ':') {
+    dlgMessageBox("This ULP automates PinmapGen using Windows tools\n"
+        "(PowerShell, cmd.exe) and runs on Windows only.\n\n"
+        "On macOS or Linux, use the command line instead - from the\n"
+        "PinmapGen repository folder:\n\n"
+        "  python3 -m tools.pinmapgen.cli --help\n\n"
+        "See docs/usage.md for the full CLI workflow.", "OK");
+    exit(0);
+}
+
 int result = dlgDialog("PinmapGen Configuration") {
     dlgVBoxLayout {
         dlgHBoxLayout {
             dlgLabel("PinmapGen repository:");
             dlgStringEdit(repoDir);
+            dlgPushButton("Browse...") {
+                string picked = dlgDirectory("Select the PinmapGen repository folder", repoDir);
+                if (picked != "") {
+                    repoDir = cleanPath(picked);
+                    dlgRedisplay();
+                }
+            }
         }
         dlgLabel("(folder containing the cloned PinmapGen repo - saved for next time)");
         dlgSpacing(5);
@@ -111,23 +261,23 @@ int result = dlgDialog("PinmapGen Configuration") {
             dlgStringEdit(mcuType);
         }
         dlgHBoxLayout {
-            dlgPushButton("RP2040")  { mcuType = "rp2040"; }
-            dlgPushButton("RP2350")  { mcuType = "rp2350"; }
-            dlgPushButton("ESP32")   { mcuType = "esp32"; }
-            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; }
-            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; }
+            dlgPushButton("RP2040")  { mcuType = "rp2040"; dlgRedisplay(); }
+            dlgPushButton("RP2350")  { mcuType = "rp2350"; dlgRedisplay(); }
+            dlgPushButton("ESP32")   { mcuType = "esp32"; dlgRedisplay(); }
+            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; dlgRedisplay(); }
+            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; dlgRedisplay(); }
         }
         dlgHBoxLayout {
-            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; }
-            dlgPushButton("STM32F411") { mcuType = "stm32f411"; }
-            dlgPushButton("STM32H743") { mcuType = "stm32h743"; }
-            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; }
+            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; dlgRedisplay(); }
+            dlgPushButton("STM32F411") { mcuType = "stm32f411"; dlgRedisplay(); }
+            dlgPushButton("STM32H743") { mcuType = "stm32h743"; dlgRedisplay(); }
+            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; dlgRedisplay(); }
         }
         dlgHBoxLayout {
-            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; }
-            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; }
-            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; }
-            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; }
+            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; dlgRedisplay(); }
+            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; dlgRedisplay(); }
+            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; dlgRedisplay(); }
+            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; dlgRedisplay(); }
         }
         dlgSpacing(5);
 
@@ -140,10 +290,18 @@ int result = dlgDialog("PinmapGen Configuration") {
         dlgHBoxLayout {
             dlgLabel("Output Directory:");
             dlgStringEdit(outputDir);
+            dlgPushButton("Browse...") {
+                string picked = dlgDirectory("Select the output folder", outputDir);
+                if (picked != "") {
+                    outputDir = cleanPath(picked);
+                    dlgRedisplay();
+                }
+            }
         }
         dlgHBoxLayout {
-            dlgPushButton("ULP Folder") {
-                outputDir = ulpDir + "PinmapGen_Output";
+            dlgPushButton("Default Folder") {
+                outputDir = defaultOutputDir();
+                dlgRedisplay();
             }
         }
         dlgSpacing(10);
@@ -169,9 +327,15 @@ int result = dlgDialog("PinmapGen Configuration") {
 };
 
 if (result) {
-    saveSettings();
+    // Normalize what the user typed or pasted before using any of it.
+    repoDir = cleanPath(repoDir);
+    outputDir = cleanPath(outputDir);
+    mcuRef = cleanPath(mcuRef);
+    mcuType = cleanPath(mcuType);
+    mcuType = strlwr(mcuType);
 
-    // Validate inputs before doing anything
+    // Validate inputs before doing anything; settings are saved only
+    // once they pass, so rejected values are never persisted.
     string validationErrors = "";
     if (!isSafeRefDes(mcuRef)) {
         validationErrors += "- MCU Reference must be non-empty and contain only letters, digits, '_' or '-'\n";
@@ -179,8 +343,8 @@ if (result) {
     if (strlen(outputDir) == 0) {
         validationErrors += "- Output Directory cannot be empty\n";
     }
-    if (!isValidMcu(mcuType)) {
-        validationErrors += "- MCU Type must be one of: " + validMcuList + "\n";
+    if (strchr(outputDir, '"') >= 0 || strchr(repoDir, '"') >= 0) {
+        validationErrors += "- Paths must not contain quote characters\n";
     }
     if (strlen(repoDir) == 0) {
         validationErrors += "- PinmapGen repository path cannot be empty.\n" +
@@ -194,12 +358,41 @@ if (result) {
     }
 
     if (strlen(validationErrors) > 0) {
-        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "Input Validation Failed");
-        exit(1);
+        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "OK");
+        exit(0);
     }
 
-    // Create output directory
-    system("mkdir \"" + outputDir + "\" 2>nul");
+    // A custom TOML profile dropped into the repository is a legitimate
+    // MCU type the built-in list doesn't know - offer to proceed and let
+    // the CLI validate it for real.
+    if (!isValidMcu(mcuType)) {
+        int choice = dlgMessageBox("MCU type '" + mcuType + "' is not one of the built-in profiles:\n" +
+            validMcuList + "\n\n" +
+            "If it is a custom TOML profile inside the repository's\n" +
+            "tools/pinmapgen/profiles/ folder it can still work - the\n" +
+            "CLI validates the profile for real.", "Use anyway", "-Cancel");
+        if (choice != 0) exit(0);
+    }
+
+    saveSettings();
+
+    // Create output directory. cmd.exe /c is required because mkdir is a
+    // cmd built-in and 2>nul is cmd redirection syntax; backslashes
+    // because cmd rejects forward-slash paths.
+    system("cmd.exe /c mkdir \"" + toWindowsPath(outputDir) + "\" 2>nul");
+
+    // Find a working Python 3.11+ up front so a missing or too-old
+    // interpreter fails fast with a clear message.
+    string pythonCmd = findPython(outputDir);
+    if (pythonCmd == "") {
+        dlgMessageBox("Python 3.11 or newer was not found.\n\n"
+            "Install it from python.org/downloads and tick the\n"
+            "'Add python.exe to PATH' box in the installer, then run\n"
+            "this ULP again.\n\n"
+            "(Both 'python' on PATH and the 'py -3' launcher were\n"
+            "checked.)", "OK");
+        exit(0);
+    }
 
     // Look for manually exported netlist file
     string netlistFile = outputDir + "/live_netlist.csv";
@@ -209,47 +402,99 @@ if (result) {
     int netlistExists = fileglob(netlistFound, netlistFile) > 0;
 
     if (netlistExists) {
-        // Build the CLI command; the closing quote of -Command is added last
-        string pinmapCmd = "powershell -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(outputDir) + "'";
+        // Every run mirrors its console output into this log via the
+        // CLI's --log-file option; the dialogs below display it.
+        string logFile = outputDir + "/pinmapgen_log.txt";
 
+        // Build the CLI command; -NoProfile keeps user profiles from
+        // interfering, and the trailing 'exit $LASTEXITCODE' makes
+        // powershell.exe report the CLI's exit code instead of its own.
+        // The closing quote of -Command is added last.
+        string pinmapCmd = "powershell -NoProfile -Command \"cd '" + psEscape(repoDir) + "'; " + pythonCmd + " -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(outputDir) + "' --log-file '" + psEscape(logFile) + "'";
+
+        // The format checkboxes map to real CLI flags now.
         if (generateMermaid) {
             pinmapCmd += " --mermaid";
         }
+        if (!generateMicroPython) {
+            pinmapCmd += " --no-micropython";
+        }
+        if (!generateArduino) {
+            pinmapCmd += " --no-arduino";
+        }
+        if (!generateMarkdown) {
+            pinmapCmd += " --no-markdown";
+        }
 
-        pinmapCmd += " --verbose\"";
+        pinmapCmd += " --verbose; exit $LASTEXITCODE\"";
 
-        // Debug info for error messages
-        string debugInfo = "Debug Info:\nMCU: " + mcuType + "\nRef: " + mcuRef + "\nRepo: " + repoDir + "\nOutput: " + outputDir + "\nCommand: " + pinmapCmd;
+        // Remove any stale log from a previous run so a missing file
+        // afterwards reliably means Python never started this time.
+        system("cmd.exe /c del \"" + toWindowsPath(logFile) + "\" 2>nul");
 
-        if (system(pinmapCmd) == 0) {
-            // Build success message with selected formats
-            string successMsg = "Success!\n\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
-            if (generateMicroPython) successMsg += "- MicroPython module\n";
-            if (generateArduino) successMsg += "- Arduino headers\n";
-            if (generateMarkdown) successMsg += "- Documentation\n";
-            if (generateMermaid) successMsg += "- Mermaid diagrams\n";
-            successMsg += "\nUsing: Your exported netlist\nLocation: " + outputDir;
+        int cliResult = system(pinmapCmd);
+        string logContent = readLogFile(logFile);
 
-            // Clean up temp netlist
-            system("del \"" + netlistFile + "\" 2>nul");
+        if (cliResult == 0 && logContent != "" && !logHasIssues(logContent)) {
+            // Clean run: no warnings, no errors, no dropped pins.
+            string successMsg = "Success!\n\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated files:\n";
+            successMsg += "- pinmaps/pinmap.json\n";
+            if (generateMicroPython) successMsg += "- firmware/micropython/pinmap_micropython.py\n";
+            if (generateArduino) successMsg += "- firmware/include/pinmap_arduino.h\n";
+            if (generateMarkdown) successMsg += "- firmware/docs/PINOUT.md\n";
+            if (generateMermaid) successMsg += "- firmware/docs/pinout.mmd\n";
+            successMsg += "\nYour netlist (live_netlist.csv) was kept for the next run.";
+            successMsg += "\nLocation: " + outputDir + "\nRun log: " + logFile;
 
-            dlgMessageBox(successMsg, "PinmapGen Complete");
-            system("explorer \"" + outputDir + "\"");
+            // The netlist is the USER'S exported file, not a temp file -
+            // deleting it forced a re-export before every run.
+
+            dlgMessageBox(successMsg, "OK");
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
+        } else if (cliResult == 0 && logContent != "") {
+            // Files were generated, but the CLI reported warnings,
+            // validation errors, or dropped pins - show them instead of
+            // pretending the run was clean. The netlist is kept.
+            showRunLog(
+                "Pinmap Generated With Issues",
+                "PinmapGen finished, but reported issues you should review\nbefore trusting the generated files.\n\nOutput: " + outputDir,
+                logContent);
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
+        } else if (logContent != "") {
+            // The CLI ran and failed - the log has the real reason.
+            showRunLog(
+                "Pinmap Generation Failed",
+                "The PinmapGen CLI reported an error. The log below shows\nthe reason. Your netlist was kept:\n" + netlistFile,
+                logContent);
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
         } else {
-            dlgMessageBox("PinmapGen CLI failed!\n\n" + debugInfo + "\n\nTrying to open output folder anyway...", "Error");
-            system("explorer \"" + outputDir + "\"");
+            // No log file was written: Python never started, so the
+            // failure happened before the CLI could run.
+            string errorMsg = "The PinmapGen CLI did not start (no log file was created).\n\n";
+            errorMsg += "Python was detected (" + pythonCmd + "), so the most likely causes are:\n";
+            errorMsg += "- The PinmapGen repository path is wrong:\n  " + repoDir + "\n";
+            errorMsg += "- The repository copy is older than this ULP\n";
+            errorMsg += "  (it must support the --log-file option - update both together)\n\n";
+            errorMsg += "Expected log location:\n" + logFile;
+
+            dlgMessageBox(errorMsg, "OK");
         }
     } else {
+        // Fusion's built-in File > Export > Netlist does NOT produce the
+        // CSV format PinmapGen needs - point at the export ULP instead.
         dlgMessageBox("No netlist found!\n\n" +
-                      "This ULP expects a manually exported netlist.\n\n" +
-                      "MANUAL EXPORT STEPS:\n" +
-                      "1. In Fusion Electronics workspace\n" +
-                      "2. Go to File -> Export -> Netlist\n" +
-                      "3. Save as CSV to: " + outputDir + "\n" +
-                      "4. Rename the file to 'live_netlist.csv'\n" +
-                      "5. Run this ULP again\n\n" +
-                      "Tip: PinmapGen.ulp (the main ULP) can generate the\n" +
-                      "netlist automatically from the open schematic.",
-                      "Netlist Not Found");
+                      "This ULP expects a netlist CSV at:\n" +
+                      "  " + netlistFile + "\n\n" +
+                      "TO CREATE IT:\n" +
+                      "1. Run export_netlist.ulp (bundled with PinmapGen)\n" +
+                      "   from Automation > Run ULP\n" +
+                      "2. Save the CSV as 'live_netlist.csv' in the folder above\n" +
+                      "3. Run this ULP again\n\n" +
+                      "(A hand-written CSV also works - required columns:\n" +
+                      "Net, Pin, RefDes, with the chip's pin names like GP4\n" +
+                      "in the Pin column.)\n\n" +
+                      "Tip: PinmapGen.ulp (the main ULP) does the export and\n" +
+                      "generation in one step.",
+                      "OK");
     }
 }

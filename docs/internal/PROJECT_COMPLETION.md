@@ -1,5 +1,11 @@
 # Project Completion Summary
 
+> **Internal development document.** Kept for project history; counts,
+> tier lists, and feature claims reflect the moment they were written
+> and are not maintained. Current user documentation lives in
+> [README.md](../../README.md), [USER_GUIDE.md](../../USER_GUIDE.md),
+> and [docs/](../).
+
 All 10 milestones are complete. PinmapGen is production-ready.
 
 ## What was built
@@ -20,4 +26,4 @@ All 10 milestones are complete. PinmapGen is production-ready.
 - All emitters generate deterministic output from the canonical dict
 - ULP tested with real Fusion schematics
 
-See [MILESTONES.md](MILESTONES.md) for the full development history and [README.md](README.md) for usage.
+See [MILESTONES.md](MILESTONES.md) for the full development history and [README.md](../../README.md) for usage.

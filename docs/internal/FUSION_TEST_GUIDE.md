@@ -1,5 +1,9 @@
 # Fusion 360 ULP Testing Guide
 
+> **Internal test plan** for validating the ULPs inside Fusion 360 on
+> Windows - the one part of PinmapGen CI cannot exercise. Updated to
+> match the current dialogs.
+
 Test plan for verifying the PinmapGen ULP inside Fusion 360. Work through
 tests F1–F8 in order; earlier tests are prerequisites for later ones.
 
@@ -17,9 +21,12 @@ Copy the production ULP into Fusion's ULP directory:
 Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-Alternative paths:
+Path reference:
 - Windows default: `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`
-- macOS: `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/ULPs/`
+- **The ULP is Windows-only** (it automates generation through PowerShell
+  and cmd.exe). On macOS it displays a dialog pointing at the CLI
+  workflow instead of failing mid-run — Mac users should follow
+  `docs/usage.md`.
 
 Verify:
 - `PinmapGen.ulp` appears in the Fusion ULP directory
@@ -60,15 +67,23 @@ If the ULP is missing:
 
 **Steps:**
 1. Open the PinmapGen dialog.
-2. Verify: MCU dropdown (RP2040, STM32G0, ESP32), output format checkboxes,
-   generate button, output directory selector.
-3. Toggle each checkbox; change the dropdown.
+2. Verify: repository field with **Browse…**, MCU quick-select buttons
+   (all 13 profiles) plus the free-text MCU field, MCU reference field
+   with **Analyze**, project name with **Add Timestamp**, output
+   directory with **Browse…** and **Default Folder**, the four output
+   format checkboxes, **Preview** and **Generate Pinmap** buttons.
+3. Click each MCU quick button — the MCU field must visibly update.
+4. Toggle each checkbox; click **Add Timestamp** twice (the second click
+   must replace, not append to, the first timestamp).
+5. Use both **Browse…** buttons and confirm the picked folder lands in
+   the field.
 
 **Pass criteria:**
-- All elements display
-- Dropdown lists all MCU options
-- Checkboxes toggle
-- UI is responsive
+- All elements display and respond
+- Quick buttons update the MCU field on the first click
+- Checkboxes toggle (and are honored: an unchecked format is not
+  generated — verify in test F4)
+- Timestamp button is idempotent
 
 ---
 

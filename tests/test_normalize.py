@@ -44,21 +44,25 @@ class TestNormalize(unittest.TestCase):
         self.assertEqual(self.rp2040_profile.normalize_pin_name("IO5"), "GP5")
 
     def test_rp2040_special_pins(self):
-        """Test normalization of special function pins."""
-        # USB pins (note: GP24=USB_DM, GP25=USB_DP per RP2040 datasheet)
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DP"), "GP25")
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DM"), "GP24")
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("USB_DN"), "GP24")
+        """USB names are rejected; ADC aliases map to their GPIOs.
 
-        # Alternative USB naming
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("USBDP"), "GP25")
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("USBDM"), "GP24")
+        RP2040 USB D+/D- are dedicated pins (QFN-56 47/46), not
+        GPIO-muxed — mapping them onto GP24/GP25 (Pico VBUS sense / LED)
+        produced silently wrong pinmaps.
+        """
+        for usb_name in ("USB_DP", "USB_DM", "USB_DN", "USBDP", "USBDM"):
+            with self.assertRaises(ValueError):
+                self.rp2040_profile.normalize_pin_name(usb_name)
+
+        # ADC aliases remain valid — those channels really are GPIO-muxed.
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("ADC0"), "GP26")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("ADC3"), "GP29")
 
     def test_rp2040_case_insensitive(self):
         """Test that normalization is case insensitive."""
         self.assertEqual(self.rp2040_profile.normalize_pin_name("gpio0"), "GP0")
         self.assertEqual(self.rp2040_profile.normalize_pin_name("Gpio15"), "GP15")
-        self.assertEqual(self.rp2040_profile.normalize_pin_name("usb_dp"), "GP25")
+        self.assertEqual(self.rp2040_profile.normalize_pin_name("adc0"), "GP26")
 
     def test_rp2040_invalid_pins(self):
         """Test handling of invalid pin names."""

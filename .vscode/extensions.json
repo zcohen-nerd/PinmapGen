@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "ms-python.python",
-        "ms-python.flake8",
         "charliermarsh.ruff",
         "bierner.markdown-mermaid"
     ]

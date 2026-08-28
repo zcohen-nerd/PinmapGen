@@ -22,9 +22,13 @@ Common problems and fixes when using PinmapGen.
 ModuleNotFoundError: No module named 'tools.pinmapgen'
 ```
 
-- Install in editable mode: `pip install -e .` from the repo root.
-- Make sure the virtual environment is activated.
-- Verify you are in the correct directory.
+- `python -m tools.pinmapgen.cli` must be run **from the repo root** (the
+  folder containing `tools/`). `cd` there first — that fixes this error
+  in almost every case.
+- To run from any directory instead, install once in editable mode:
+  `pip install -e .` from the repo root (this also adds the `pinmapgen`
+  command).
+- If you installed into a virtual environment, make sure it is activated.
 
 ### Virtual environment problems
 
@@ -46,22 +50,28 @@ pip install -e .
 - Use an absolute path if the relative one isn't resolving.
 - Confirm the file exists: `ls hardware/exports/`.
 
-### "MCU reference not found in netlist"
+### "No entries found for MCU reference"
 
 The reference designator passed via `--mcu-ref` doesn't appear in the CSV.
+The error message lists the reference designators the file *does* contain
+— pick yours from that list. Matching is case-insensitive and ignores
+surrounding whitespace, so `u1` finds `U1`; the usual real cause is `U1`
+vs `IC1`.
 
-- Open the CSV and search for the MCU component.
-- Common mismatches: `U1` vs `IC1`, or trailing whitespace.
-- Case matters: `U1` ≠ `u1`.
+### "CSV is missing required column(s)"
 
-### "Required columns missing"
+The parser needs `Net`, `Pin`, and `RefDes` (`Component` is optional).
+Headers are matched case-insensitively, common aliases are accepted
+(`Designator` → RefDes, `Net Name` → Net, `Part` → Component), the
+delimiter (comma/semicolon/tab) is detected automatically, and Excel's
+UTF-8 BOM is handled — so this error means the header row genuinely
+lacks a recognizable Net, Pin, or RefDes column. The error message lists
+the columns that were found.
 
-`bom_csv.py` expects at least: `Net`, `Pin`, `Component`, `RefDes`.
-
-- Open the CSV and check the header row.
-- Fusion exports sometimes use different column names (e.g., `Designator`
-  instead of `RefDes`). Rename the column or adjust the export settings.
-- Remove any BOM (byte order mark) characters at the start of the file.
+- The easy fix: export with `fusion_addin/export_netlist.ulp`, which
+  writes exactly the right format (works on Windows and macOS).
+- For hand-made CSVs, rename the offending header to one of the accepted
+  spellings.
 
 ### Empty or partial output
 
@@ -95,8 +105,12 @@ The reference designator passed via `--mcu-ref` doesn't appear in the CSV.
 
 ### Python / CLI errors from ULP
 
-- Ensure Python 3.11+ is installed and on PATH.
-- Verify the PinmapGen project path in the ULP matches the actual location.
+- Every ULP run writes `pinmapgen_log.txt` into the output folder with the
+  CLI's full output — the failure dialog shows it, and it's the first thing
+  to attach to a bug report.
+- If the dialog says no log file was created, Python never started: ensure
+  Python 3.11+ is installed and on PATH, and the PinmapGen repository path
+  in the ULP matches the actual location.
 - Run the equivalent CLI command manually to isolate the problem.
 
 ---
@@ -127,6 +141,13 @@ error: 'PIN_XYZ' was not declared in this scope
 ### Pin numbers look wrong
 
 - The emitters use the GPIO number, not the physical package pin number.
+- Check the input side too: the CSV's `Pin` column must hold logical pin
+  names (`GP15`, `GPIO4`, `PA0`). A bare number like `2` is interpreted
+  as *GPIO 2* — and the CLI prints a warning when it does — but many CAD
+  exports put the physical *pad* number there, which produces a
+  plausible-looking pinmap that is wrong on nearly every pin (pad 2 of
+  an RP2040 is GPIO 0). The Fusion ULP exports symbol pin names for
+  exactly this reason.
 - Compare the generated output against `pinmaps/pinmap.json` and the MCU
   datasheet.
 
@@ -138,30 +159,49 @@ error: 'PIN_XYZ' was not declared in this scope
 
 ---
 
-## Validation warnings
+## Validation messages
 
-### "Pin GPxx is a USB pin"
+These are the exact messages the tool prints. **Errors** fail `--strict`
+(exit 2, no output written); **warnings** are advisory and never block
+generation.
 
-USB differential pair pads are flagged when used for general GPIO. Either
-reserve them for USB or acknowledge the override.
+### Error: "Pin ... used by multiple nets: '...' and '...'"
 
-### "Input-only pin used as output"
+Two signals share one MCU pin — always a genuine conflict. Fix the
+schematic or CSV.
 
-ESP32 pins 34–39 are input-only. Reassign the net to a different GPIO.
+### Warning: "Net '...' connects to multiple pins [...]"
 
-### "Strapping pin used"
+One net touches several MCU pins. Fine for a shared bus; otherwise check
+the routing. (Recognized power/ground rail names are not flagged.)
 
-ESP32 pins 0, 2, 5, 12, 15 affect boot behavior. Ensure external pull-ups or
-pull-downs match the boot mode you need.
+### Warning: "Potential lonely differential pair: '...' has no partner"
 
-### "Differential pair incomplete"
+A pair-style net (`X_DP`, `X_P`, `CAN_H`, `USB_D+`, …) has no matching
+partner net. Connect and name both halves. Active-low signals like
+`RESET_N` or `CS_N` are deliberately *not* flagged.
 
-Only one half of a pair (e.g., `USB_DP` without `USB_DM`) was found. Connect
-both signals or rename the net so it isn't detected as a pair.
+### Warning: "GPIOxx is a boot strapping pin" (and similar special-pin notes)
 
-### "Duplicate pin assignment"
+The pin has a special job on your chip (boot strapping, flash voltage,
+default console, not bonded on your module, …). Double-check the pin is
+safe for your signal or move it.
 
-Two nets are connected to the same MCU pin. Fix the schematic or CSV.
+### Warning: "... is input-only, but net role '...' implies an output"
+
+The pin has no output driver (e.g. ESP32 GPIO34–39) and the net's name
+suggests the MCU drives it. Move the signal to an output-capable pin.
+
+### Warning: "... pin(s) were bare numbers and were interpreted as logical GPIO numbers"
+
+The Pin column held plain numbers; they were read as GPIO numbers, not
+package pad numbers. Verify one pin against the schematic, or export
+with pin names (`GP2`, `PA0`).
+
+### Warning: "net '...' is emitted as constant '...'"
+
+The net's natural identifier was reserved (`SPI`, `MOSI`, `A0`, …) or
+collided with another net, so the generated constant carries a suffix.
 
 ---
 
@@ -169,7 +209,9 @@ Two nets are connected to the same MCU pin. Fix the schematic or CSV.
 
 ### Slow generation on large netlists
 
-- Use `--no-mermaid` to skip diagram generation if it isn't needed.
+- Mermaid is opt-in — simply omit `--mermaid` if the diagram isn't
+  needed; `--no-micropython` / `--no-arduino` / `--no-markdown` skip the
+  other formats.
 - Split large CSVs into per-MCU files.
 - Close other applications if running on limited RAM.
 

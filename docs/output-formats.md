@@ -20,17 +20,18 @@ from this structure.
     "LED_STATUS": ["GP15"],
     "I2C_SDA": ["GP4"],
     "I2C_SCL": ["GP5"],
-    "USB_DP": ["GP24"],
-    "USB_DM": ["GP25"]
+    "RS485_P": ["GP16"],
+    "RS485_N": ["GP17"],
+    "LIGHT_SENSE": ["GP26"]
   },
   "differential_pairs": [
-    { "positive": "USB_DP", "negative": "USB_DM" }
+    { "positive": "RS485_P", "negative": "RS485_N" }
   ],
   "metadata": {
-    "total_nets": 5,
-    "total_pins": 5,
+    "total_nets": 6,
+    "total_pins": 6,
     "differential_pairs_count": 1,
-    "special_pins_used": ["GP24", "GP25"],
+    "special_pins_used": ["GP26"],
     "validation_warnings": [],
     "validation_errors": []
   }
@@ -69,12 +70,12 @@ Importable Python module with pin constants and optional helpers.
 LED_STATUS = 15      # GP15
 I2C_SDA = 4          # GP4
 I2C_SCL = 5          # GP5
-USB_DP = 24          # GP24
-USB_DM = 25          # GP25
+RS485_P = 16         # GP16
+RS485_N = 17         # GP17
 ```
 
-RP2040 pins use bare integers (`GP15` → `15`). STM32 and ESP32 pins use quoted
-strings (`"PA0"`, `"GPIO4"`).
+RP2040 and ESP32 pins use bare integers (`GP15` → `15`, `GPIO4` → `4`).
+STM32 pins use quoted strings (`"PA0"`), which `machine.Pin` accepts by name.
 
 ### Usage
 
@@ -112,8 +113,8 @@ C/C++ header with `#define` constants.
 #define LED_STATUS     15
 #define I2C_SDA        4
 #define I2C_SCL        5
-#define USB_DP         24
-#define USB_DM         25
+#define RS485_P        16
+#define RS485_N        17
 
 #endif // PINMAP_ARDUINO_H
 ```
@@ -187,7 +188,9 @@ by direction (input, output, bidirectional, USB).
 
 ### Viewing
 
-- GitHub and GitLab render `.mmd` files inline.
+- GitHub renders Mermaid inside ```` ```mermaid ```` fenced blocks in
+  Markdown files — paste the `.mmd` content into one (raw `.mmd` files
+  are shown as plain text).
 - VS Code with the Mermaid extension previews diagrams.
 - Embed in HTML:
   ```html

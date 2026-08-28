@@ -101,6 +101,18 @@ class RoleInferencer:
                 r"(?i).*spi.*ss.*",
                 r"(?i).*(?<![a-zA-Z])ss(?![a-zA-Z]).*",
             ],
+            # LED/BUTTON before UART: TX_LED / RX_LED are indicator LEDs,
+            # not serial lines. "light" is deliberately NOT an LED cue —
+            # LIGHT_ANALOG-style nets are sensors, not indicators.
+            PinRole.LED: [
+                r"(?i).*(?<![a-zA-Z])led(?![a-zA-Z]).*",
+            ],
+            PinRole.BUTTON: [
+                r"(?i).*(?<![a-zA-Z])button(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])btn(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])switch(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])sw\d*(?![a-zA-Z]).*",
+            ],
             # UART patterns
             PinRole.UART_TX: [
                 r"(?i).*uart.*tx.*",
@@ -133,34 +145,26 @@ class RoleInferencer:
                 r"(?i).*(?<![a-zA-Z])can[_]?l(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])canl(?![a-zA-Z]).*",
             ],
-            # Analog patterns
-            PinRole.ADC: [
-                r"(?i).*adc.*",
-                r"(?i).*analog.*in.*",
-                r"(?i).*(?<![a-zA-Z])ain(?![a-zA-Z]).*",
-            ],
+            # Analog patterns. DAC before ADC so ANALOG_OUT lands on DAC
+            # while the bare-"analog" fallback below catches sensor nets
+            # like LIGHT_ANALOG.
             PinRole.DAC: [
                 r"(?i).*dac.*",
                 r"(?i).*analog.*out.*",
                 r"(?i).*(?<![a-zA-Z])aout(?![a-zA-Z]).*",
             ],
-            # PWM patterns
+            PinRole.ADC: [
+                r"(?i).*adc.*",
+                r"(?i).*analog.*in.*",
+                r"(?i).*(?<![a-zA-Z])ain(?![a-zA-Z]).*",
+                r"(?i).*(?<![a-zA-Z])analog(?![a-zA-Z]).*",
+            ],
+            # PWM patterns ("motor" removed: MOTOR_DIR/MOTOR_EN are plain
+            # GPIOs, not PWM)
             PinRole.PWM: [
                 r"(?i).*(?<![a-zA-Z])pwm(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])pulse(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])servo(?![a-zA-Z]).*",
-                r"(?i).*(?<![a-zA-Z])motor(?![a-zA-Z]).*",
-            ],
-            # Special patterns
-            PinRole.LED: [
-                r"(?i).*(?<![a-zA-Z])led(?![a-zA-Z]).*",
-                r"(?i).*(?<![a-zA-Z])light(?![a-zA-Z]).*",
-            ],
-            PinRole.BUTTON: [
-                r"(?i).*(?<![a-zA-Z])button(?![a-zA-Z]).*",
-                r"(?i).*(?<![a-zA-Z])btn(?![a-zA-Z]).*",
-                r"(?i).*(?<![a-zA-Z])switch(?![a-zA-Z]).*",
-                r"(?i).*(?<![a-zA-Z])sw\d*(?![a-zA-Z]).*",
             ],
             PinRole.RESET: [
                 r"(?i).*(?<![a-zA-Z])reset(?![a-zA-Z]).*",
@@ -171,6 +175,16 @@ class RoleInferencer:
                 r"(?i).*(?<![a-zA-Z])clk(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])xtal(?![a-zA-Z]).*",
                 r"(?i).*(?<![a-zA-Z])osc(?![a-zA-Z]).*",
+            ],
+            # Power/ground rails — anchored full-name matches only, so
+            # sense/enable lines like VBUS_SENSE or VCC_EN stay GPIO.
+            PinRole.POWER: [
+                r"(?i)^[+\-]?(vcc|vdd|vddio|vdda|vbat|vbatt|vbus|vin|vout|vsys|vee|vref|avdd|dvdd|iovdd)$",
+                r"(?i)^[+\-]?\d+(\.\d+)?v\d*$",
+                r"(?i)^(pwr|vpwr|power)$",
+            ],
+            PinRole.GROUND: [
+                r"(?i)^[+\-]?(gnd|agnd|dgnd|pgnd|vss|vssa|ground)$",
             ],
         }
 
@@ -235,6 +249,8 @@ class RoleInferencer:
             PinRole.BUTTON: "Push Button Input",
             PinRole.RESET: "Reset Signal",
             PinRole.CLOCK: "Clock Signal",
+            PinRole.POWER: "Power Rail",
+            PinRole.GROUND: "Ground",
         }
 
         base_desc = role_descriptions.get(pin_info.role, "General Purpose I/O")
@@ -316,6 +332,8 @@ class RoleInferencer:
                     PinRole.BUTTON: "Inputs",
                     PinRole.GPIO_IN: "GPIO",
                     PinRole.GPIO_OUT: "GPIO",
+                    PinRole.POWER: "Power",
+                    PinRole.GROUND: "Power",
                 }
                 group_key = role_groups.get(pin_info.role, "Other")
 
@@ -328,7 +346,12 @@ class RoleInferencer:
     def detect_differential_pairs(
         self, pin_infos: list[PinInfo]
     ) -> list[tuple[PinInfo, PinInfo]]:
-        """Detect differential pairs from enhanced pin information."""
+        """Detect differential pairs from enhanced pin information.
+
+        Note: the emitters no longer use this — they consume the single
+        canonical detector's result via :func:`pairs_from_canonical`, so
+        every output file agrees on the pairs. Kept for API compatibility.
+        """
         pairs = []
 
         # Group by bus to find pairs
@@ -350,6 +373,26 @@ class RoleInferencer:
                 pairs.extend(zip(h_pins, l_pins, strict=False))
 
         return pairs
+
+
+def pairs_from_canonical(
+    canonical_dict: dict, pin_infos: list[PinInfo]
+) -> list[tuple[PinInfo, PinInfo]]:
+    """Map the canonical ``differential_pairs`` onto PinInfo objects.
+
+    The canonical detector (``MCUProfile.detect_differential_pairs``) is
+    the single source of truth for pairs; this helper lets the code
+    emitters render them with role metadata attached. Pairs whose nets
+    were dropped during normalization are silently omitted.
+    """
+    by_net = {info.net_name: info for info in pin_infos}
+    pairs: list[tuple[PinInfo, PinInfo]] = []
+    for pair in canonical_dict.get("differential_pairs", []):
+        pos = by_net.get(pair.get("positive"))
+        neg = by_net.get(pair.get("negative"))
+        if pos is not None and neg is not None:
+            pairs.append((pos, neg))
+    return pairs
 
 
 def analyze_roles(

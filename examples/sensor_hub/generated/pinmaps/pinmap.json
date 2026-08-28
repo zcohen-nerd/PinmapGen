@@ -1,11 +1,13 @@
 {
   "bus_groups": {
+    "Analog": [
+      "LIGHT_ANALOG"
+    ],
     "I2C": [
       "I2C_SCL",
       "I2C_SDA"
     ],
     "Indicators": [
-      "LIGHT_ANALOG",
       "STATUS_LED"
     ],
     "Inputs": [
@@ -32,18 +34,12 @@
     "differential_pairs_count": 0,
     "dropped_pins": [],
     "special_functions_long": {
-      "GP23": "SMPS Power Mode",
-      "GP24": "USB D- (Data Minus)",
-      "GP25": "USB D+ (Data Plus)",
       "GP26": "ADC Channel 0",
       "GP27": "ADC Channel 1",
       "GP28": "ADC Channel 2",
       "GP29": "ADC Channel 3"
     },
     "special_functions_short": {
-      "GP23": "SMPS_MODE",
-      "GP24": "USB D-",
-      "GP25": "USB D+",
       "GP26": "ADC0",
       "GP27": "ADC1",
       "GP28": "ADC2",
@@ -75,8 +71,8 @@
     },
     "LIGHT_ANALOG": {
       "bus_group": null,
-      "description": "Light Emitting Diode",
-      "role": "led"
+      "description": "Analog to Digital Converter",
+      "role": "adc"
     },
     "SENSOR_DATA": {
       "bus_group": null,

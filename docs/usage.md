@@ -29,11 +29,23 @@ Required:
 Optional:
   --out-root PATH             Output directory (default: current dir)
   --mermaid                   Also generate Mermaid diagram
+  --no-micropython            Skip the MicroPython output
+  --no-arduino                Skip the Arduino header output
+  --no-markdown               Skip the Markdown PINOUT output
+                              (pinmap.json is always written)
   --verbose, -v               Print normalization summary
   --strict                    Exit non-zero on validation errors or
                               dropped pins (recommended for CI)
   --profile-dir PATH          Additional directory with custom TOML profiles
   --reproducible              Fixed timestamps for reproducible builds
+  --log-file PATH             Mirror all console output (status, warnings,
+                              errors) to a file — used by the Fusion ULP
+  --list-mcus                 List every available MCU profile and exit
+  --version                   Print the PinmapGen version and exit
+
+Subcommands:
+  profiles list [--profile-dir DIR]          Table of available profiles
+  profiles check <name> [--profile-dir DIR]  Validate and inspect one profile
 ```
 
 ### Examples by MCU
@@ -48,6 +60,23 @@ python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu s
 # ESP32
 python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root . --mermaid
 ```
+
+**Getting a netlist CSV:** run `fusion_addin/export_netlist.ulp` from
+Fusion's **Automation → Run ULP** — it only writes the CSV, works on
+Windows *and* macOS, and produces exactly this format. (Fusion's built-in
+File → Export → Netlist does **not**.) Any hand-written or tool-generated
+CSV also works:
+
+- Required columns: `Net`, `Pin`, `RefDes` — `Component` is optional and
+  extra columns are ignored.
+- Headers are matched case-insensitively, and common aliases are accepted
+  (`Designator` → RefDes, `Net Name` → Net, `Part` → Component).
+- Comma, semicolon (European Excel), and tab delimiters are detected
+  automatically; UTF-8 with or without BOM.
+- The `Pin` column must hold the chip's **logical pin name** (`GP15`,
+  `GPIO4`, `PA0`), not the physical package pad number — a bare number
+  like `2` is interpreted as GPIO 2, and the CLI warns when it makes
+  that assumption.
 
 ### EAGLE schematic input
 
@@ -100,6 +129,11 @@ Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\
 The ULP reads the schematic object model directly — no manual CSV export is
 needed. It writes a temporary CSV, invokes the CLI, and opens the output
 folder.
+
+Every run also writes `pinmapgen_log.txt` into the output folder with the
+CLI's full output. If the run produced warnings, validation errors, or
+dropped pins, the ULP shows that log in a dialog instead of a plain success
+message — review it before trusting the generated files.
 
 ### Preview mode
 
@@ -195,13 +229,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - run: pip install -e .
-    - run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-    - run: git diff --exit-code pinmaps/ firmware/
+    # PinmapGen is stdlib-only — no install step needed when running
+    # from the repo root.
+    - run: >
+        python -m tools.pinmapgen.cli
+        --csv hardware/exports/sample_netlist.csv
+        --mcu rp2040 --mcu-ref U1 --out-root generated --strict
 ```
+
+`--strict` fails the build (exit 2) on validation errors or dropped pins.
+To also catch drift in **committed** generated outputs, regenerate them
+with `--reproducible` into their committed location and then
+`git diff --exit-code -- <that path>` — the path must be tracked by git.
+(The root-level `pinmaps/` and `firmware/` outputs are gitignored, so
+diffing those never fails and gates nothing; this repo's own workflow
+diffs the committed `examples/` outputs instead.)
 
 ### Pre-commit hook
 
@@ -210,8 +255,9 @@ bash .githooks/install-hooks.sh   # Linux/macOS
 pwsh -File .githooks/install-hooks.ps1  # Windows
 ```
 
-The hook regenerates pinmaps when files in `hardware/exports/` change and
-stages the updated outputs automatically.
+The hook validates staged `hardware/exports/*.csv` netlists by running
+the generator against them in a temporary directory - a broken netlist
+blocks the commit. It never writes or stages outputs itself.
 
 ---
 

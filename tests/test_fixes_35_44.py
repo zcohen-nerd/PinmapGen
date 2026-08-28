@@ -225,18 +225,25 @@ class TestIssue43DroppedPinTracking(unittest.TestCase):
         self.assertEqual(len(dropped), 0)
 
 
-class TestIssue44SampleNetlistUSBPins(unittest.TestCase):
-    """#44: sample_netlist.csv should have USB_DP→GP25 and USB_DN→GP24."""
+class TestIssue44SampleNetlistDiffPair(unittest.TestCase):
+    """The sample netlist demos a differential pair on real GPIOs.
 
-    def test_usb_pin_assignment(self):
+    It used to claim USB_DP/USB_DN on GP25/GP24 — but RP2040 USB D+/D-
+    are dedicated pins, not GPIO-muxed (on a Pico, GP25 is the LED and
+    GP24 is VBUS sense). The sample now uses an RS485 pair, which is a
+    legitimate GPIO use via a transceiver.
+    """
+
+    def test_diff_pair_assignment(self):
         csv_path = os.path.join("hardware", "exports", "sample_netlist.csv")
         csv_data = parse_csv(csv_path)
         result = extract_nets(csv_data, "U1")
-        # Per RP2040 datasheet: GP25=USB D+, GP24=USB D-
-        self.assertIn("USB_DP", result)
-        self.assertIn("USB_DN", result)
-        self.assertIn("GP25", result["USB_DP"])
-        self.assertIn("GP24", result["USB_DN"])
+        self.assertIn("RS485_P", result)
+        self.assertIn("RS485_N", result)
+        self.assertIn("GP16", result["RS485_P"])
+        self.assertIn("GP17", result["RS485_N"])
+        # No net may claim USB data on a GPIO.
+        self.assertFalse([n for n in result if n.upper().startswith("USB")])
 
 
 if __name__ == "__main__":

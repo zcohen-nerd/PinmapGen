@@ -7,7 +7,7 @@ This file bundles pin constants and helper utilities.
 Use them to quickly access hardware in MicroPython.
 """
 
-from machine import Pin, I2C
+from machine import Pin, I2C, ADC
 
 # ========================================
 # Pin Constants
@@ -20,12 +20,14 @@ BUTTON_IN = 14  # Push Button Input (GP14)
 I2C_SCL = 5  # I2C Serial Clock (I2C) (GP5)
 I2C_SDA = 4  # I2C Serial Data (I2C) (GP4)
 
-# Indicators Pins
-LIGHT_ANALOG = 26  # Light Emitting Diode (GP26)
-STATUS_LED = 15  # Light Emitting Diode (GP15)
+# Analog Pins
+LIGHT_ANALOG = 26  # Analog to Digital Converter (GP26)
 
 # Other Pins
 SENSOR_DATA = 2  # General Purpose I/O (GP2)
+
+# Indicators Pins
+STATUS_LED = 15  # Light Emitting Diode (GP15)
 
 # ========================================
 # Helper Functions
@@ -38,6 +40,10 @@ def pin_in(pin_num, pull=None):
 def pin_out(pin_num, value=0):
     """Create a digital output pin with initial value."""
     return Pin(pin_num, Pin.OUT, value=value)
+
+def adc(pin_num):
+    """Create an ADC object for analog reading."""
+    return ADC(Pin(pin_num))
 
 def setup_i2c(freq=400000):
     """Setup I2C with SDA=GP4, SCL=GP5."""

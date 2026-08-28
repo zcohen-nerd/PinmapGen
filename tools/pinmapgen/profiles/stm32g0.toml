@@ -5,7 +5,7 @@
 schema_version = 1
 name           = "stm32g0"
 display_name = "STM32G0"
-description  = "ST STM32G071 ARM Cortex-M0+ (LQFP-48)"
+description  = "ST STM32G071RB ARM Cortex-M0+ (LQFP-64)"
 family       = "stm32"
 
 # ── Normalization ──────────────────────────────────────────────────────────
@@ -133,12 +133,14 @@ add_capabilities = ["pwm", "i2c_scl", "uart_tx"]
 [[pins.individual]]
 name             = "PB7"
 add_capabilities = ["pwm", "i2c_sda", "uart_rx"]
+# NOTE: no CAN capabilities — the STM32G071 has no FDCAN peripheral
+# (FDCAN exists only on STM32G0B1/G0C1 parts).
 [[pins.individual]]
 name             = "PB8"
-add_capabilities = ["pwm", "i2c_scl", "can_rx"]
+add_capabilities = ["pwm", "i2c_scl"]
 [[pins.individual]]
 name             = "PB9"
-add_capabilities = ["pwm", "i2c_sda", "can_tx"]
+add_capabilities = ["pwm", "i2c_sda"]
 [[pins.individual]]
 name             = "PB10"
 add_capabilities = ["adc", "i2c_scl"]
@@ -202,47 +204,47 @@ warnings               = ["PF2 is the hardware reset pin"]
 
 # ── Peripherals ───────────────────────────────────────────────────────────
 
+# Instances follow ST's 1-based peripheral names (I2C1, SPI1, USART1...),
+# so the numbers here match the datasheet and CubeMX.
+
 [[peripherals]]
 name     = "I2C"
-instance = 0
+instance = 1
 pins     = { sda = "PA10", scl = "PA9" }
 
 [[peripherals]]
 name     = "I2C"
-instance = 1
+instance = 2
 pins     = { sda = "PB11", scl = "PB10" }
 
 [[peripherals]]
 name     = "SPI"
-instance = 0
+instance = 1
 pins     = { mosi = "PB5", miso = "PB4", sck = "PB3", cs = "PA4" }
 
 [[peripherals]]
 name     = "SPI"
-instance = 1
+instance = 2
 pins     = { mosi = "PB15", miso = "PB14", sck = "PB13", cs = "PB12" }
 
 [[peripherals]]
 name     = "UART"
-instance = 0
+instance = 1
 pins     = { tx = "PA9", rx = "PA10" }
 
 [[peripherals]]
 name     = "UART"
-instance = 1
+instance = 2
 pins     = { tx = "PA2", rx = "PA3" }
 
-[[peripherals]]
-name     = "CAN"
-instance = 0
-pins     = { tx = "PB9", rx = "PB8" }
+# No CAN peripheral: the STM32G071 has no FDCAN (G0B1/G0C1 only).
 
 [[peripherals]]
 name     = "DAC"
-instance = 0
+instance = 1
 pins     = { ch0 = "PA4", ch1 = "PA5" }
 
 [[peripherals]]
 name     = "ADC"
-instance = 0
+instance = 1
 pins     = { ch0 = "PA0", ch1 = "PA1", ch2 = "PA2", ch3 = "PA3", ch4 = "PA4", ch5 = "PA5", ch6 = "PA6", ch7 = "PA7" }

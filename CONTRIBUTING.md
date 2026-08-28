@@ -17,7 +17,14 @@ coding standards, and conventions for contributing to PinmapGen.
    source .venv/bin/activate  # Linux/macOS
    # .venv\Scripts\activate     # Windows
 
+   # Optional but recommended: editable install. PinmapGen itself is
+   # stdlib-only and runs fine from the repo root without it — this adds
+   # the `pinmapgen` command and lets `python -m tools.pinmapgen.cli`
+   # work from any directory.
    pip install -e .
+
+   # Optional dev tools (pytest, ruff):
+   pip install -e ".[dev]"
 
    # Install git hooks
    bash .githooks/install-hooks.sh  # Linux/macOS
@@ -27,7 +34,7 @@ coding standards, and conventions for contributing to PinmapGen.
 3. **Verify everything works:**
    ```bash
    python -m tools.pinmapgen.cli --help
-   python -m pytest tests/ -v
+   python -m unittest discover -s tests -v
    ```
 
 ## Development workflow
@@ -45,7 +52,7 @@ coding standards, and conventions for contributing to PinmapGen.
 
 3. **Run tests:**
    ```bash
-   python -m pytest tests/ -v
+   python -m unittest discover -s tests -v
    python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
    ```
 
@@ -54,7 +61,9 @@ coding standards, and conventions for contributing to PinmapGen.
    git add .
    git commit -m "feat: add your feature description"
    ```
-   The pre-commit hook regenerates pinmaps if hardware exports changed.
+   The pre-commit hook validates staged `hardware/exports/*.csv` netlists
+   by generating from them in a temp directory - it blocks the commit on
+   failure but never stages anything itself.
 
 5. **Push and open a PR:**
    ```bash
@@ -129,7 +138,7 @@ except UnicodeDecodeError:
 |-------------|-----------|
 | Parser (`bom_csv.py`, `eagle_sch.py`) | Returns `dict[str, list[str]]` mapping net names to pins. Validates input format and raises on bad data. |
 | Emitter (`emit_*.py`) | Accepts `(canonical_dict, output_path)`. Creates parent dirs. Writes UTF-8. Includes auto-generated header. |
-| Profile (`*_profile.py`) | Subclasses `MCUProfile`. Implements `normalize_pin_name()`, `_initialize_pin_definitions()`, `_initialize_peripherals()`. |
+| Profile (`profiles/*.toml`) | Declarative pin/peripheral data loaded by `profile_loader.py`; Python `MCUProfile` subclasses are the escape hatch for behavior TOML can't express (registered via `profile_registry`). |
 
 ## Adding new features
 
@@ -156,11 +165,14 @@ except UnicodeDecodeError:
 
 ## Testing
 
-All tests use `unittest.TestCase`. Run them with:
+All tests use `unittest.TestCase` and need no third-party packages. Run
+them with:
 
 ```bash
-python -m pytest tests/ -v
+python -m unittest discover -s tests -v
 ```
+
+(pytest also works if you installed the dev extras: `python -m pytest tests/ -v`.)
 
 When adding tests:
 - File naming: `test_<module>.py`
@@ -187,6 +199,27 @@ Include:
 ## Dev tools
 
 - **VS Code tasks** — `Generate Pinmap`, `Watch Pinmap`, `Test PinmapGen CLI`
-- **Pre-commit hooks** — Auto-regenerate pinmaps when hardware exports change
+- **Pre-commit hooks** — Validate staged `hardware/exports/*.csv` netlists (block-on-failure, never stage anything)
 - **GitHub Actions** — CI validates outputs stay in sync and tests pass
 - **Ruff** — Linter/formatter (config in `pyproject.toml`, line-length 88, double quotes)
+
+## Cutting a release
+
+Releases are built by `.github/workflows/release.yml`, triggered by a
+version tag:
+
+1. Bump `[project] version` in `pyproject.toml` (the workflow refuses a
+   tag that doesn't match it) and update `_FALLBACK_VERSION` in
+   `tools/pinmapgen/cli.py` to the same value.
+2. Make sure `main` is green.
+3. Tag and push:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+The workflow runs the test suite, regenerates the sample outputs with
+`--strict`, and publishes a GitHub Release with the source archive, an
+installable wheel, and an example bundle. (It can also be run manually
+from the Actions tab via *workflow_dispatch*.)

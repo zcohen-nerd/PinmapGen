@@ -8,10 +8,11 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import get_build_timestamp
+from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
-from .roles import PinRole, analyze_roles
+from .roles import PinRole, analyze_roles, pairs_from_canonical
 
 
 def emit_micropython(
@@ -36,7 +37,7 @@ def emit_micropython(
     code = generate_micropython_with_roles(canonical_dict)
 
     # Write to file
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(code)
 
 
@@ -124,7 +125,10 @@ def generate_micropython_with_roles(canonical_dict: dict[str, Any]) -> str:
         return "\n".join(lines)
 
     pins_for_analysis = _prepare_pins_for_analysis(canonical_dict)
-    pin_infos, bus_groups, diff_pairs = analyze_roles(pins_for_analysis)
+    pin_infos, bus_groups, _ = analyze_roles(pins_for_analysis)
+    # Differential pairs come from the canonical detector, so every
+    # output file agrees on the same pairs.
+    diff_pairs = pairs_from_canonical(canonical_dict, pin_infos)
 
     # Nets connected to more than one pin: the constant uses the first pin,
     # so the remaining pins are called out in the comment.
@@ -173,7 +177,7 @@ def _render_file_header(
     needed_imports: set[str] | None = None,
 ) -> list[str]:
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = get_build_timestamp()
     if needed_imports is None:
         needed_imports = {"Pin", "I2C", "SPI", "PWM", "ADC"}
     # Stable import order
@@ -249,16 +253,18 @@ def _render_pin_constants(
         "",
     ]
 
-    # Track emitted constant names to avoid collisions
-    seen_names: dict[str, int] = {}
+    # One shared, order-independent name map (reserved-aware) so every
+    # output format emits the same constant for the same net, and a net
+    # named SPI/PWM/ADC can never shadow the classes imported above.
+    all_nets = [p.net_name for pins in bus_groups.values() for p in pins]
+    name_lookup.update(build_name_map(all_nets)[0])
 
     for group_name, pins in bus_groups.items():
         if not pins:
             continue
         lines.append(f"# {group_name} Pins")
         for pin_info in pins:
-            const_name = _sanitize_net_name(pin_info.net_name, seen_names)
-            name_lookup[pin_info.net_name] = const_name
+            const_name = name_lookup[pin_info.net_name]
             descriptor = f"{pin_info.description} ({pin_info.pin_name})"
             all_pins = multi_pin_nets.get(pin_info.net_name)
             if all_pins:

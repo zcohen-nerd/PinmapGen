@@ -169,9 +169,10 @@ no programming required. See [docs/extending.md](docs/extending.md).
 
 ## When something goes wrong
 
-**"MCU 'U1' not found"** — the reference name doesn't match your schematic.
-Click your microcontroller in Fusion and check its name (it might be `IC1`
-or `U2`), then enter that instead.
+**"No entries found for MCU reference 'U1'"** — the reference name doesn't
+match your schematic. The error lists the reference designators the export
+*does* contain — click your microcontroller in Fusion and check its name
+(it might be `IC1` or `U2`), then enter that instead.
 
 **"Python not found"** — Python isn't installed, or the "Add to PATH" box
 wasn't ticked. Re-run the Python installer from Step 1 and tick the box.
@@ -188,6 +189,11 @@ the dialog should point at the folder that contains `tools` and `README.md`
 telling you a pin has a special job on your chip. Double-check those pins
 are safe to use for your signal, or move the signal to another pin.
 
+**Anything else from the ULP** — every run writes `pinmapgen_log.txt` into
+the output folder with the full details, and the result dialog shows it
+when something needs your attention. That file is the first thing to
+attach to a bug report.
+
 More answers: [docs/troubleshooting.md](docs/troubleshooting.md) and
 [docs/faq.md](docs/faq.md).
 
@@ -196,8 +202,23 @@ More answers: [docs/troubleshooting.md](docs/troubleshooting.md) and
 ## Using the command line
 
 If you're comfortable in a terminal (or you're on Mac/Linux), you can skip
-the ULP entirely. Export a netlist CSV from your CAD tool with the columns
-`Net, Pin, Component, RefDes`, then from the PinmapGen folder:
+the main ULP entirely. To get the input CSV:
+
+- **From Fusion 360** (Windows *or* macOS): run the bundled
+  `fusion_addin/export_netlist.ulp` — it only writes the CSV (no Windows
+  tooling involved), so it's the Mac-friendly path: export in Fusion,
+  then run the CLI in Terminal.
+- **By hand or from another tool**: any CSV with `Net`, `Pin`, and
+  `RefDes` columns works (`Component` is optional; headers are matched
+  case-insensitively and common aliases like `Designator` are accepted;
+  comma, semicolon, or tab delimited).
+
+Then from the PinmapGen folder:
+
+> **The `Pin` column must hold the chip's logical pin name** (`GP15`,
+> `GPIO4`, `PA0`) — not the physical package pad number. A bare number like
+> `2` is read as *GPIO 2*, and PinmapGen prints a warning when it makes
+> that assumption, because pad 2 of an RP2040 is actually GPIO 0.
 
 ```bash
 python -m tools.pinmapgen.cli --csv my_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root output --mermaid
@@ -207,7 +228,7 @@ Handy extras:
 
 ```bash
 python -m tools.pinmapgen.cli --list-mcus     # see every supported chip
-python -m tools.pinmapgen.cli ... --strict    # fail (exit code 2) on any pin conflict — great for CI
+python -m tools.pinmapgen.cli ... --strict    # fail (exit code 2) on validation errors (pin conflicts, dropped pins) — great for CI
 python -m tools.pinmapgen.watch hardware/exports/   # auto-regenerate whenever a CSV changes
 ```
 
@@ -235,8 +256,9 @@ get before installing anything:
 ## Contributing
 
 Bug reports and pull requests are welcome — start with
-[CONTRIBUTING.md](CONTRIBUTING.md). Run the test suite with `python -m pytest`
-before submitting.
+[CONTRIBUTING.md](CONTRIBUTING.md). Run the test suite with
+`python -m unittest discover -s tests` before submitting (no extra
+packages needed).
 
 ---
 

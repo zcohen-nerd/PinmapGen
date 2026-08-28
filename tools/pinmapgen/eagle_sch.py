@@ -9,6 +9,25 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
+def _available_parts(root) -> str:
+    """Summarize the part names (reference designators) in a schematic."""
+    names = sorted({
+        pinref.get("part")
+        for pinref in root.iter("pinref")
+        if pinref.get("part")
+    } | {
+        part.get("name")
+        for part in root.iter("part")
+        if part.get("name")
+    })
+    if not names:
+        return ""
+    shown = ", ".join(names[:12])
+    if len(names) > 12:
+        shown += f", ... ({len(names)} total)"
+    return shown
+
+
 def _normalize_refdes(value: str) -> str:
     """Normalize reference designator for stable comparisons."""
     return value.strip().upper()
@@ -123,6 +142,9 @@ def parse_schematic_tuples(
 
     if not nets_data:
         msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"
+        available = _available_parts(root)
+        if available:
+            msg += f". Parts in this schematic: {available}"
         raise ValueError(msg)
 
     return nets_data
@@ -202,5 +224,8 @@ def get_mcu_nets_from_schematic(
     net_map = extract_nets_from_schematic(root, mcu_ref)
     if not net_map:
         msg = f"No nets found for MCU reference '{mcu_ref}' in schematic"
+        available = _available_parts(root)
+        if available:
+            msg += f". Parts in this schematic: {available}"
         raise ValueError(msg)
     return net_map

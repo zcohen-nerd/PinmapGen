@@ -43,10 +43,11 @@ capabilities = [
     "uart_tx", "uart_rx",
 ]
 
-# Input-only GPIOs (34-39)
+# Input-only GPIOs (34-39): no output driver. The input_only marker
+# makes the validator warn when an output-like net lands here.
 [[pins.groups]]
 names        = ["GPIO34", "GPIO35", "GPIO36", "GPIO37", "GPIO38", "GPIO39"]
-capabilities = ["gpio"]
+capabilities = ["gpio", "input_only"]
 
 # ── Per-pin overrides ────────────────────────────────────────────────────
 
@@ -60,20 +61,33 @@ add_capabilities = ["adc"]
 [[pins.individual]]
 name             = "GPIO34"
 add_capabilities = ["adc"]
+special_function       = "Input Only"
+special_function_short = "IN_ONLY"
 [[pins.individual]]
 name             = "GPIO35"
 add_capabilities = ["adc"]
+special_function       = "Input Only"
+special_function_short = "IN_ONLY"
 [[pins.individual]]
 name             = "GPIO36"
 add_capabilities = ["adc"]
 special_function       = "VP (Input Only)"
 special_function_short = "VP"
+# GPIO37/GPIO38 exist on the bare die but are NOT bonded out on the
+# ESP32-WROOM-32 module this profile describes (WROVER-B / bare-die
+# designs only) — any use gets a warning.
 [[pins.individual]]
 name             = "GPIO37"
 add_capabilities = ["adc"]
+special_function       = "Input Only (not bonded on WROOM-32)"
+special_function_short = "IN_ONLY"
+warnings               = ["GPIO37 is not bonded out on ESP32-WROOM-32 modules"]
 [[pins.individual]]
 name             = "GPIO38"
 add_capabilities = ["adc"]
+special_function       = "Input Only (not bonded on WROOM-32)"
+special_function_short = "IN_ONLY"
+warnings               = ["GPIO38 is not bonded out on ESP32-WROOM-32 modules"]
 [[pins.individual]]
 name             = "GPIO39"
 add_capabilities = ["adc"]

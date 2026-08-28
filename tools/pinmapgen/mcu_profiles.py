@@ -14,6 +14,13 @@ from typing import Any
 
 from .roles import PinRoleInferrer
 
+# Roles that imply the MCU drives the pin — used to flag output-like nets
+# on input-only pads.
+_OUTPUT_ROLES = frozenset({
+    "gpio.out", "led", "pwm", "dac", "clock",
+    "uart.tx", "spi.mosi", "spi.sck", "spi.cs",
+})
+
 
 class PinCapability(Enum):
     """Enumeration of pin capabilities across different MCUs."""
@@ -37,6 +44,10 @@ class PinCapability(Enum):
     I2S_DATA = "i2s_data"
     I2S_BCLK = "i2s_bclk"
     I2S_LRCLK = "i2s_lrclk"
+    # Constraint marker, not a peripheral: the pin has no output driver
+    # (e.g. ESP32 GPIO34-39). validate_pin_assignment warns when an
+    # output-like role lands on such a pin.
+    INPUT_ONLY = "input_only"
 
 
 @dataclass
@@ -126,6 +137,25 @@ class MCUProfile(ABC):
         if pin_info.warnings:
             warnings.extend(pin_info.warnings)
 
+        # A net whose name is unambiguously a power/ground rail should not
+        # normally land on a GPIO at all — usually a naming accident or a
+        # netlist artifact worth a second look.
+        if role in ("power", "ground"):
+            warnings.append(
+                f"net looks like a power/ground rail but is assigned to "
+                f"GPIO {pin_name} - verify this connection"
+            )
+
+        # Input-only pads (no output driver) driven by an output-like role.
+        if (
+            PinCapability.INPUT_ONLY in pin_info.capabilities
+            and role in _OUTPUT_ROLES
+        ):
+            warnings.append(
+                f"{pin_name} is input-only, but net role '{role}' implies "
+                "an output - move the signal to an output-capable pin"
+            )
+
         # Role-specific validation
         required_capability = self._role_to_capability(role)
         if required_capability and required_capability not in pin_info.capabilities:
@@ -175,13 +205,16 @@ class MCUProfile(ABC):
         diff_pairs = []
         net_names = set(nets.keys())
 
-        # Common differential pair patterns
+        # Common differential pair patterns. (.*) variants allow an empty
+        # prefix so bare CANH/CANL pair up; the +/- variants catch raw CAD
+        # names like USB_D+ / USB_D-.
         diff_patterns = [
             (r"(.+)_P$", r"(.+)_N$"),  # Signal_P / Signal_N
             (r"(.+)_DP$", r"(.+)_DN$"),  # Signal_DP / Signal_DN
             (r"(.+)_DP$", r"(.+)_DM$"),  # USB style DP/DM (DP=positive)
             (r"(.+)DP$", r"(.+)DM$"),  # USBDP / USBDM
-            (r"(.+)CANH$", r"(.+)CANL$"),  # CAN High/Low
+            (r"(.+)\+$", r"(.+)-$"),  # USB_D+ / USB_D-
+            (r"(.*)CAN_?H$", r"(.*)CAN_?L$"),  # CANH/CANL, CAN_H/CAN_L
             (r"(.+)_PLUS$", r"(.+)_MINUS$"),  # Signal_PLUS / Signal_MINUS
         ]
 
@@ -200,7 +233,7 @@ class MCUProfile(ABC):
                     # Look for corresponding negative net
                     neg_match_pattern = neg_pattern.replace(
                         r"(.+)", re.escape(base_name)
-                    )
+                    ).replace(r"(.*)", re.escape(base_name))
                     for other_net in net_names:
                         if other_net in matched_pairs or other_net == net_name:
                             continue
@@ -214,7 +247,11 @@ class MCUProfile(ABC):
 
     def validate_pinmap(self, nets: dict[str, list[str]]) -> list[str]:
         """
-        Validate pinmap for common issues.
+        Validate pinmap for definite conflicts.
+
+        Only real errors live here (they fail ``--strict``); heuristics
+        that can false-positive on legitimate designs are advisories —
+        see :meth:`validate_pinmap_advisories`.
 
         Args:
             nets: Dictionary of net names to pins
@@ -225,7 +262,8 @@ class MCUProfile(ABC):
         errors = []
         used_pins = {}  # pin -> net_name mapping
 
-        # Check for duplicate pin usage
+        # Check for duplicate pin usage — two signals on one pin is always
+        # a genuine conflict.
         for net_name, pins in nets.items():
             for pin in pins:
                 if pin in used_pins:
@@ -235,44 +273,62 @@ class MCUProfile(ABC):
                 else:
                     used_pins[pin] = net_name
 
-        # Check for multi-pin nets on single-pin resources
+        return errors
+
+    def validate_pinmap_advisories(self, nets: dict[str, list[str]]) -> list[str]:
+        """
+        Heuristic checks that deserve a look but can be legitimate.
+
+        These are warnings, not errors: they never fail ``--strict``,
+        because each has real-world false positives (bus nets that fan
+        out, single-ended signals with pair-like names).
+
+        Returns:
+            List of advisory warning messages
+        """
+        warnings = []
+
+        # Multi-pin nets that don't look like power rails.
         for net_name, pins in nets.items():
             if len(pins) > 1 and not self._is_valid_multipin_net(net_name, pins):
-                errors.append(
+                warnings.append(
                     f"Net '{net_name}' connects to multiple pins {pins} - "
-                    f"may indicate routing error"
+                    f"fine for a shared bus, otherwise check the routing"
                 )
 
-        # Check for lonely differential pairs
+        # Lonely differential-pair halves. Only positive-style halves (and
+        # CAN H/L, which are unambiguous) are flagged: a bare *_N net is
+        # far more likely an active-low signal (RESET_N, CS_N) than half a
+        # differential pair, so it is deliberately never reported.
         diff_pairs = self.detect_differential_pairs(nets)
         diff_nets = set()
         for pos, neg in diff_pairs:
             diff_nets.add(pos)
             diff_nets.add(neg)
 
-        # Look for nets that seem like differential pairs but don't have partners
-        diff_patterns = [
-            r"(.+)_P$",
-            r"(.+)_N$",
+        lonely_patterns = [
             r"(.+)_DP$",
             r"(.+)_DN$",
             r"(.+)_DM$",
             r"(.+)DP$",
             r"(.+)DM$",
-            r"(.+)CANH$",
-            r"(.+)CANL$",
+            r"(.*)CAN_?H$",
+            r"(.*)CAN_?L$",
+            r"(.+)\+$",
+            r"(.+)-$",
+            r"(.+)_P$",
         ]
 
         for net_name in nets:
             if net_name not in diff_nets:
-                for pattern in diff_patterns:
+                for pattern in lonely_patterns:
                     if re.match(pattern, net_name, re.IGNORECASE):
-                        errors.append(
+                        warnings.append(
                             f"Potential lonely differential pair: '{net_name}' has no partner"
                         )
                         break
 
-        return errors
+        return warnings
 
     def _is_valid_multipin_net(self, net_name: str, pins: list[str]) -> bool:
         """Check if a multi-pin net is valid (e.g., power rails)."""
@@ -283,6 +339,8 @@ class MCUProfile(ABC):
             r".*VBUS.*",
             r".*3V3.*",
             r".*5V.*",
+            r".*12V.*",
+            r".*24V.*",
             r".*1V8.*",
             r".*GND.*",
             r".*VSS.*",
@@ -290,6 +348,15 @@ class MCUProfile(ABC):
             r".*VREF.*",
             r".*AVDD.*",
             r".*DVDD.*",
+            r".*VIN.*",
+            r".*VOUT.*",
+            r".*VBAT.*",
+            r".*BATT.*",
+            r".*VSYS.*",
+            r".*VEE.*",
+            r".*VCORE.*",
+            r".*PWR.*",
+            r".*POWER.*",
         ]
 
         for pattern in power_patterns:
@@ -315,6 +382,12 @@ class MCUProfile(ABC):
         role_inferrer = PinRoleInferrer()
 
         dropped_pins: list[dict[str, str]] = []
+        # Bare-number pins ("2") are ambiguous: profiles interpret them as
+        # logical GPIO numbers, but CAD exports often put the *physical
+        # package pad* number in the Pin column, which would produce a
+        # plausible-looking but wrong pinmap. Track them so one summary
+        # warning can flag the assumption.
+        numeric_pins: list[tuple[str, str]] = []
 
         for net_name, pins in nets.items():
             normalized_pins = []
@@ -322,6 +395,10 @@ class MCUProfile(ABC):
                 try:
                     normalized_pin = self.normalize_pin_name(pin)
                     normalized_pins.append(normalized_pin)
+
+                    raw = pin.strip()
+                    if raw.isascii() and raw.isdecimal():
+                        numeric_pins.append((raw, normalized_pin))
 
                     # Collect validation warnings for this pin assignment
                     role = role_inferrer.infer_role(net_name)
@@ -343,6 +420,35 @@ class MCUProfile(ABC):
             if normalized_pins:
                 normalized_nets[net_name] = normalized_pins
 
+        # Advisory heuristics (multi-pin nets, lonely pair halves): real
+        # designs legitimately trip these, so they are warnings that never
+        # fail --strict.
+        validation_warnings.extend(
+            self.validate_pinmap_advisories(normalized_nets)
+        )
+
+        # One summary warning for bare-number pins (see numeric_pins above).
+        if numeric_pins:
+            examples = ", ".join(
+                f"'{raw}' -> {norm}" for raw, norm in numeric_pins[:3]
+            )
+            if len(numeric_pins) > 3:
+                examples += ", ..."
+            validation_warnings.append(
+                f"{len(numeric_pins)} pin(s) were bare numbers and were "
+                f"interpreted as logical GPIO numbers ({examples}). If the "
+                "netlist's Pin column holds physical package pad numbers "
+                "instead, the generated pinmap will be wrong - verify one "
+                "pin against the schematic before trusting it."
+            )
+
+        # Surface advisory per-pin warnings (strapping/boot/USB/debug pins).
+        # Deduplicated: the same pin warning can be collected once per net
+        # that touches the pin, but repeating it adds no information.
+        validation_warnings = list(dict.fromkeys(validation_warnings))
+        for warning in validation_warnings:
+            print(f"Warning: {warning}", file=sys.stderr)
+
         # Validate the normalized pinmap
         validation_errors = self.validate_pinmap(normalized_nets)
         for err in validation_errors:
@@ -351,13 +457,22 @@ class MCUProfile(ABC):
         # Detect differential pairs
         diff_pairs = self.detect_differential_pairs(normalized_nets)
 
-        # Get special pins used
-        special_pins_used = [
-            pin
-            for net_pins in normalized_nets.values()
-            for pin in net_pins
-            if pin in self.pins and self.pins[pin].special_function
-        ]
+        # Get special pins used. Deduplicated and sorted in natural pin
+        # order so the metadata (and PINOUT.md's special-pins section)
+        # doesn't reshuffle when CSV rows are reordered.
+        def _pin_order(pin: str) -> tuple[str, int]:
+            num = re.search(r"\d+", pin)
+            return (re.sub(r"\d.*$", "", pin), int(num.group()) if num else -1)
+
+        special_pins_used = sorted(
+            {
+                pin
+                for net_pins in normalized_nets.values()
+                for pin in net_pins
+                if pin in self.pins and self.pins[pin].special_function
+            },
+            key=_pin_order,
+        )
 
         # Extract special-function metadata from pin definitions so that
         # emitters can use it without hard-coded look-up tables.
