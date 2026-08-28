@@ -201,8 +201,18 @@ More answers: [docs/troubleshooting.md](docs/troubleshooting.md) and
 ## Using the command line
 
 If you're comfortable in a terminal (or you're on Mac/Linux), you can skip
-the ULP entirely. Export a netlist CSV from your CAD tool with the columns
-`Net, Pin, Component, RefDes`, then from the PinmapGen folder:
+the main ULP entirely. To get the input CSV:
+
+- **From Fusion 360** (Windows *or* macOS): run the bundled
+  `fusion_addin/export_netlist.ulp` — it only writes the CSV (no Windows
+  tooling involved), so it's the Mac-friendly path: export in Fusion,
+  then run the CLI in Terminal.
+- **By hand or from another tool**: any CSV with `Net`, `Pin`, and
+  `RefDes` columns works (`Component` is optional; headers are matched
+  case-insensitively and common aliases like `Designator` are accepted;
+  comma, semicolon, or tab delimited).
+
+Then from the PinmapGen folder:
 
 > **The `Pin` column must hold the chip's logical pin name** (`GP15`,
 > `GPIO4`, `PA0`) — not the physical package pad number. A bare number like

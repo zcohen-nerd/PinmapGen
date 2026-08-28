@@ -59,8 +59,12 @@ python -m tools.pinmapgen.cli --csv netlist.csv --mcu esp32  --mcu-ref U2 --out-
 
 ### What CSV columns does the parser expect?
 
-`Net`, `Pin`, `Component`, `RefDes`. Column order doesn't matter (parsed with
-`csv.DictReader`). Extra columns are ignored.
+`Net`, `Pin`, and `RefDes` are required; `Component` is optional. Column
+order doesn't matter, extra columns are ignored, headers are matched
+case-insensitively with common aliases (`Designator` → RefDes,
+`Net Name` → Net), and comma/semicolon/tab delimiters are detected
+automatically. The bundled `fusion_addin/export_netlist.ulp` writes this
+format directly from a Fusion schematic (Windows and macOS).
 
 ### Can I use KiCad / Altium / other CAD tool exports?
 

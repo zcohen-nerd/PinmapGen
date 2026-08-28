@@ -11,9 +11,13 @@ from tools.pinmapgen.emit_arduino import (
     generate_arduino_with_roles,
 )
 from tools.pinmapgen.emit_json import validate_canonical_dict
-from tools.pinmapgen.emit_markdown import _sanitize_identifier
 from tools.pinmapgen.emit_mermaid import _build_node_id_map, generate_mermaid_graph
 from tools.pinmapgen.emit_micropython import generate_micropython_with_roles
+
+# The markdown emitter's private wrapper was removed when all emitters
+# moved to the shared naming.build_name_map; the sanitization behavior
+# under test lives in naming.sanitize_net_name.
+from tools.pinmapgen.naming import sanitize_net_name as _sanitize_identifier
 from tools.pinmapgen.roles import PinRole, RoleInferencer
 
 # ---------------------------------------------------------------------------

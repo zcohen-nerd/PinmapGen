@@ -21,6 +21,10 @@ A ULP (User Language Program) is an automation script that runs inside Fusion
 > each run it checks `python` on PATH and falls back to the `py -3`
 > launcher, so it works even if "Add python.exe to PATH" was left
 > unticked during the Python install.
+>
+> **On macOS**, use the bundled `export_netlist.ulp` instead: it only
+> writes the netlist CSV (no shell commands, so it runs anywhere Fusion
+> does), and you then run the PinmapGen CLI on that file in Terminal.
 
 ### 1. Copy the ULP file
 

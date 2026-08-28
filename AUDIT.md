@@ -76,6 +76,8 @@ Neither workflow contains any pytest/unittest step — `build-test.yml` does imp
 
 ### P1.4 CSV parsing is brittle and its errors don't help
 
+> **Status: FIXED.** `bom_csv.py` rewritten: headers match case-insensitively with a CAD-alias table (`Designator`→RefDes, `Net Name`→Net, `Part`→Component), the delimiter (comma/semicolon/tab) is sniffed, `Component` is optional, ragged rows are skipped with a line-numbered warning instead of the `'list' object has no attribute 'strip'` crash, the missing-columns error lists the headers that *were* found, a wrong `--mcu-ref` lists the reference designators the file/schematic actually contains (eagle_sch too), and the encoding error names the UTF-8 fix.
+
 The #1 first-run surface for CLI users, all reproduced:
 
 - **Any ragged row** (trailing comma, unquoted `10k, 1%`) crashes with `Error: 'list' object has no attribute 'strip'` — `bom_csv.py:70` calls `.strip()` on the list `csv.DictReader` stores under the `None` key. No filename, no line number.
@@ -85,6 +87,8 @@ The #1 first-run surface for CLI users, all reproduced:
 - (Good news: Excel's UTF-8 BOM and CRLF are handled correctly.)
 
 ### P1.5 Generated code breaks on the most natural net names
+
+> **Status: FIXED.** `naming.RESERVED_IDENTIFIERS` (machine classes, Arduino core macros/pin aliases incl. A0–A15, MOSI/MISO/SCK/SS/SDA/SCL, SPI, HIGH/LOW/INPUT/OUTPUT, interrupt modes) renames such nets to `NAME_PIN` in every output, announced as warnings that flow into the status line and the ULP dialog. All three emitters now share one deterministic `build_name_map`, so PINOUT.md always references the exact constants the code files define.
 
 - **Arduino:** nets named `MOSI`, `MISO`, `SCK`, `SDA`, `SCL`, `SS`, `A0`-`A7`, `LED_BUILTIN` become `#define MOSI 4` etc. — emitted **before** the header's own `#include <SPI.h>`/`<Wire.h>` (`emit_arduino.py:293`, `:411,467`), textually rewriting the core's `pins_arduino.h` declarations. Reproduced: `#define MOSI 4` … `#include <SPI.h>` in one header — this does not compile on standard cores, and these are *the* conventional SPI net names.
 - **MicroPython:** nets named `SPI`, `PWM`, `I2C`, `ADC` rebind the classes imported at the top of the generated module (`emit_micropython.py:180`, `:273`), so the bundled helpers crash at call time (`TypeError: 'int' object is not callable`).
@@ -104,6 +108,8 @@ Every quick button mutates a variable bound to a text field — MCU type (`Pinma
 
 ### P1.8 There is no working path to the required CSV without the ULP
 
+> **Status: FIXED.** New `fusion_addin/export_netlist.ulp`: a pure CSV export (no shell commands) that runs anywhere Fusion does — **including macOS** — writing the exact format the CLI consumes, with a next-step CLI hint in its success dialog. README/usage/USER_GUIDE/faq now document it and the hand-written-CSV contract (Net/Pin/RefDes required, aliases, sniffed delimiters); the manual ULP's fallback dialog points at it instead of Fusion's File→Export→Netlist, which never produced this format.
+
 The CLI needs columns `Net,Pin,Component,RefDes`; no CAD tool exports that natively, and the docs' pointers are wrong or vague: `USER_GUIDE.md:187` cites a menu ("Design Workspace → Output → Netlist (CSV)") that doesn't produce this format, `docs/troubleshooting.md:63` hand-waves "adjust the export settings", and the manual ULP's fallback dialog (`PinmapGen_Manual.ulp:243-253`) never states the required columns. The README promises Mac/Linux users the CLI "works there too" (`README.md:47`) — but on those platforms there's no ULP and hence no documented way to obtain input. **Fix:** ship a tiny export-only ULP, document a real recipe, and/or accept native Fusion/KiCad netlist formats.
 
 ---
@@ -114,11 +120,11 @@ The CLI needs columns `Net,Pin,Component,RefDes`; no CAD tool exports that nativ
 
 **P2.2 `--strict` is unusable on realistic boards.** The lonely-differential-pair heuristic (`mcu_profiles.py:254-273`) flags every active-low net — `RESET_N`, `CS_N`, `INT_N`, `WP_N` all produce validation *errors* (verified), so a normal board fails `--strict` CI out of the box. The multi-pin whitelist (`:277-299`) allows `VCC`/`GND`/`3V3` but rejects `VIN`, `VBAT`, `VSYS` as "routing error". The README recommends `--strict` for CI; following that advice on a real design fails immediately for false-positive reasons.
 
-**P2.3 Identifier sanitization can silently assign the wrong constant.** `naming.py:58-64` registers only pre-suffix names, so `LED-1` (sanitized first) **steals** `LED_1`, and the net literally named `LED_1` becomes `LED_1_2`; a third net can then collide into a duplicate `LED_1_2` (verified) — in MicroPython the later assignment silently wins. No rename is ever reported. PINOUT.md's examples use a collision-free sanitizer (`emit_markdown.py:331-340` admits it), so the doc can reference constants that don't exist in the code files.
+**P2.3 Identifier sanitization can silently assign the wrong constant.** *(FIXED with P1.5: `build_name_map` is fair — the net that IS the identifier keeps it — suffixes can never collide with real nets or each other, every rename is announced as a warning, and PINOUT.md uses the same map as the code emitters.)* `naming.py:58-64` registers only pre-suffix names, so `LED-1` (sanitized first) **steals** `LED_1`, and the net literally named `LED_1` becomes `LED_1_2`; a third net can then collide into a duplicate `LED_1_2` (verified) — in MicroPython the later assignment silently wins. No rename is ever reported. PINOUT.md's examples use a collision-free sanitizer (`emit_markdown.py:331-340` admits it), so the doc can reference constants that don't exist in the code files.
 
 **P2.4 Two differential-pair detectors disagree — five outputs, two answers.** `mcu_profiles.py:179-186` (feeds Markdown/Mermaid) misses `USB_D+`/`USB_D-` (the docstring's own example), bare `CANH`/`CANL`, and `CAN_H`/`CAN_L`; `roles.py:328-352` (feeds MicroPython/Arduino/JSON) catches them. Verified end-to-end: with `USB_D+`/`USB_D-`, the .py/.h/JSON show the pair while PINOUT.md says "Differential pairs: 0". The role-based one also pairs by list position (`zip(dp_pins, dn_pins)`), which can cross-pair two USB ports.
 
-**P2.5 PINOUT.md's usage examples are dangerous or wrong.** `emit_markdown.py:129-146` takes the first three single-pin nets with no role filtering, generating `_3v3 = Pin(_3V3, Pin.OUT)` and `pinMode(_3V3, OUTPUT)` — copy-pasteable instructions to drive a power rail push-pull (verified). Power/ground nets are emitted as ordinary constants everywhere (`GND = 7  # General Purpose I/O`) because `PinRole.POWER/GROUND` exist but have no patterns (`roles.py:46-47` vs `:72-175`).
+**P2.5 PINOUT.md's usage examples are dangerous or wrong.** *(PARTLY FIXED with P1.5: examples now skip power/ground nets, default unknown nets to inputs, and use the shared name map. Still open: power/ground nets are emitted as ordinary GPIO constants in the code files because `PinRole.POWER/GROUND` have no patterns.)* `emit_markdown.py:129-146` takes the first three single-pin nets with no role filtering, generating `_3v3 = Pin(_3V3, Pin.OUT)` and `pinMode(_3V3, OUTPUT)` — copy-pasteable instructions to drive a power rail push-pull (verified). Power/ground nets are emitted as ordinary constants everywhere (`GND = 7  # General Purpose I/O`) because `PinRole.POWER/GROUND` exist but have no patterns (`roles.py:46-47` vs `:72-175`).
 
 **P2.6 Role inference is confidently wrong in visible places.** Any net containing "light" is an LED (`roles.py:155-158`): the shipped `sensor_hub` example labels the light *sensor* `LIGHT_ANALOG = 26  # Light Emitting Diode`. UART patterns outrank LED, so `TX_LED` → "UART Transmit". And PINOUT.md's Function column comes from separate ad-hoc keyword code (`emit_markdown.py:355-373`), so the same net gets different descriptions in PINOUT.md vs the code files (committed examples show `LED_RED` as "General Purpose I/O" in one and "Light Emitting Diode" in the other).
 

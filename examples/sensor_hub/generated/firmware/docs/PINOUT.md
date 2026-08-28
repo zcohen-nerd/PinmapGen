@@ -38,8 +38,8 @@ from pinmap_micropython import *
 
 # Configure pins
 button_in = Pin(BUTTON_IN, Pin.IN, Pin.PULL_UP)
-i2c_scl = Pin(I2C_SCL, Pin.OUT)
-i2c_sda = Pin(I2C_SDA, Pin.OUT)
+i2c_scl = Pin(I2C_SCL, Pin.IN)
+i2c_sda = Pin(I2C_SDA, Pin.IN)
 ```
 
 ### Arduino/PlatformIO
@@ -49,8 +49,8 @@ i2c_sda = Pin(I2C_SDA, Pin.OUT)
 
 void setup() {
   pinMode(BUTTON_IN, INPUT_PULLUP);
-  pinMode(I2C_SCL, OUTPUT);
-  pinMode(I2C_SDA, OUTPUT);
+  pinMode(I2C_SCL, INPUT);
+  pinMode(I2C_SDA, INPUT);
 }
 ```
 

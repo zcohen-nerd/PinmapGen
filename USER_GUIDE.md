@@ -186,8 +186,14 @@ The full walkthrough lives in `fusion_addin/ULP_GUIDE.md`.
 
 ### 6.3 Exporting source data
 
-- **CSV netlist:** `Design Workspace → Output → Netlist (CSV)`.
-- **EAGLE `.sch`:** Save the schematic and export from Fusion or legacy EAGLE.
+- **CSV netlist:** run `fusion_addin/export_netlist.ulp` from Fusion's
+  **Automation → Run ULP** — a pure export that works on Windows and
+  macOS and writes exactly the format the CLI expects. (Fusion's built-in
+  File → Export → Netlist does *not* produce this format.) Hand-written
+  CSVs also work: `Net`, `Pin`, `RefDes` required, `Component` optional,
+  headers case-insensitive with common aliases.
+- **EAGLE `.sch`:** legacy EAGLE XML schematics can be passed directly
+  with `--sch`.
 - For multi-MCU projects, export once and run the CLI per MCU reference designator.
 
 ### 6.4 Design validation checklist

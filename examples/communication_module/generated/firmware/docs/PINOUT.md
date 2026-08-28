@@ -37,9 +37,9 @@ from machine import Pin
 from pinmap_micropython import *
 
 # Configure pins
-debug_rx = Pin(DEBUG_RX, Pin.OUT)
-debug_tx = Pin(DEBUG_TX, Pin.OUT)
-lora_cs = Pin(LORA_CS, Pin.OUT)
+debug_rx = Pin(DEBUG_RX, Pin.IN)
+debug_tx = Pin(DEBUG_TX, Pin.IN)
+lora_cs = Pin(LORA_CS, Pin.IN)
 ```
 
 ### Arduino/PlatformIO
@@ -48,9 +48,9 @@ lora_cs = Pin(LORA_CS, Pin.OUT)
 #include "pinmap_arduino.h"
 
 void setup() {
-  pinMode(DEBUG_RX, OUTPUT);
-  pinMode(DEBUG_TX, OUTPUT);
-  pinMode(LORA_CS, OUTPUT);
+  pinMode(DEBUG_RX, INPUT);
+  pinMode(DEBUG_TX, INPUT);
+  pinMode(LORA_CS, INPUT);
 }
 ```
 

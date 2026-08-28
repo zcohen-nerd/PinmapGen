@@ -51,11 +51,22 @@ python -m tools.pinmapgen.cli --csv hardware/exports/stm32g0_netlist.csv --mcu s
 python -m tools.pinmapgen.cli --csv hardware/exports/esp32_netlist.csv --mcu esp32 --mcu-ref U1 --out-root . --mermaid
 ```
 
-The CSV needs the columns `Net`, `Pin`, `Component`, `RefDes` (extra
-columns are ignored). The `Pin` column must hold the chip's **logical pin
-name** (`GP15`, `GPIO4`, `PA0`), not the physical package pad number — a
-bare number like `2` is interpreted as GPIO 2, and the CLI warns when it
-makes that assumption.
+**Getting a netlist CSV:** run `fusion_addin/export_netlist.ulp` from
+Fusion's **Automation → Run ULP** — it only writes the CSV, works on
+Windows *and* macOS, and produces exactly this format. (Fusion's built-in
+File → Export → Netlist does **not**.) Any hand-written or tool-generated
+CSV also works:
+
+- Required columns: `Net`, `Pin`, `RefDes` — `Component` is optional and
+  extra columns are ignored.
+- Headers are matched case-insensitively, and common aliases are accepted
+  (`Designator` → RefDes, `Net Name` → Net, `Part` → Component).
+- Comma, semicolon (European Excel), and tab delimiters are detected
+  automatically; UTF-8 with or without BOM.
+- The `Pin` column must hold the chip's **logical pin name** (`GP15`,
+  `GPIO4`, `PA0`), not the physical package pad number — a bare number
+  like `2` is interpreted as GPIO 2, and the CLI warns when it makes
+  that assumption.
 
 ### EAGLE schematic input
 

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles
@@ -252,9 +253,12 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                 ]
             )
 
-        # Track emitted #define names to avoid collisions
-        seen_names: dict[str, int] = {}
-        name_lookup: dict[str, str] = {}
+        # One shared, order-independent name map (reserved-aware) so every
+        # output format emits the same constant for the same net, and a
+        # net named MOSI/SCK/A0/... can never #define over the Arduino
+        # core's own symbols inside <SPI.h>/<Wire.h>.
+        all_nets = [p.net_name for pins in bus_groups.values() for p in pins]
+        name_lookup: dict[str, str] = build_name_map(all_nets)[0]
 
         # Nets connected to more than one pin: the #define uses the first
         # pin, so the remaining pins are called out in the comment.
@@ -271,10 +275,7 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                 lines.append(f"// {group_name} Pins")
                 for pin_info in pins:
                     pin_val = _arduino_pin_literal(pin_info.pin_name, mcu_name)
-                    const_name = _sanitize_net_name(
-                        pin_info.net_name, seen_names
-                    )
-                    name_lookup[pin_info.net_name] = const_name
+                    const_name = name_lookup[pin_info.net_name]
                     comment = f"  // {pin_info.description}"
                     if pin_val == _NO_ARDUINO_PIN:
                         comment += (

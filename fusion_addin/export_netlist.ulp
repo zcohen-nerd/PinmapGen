@@ -1,0 +1,118 @@
+#usage "Export a PinmapGen netlist CSV from the open schematic.\n"
+       "Writes the Net/Pin/Component/RefDes/Pad CSV that the PinmapGen CLI "
+       "consumes. Pure export - no shell commands - so unlike PinmapGen.ulp "
+       "it also works on macOS: export here, then run the CLI in a terminal."
+
+// Writes the same CSV format as PinmapGen.ulp's automatic export:
+// the Pin column carries the SYMBOL pin name (GP4, PA0, GPIO15...),
+// never the package pad number - pad 2 of an RP2040 is GPIO0, and the
+// CLI reads a bare "2" as GP2, which would be a plausible but wrong
+// pinmap. The physical pad goes into the extra Pad column, which the
+// CLI ignores.
+
+int generateNetlistCSV(string netlistPath) {
+    if (!schematic) {
+        return -1; // No schematic available
+    }
+
+    int componentCount = 0;
+    int netCount = 0;
+    int success = 0;
+
+    // First pass: count components and nets for validation
+    schematic(S) {
+        S.sheets(SH) {
+            SH.nets(N) {
+                netCount++;
+                N.segments(SEG) {
+                    SEG.pinrefs(PR) {
+                        if (PR.part && PR.pin) {
+                            componentCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (componentCount == 0) {
+        return -2; // No components found
+    }
+
+    if (netCount == 0) {
+        return -3; // No nets found
+    }
+
+    // Second pass: generate CSV
+    output(netlistPath) {
+        printf("\"RefDes\",\"Pin\",\"Component\",\"Net\",\"Pad\"\n");
+
+        schematic(S) {
+            S.sheets(SH) {
+                SH.nets(N) {
+                    N.segments(SEG) {
+                        SEG.pinrefs(PR) {
+                            if (PR.part && PR.pin) {
+                                string pinNum = PR.pin.name;
+                                string padNum = "";
+                                PR.pin.contacts(C) {
+                                    padNum = C.name;
+                                    break;
+                                }
+
+                                printf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                                    PR.part.name,
+                                    pinNum,
+                                    PR.part.name,
+                                    N.name,
+                                    padNum);
+                                success = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return success ? 1 : 0;
+}
+
+// ── Main execution ─────────────────────────────────────────────────────────
+
+if (!schematic) {
+    dlgMessageBox("No schematic is currently open.\n\n"
+        "Open a design in the Electronics workspace (schematic view)\n"
+        "and run this ULP again.", "OK");
+    exit(0);
+}
+
+string csvPath = dlgFileSave("Save PinmapGen netlist CSV", "netlist.csv", "*.csv");
+if (csvPath == "") {
+    exit(0); // Cancelled
+}
+
+int result = generateNetlistCSV(csvPath);
+
+if (result == 1) {
+    dlgMessageBox("Netlist exported.\n\n"
+        "File: " + csvPath + "\n\n"
+        "Next step - run the PinmapGen CLI on it. From the PinmapGen\n"
+        "repository folder, in a terminal:\n\n"
+        "  python -m tools.pinmapgen.cli --csv \"" + csvPath + "\"\n"
+        "      --mcu <your-mcu> --mcu-ref <U1 or your MCU's refdes>\n"
+        "      --out-root pinmap_out\n\n"
+        "(python3 on macOS/Linux; --list-mcus shows the MCU names.)", "OK");
+} else if (result == -2) {
+    dlgMessageBox("No components found in the schematic.\n\n"
+        "Add components with reference designators and connect them\n"
+        "with nets, then run this ULP again.", "OK");
+} else if (result == -3) {
+    dlgMessageBox("No nets found in the schematic.\n\n"
+        "Connect your components with wires/nets and make sure the\n"
+        "nets have names, then run this ULP again.", "OK");
+} else {
+    dlgMessageBox("Nothing was exported - the schematic has no connected\n"
+        "component pins. Check that parts are placed and wired, then\n"
+        "run this ULP again.", "OK");
+}

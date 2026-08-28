@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import get_build_datetime
+from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
 from .roles import PinRole, analyze_roles
@@ -249,16 +250,18 @@ def _render_pin_constants(
         "",
     ]
 
-    # Track emitted constant names to avoid collisions
-    seen_names: dict[str, int] = {}
+    # One shared, order-independent name map (reserved-aware) so every
+    # output format emits the same constant for the same net, and a net
+    # named SPI/PWM/ADC can never shadow the classes imported above.
+    all_nets = [p.net_name for pins in bus_groups.values() for p in pins]
+    name_lookup.update(build_name_map(all_nets)[0])
 
     for group_name, pins in bus_groups.items():
         if not pins:
             continue
         lines.append(f"# {group_name} Pins")
         for pin_info in pins:
-            const_name = _sanitize_net_name(pin_info.net_name, seen_names)
-            name_lookup[pin_info.net_name] = const_name
+            const_name = name_lookup[pin_info.net_name]
             descriptor = f"{pin_info.description} ({pin_info.pin_name})"
             all_pins = multi_pin_nets.get(pin_info.net_name)
             if all_pins:

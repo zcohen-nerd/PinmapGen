@@ -384,16 +384,21 @@ if (result) {
             dlgMessageBox(errorMsg, "OK");
         }
     } else {
+        // Fusion's built-in File > Export > Netlist does NOT produce the
+        // CSV format PinmapGen needs - point at the export ULP instead.
         dlgMessageBox("No netlist found!\n\n" +
-                      "This ULP expects a manually exported netlist.\n\n" +
-                      "MANUAL EXPORT STEPS:\n" +
-                      "1. In Fusion Electronics workspace\n" +
-                      "2. Go to File -> Export -> Netlist\n" +
-                      "3. Save as CSV to: " + outputDir + "\n" +
-                      "4. Rename the file to 'live_netlist.csv'\n" +
-                      "5. Run this ULP again\n\n" +
-                      "Tip: PinmapGen.ulp (the main ULP) can generate the\n" +
-                      "netlist automatically from the open schematic.",
+                      "This ULP expects a netlist CSV at:\n" +
+                      "  " + netlistFile + "\n\n" +
+                      "TO CREATE IT:\n" +
+                      "1. Run export_netlist.ulp (bundled with PinmapGen)\n" +
+                      "   from Automation > Run ULP\n" +
+                      "2. Save the CSV as 'live_netlist.csv' in the folder above\n" +
+                      "3. Run this ULP again\n\n" +
+                      "(A hand-written CSV also works - required columns:\n" +
+                      "Net, Pin, RefDes, with the chip's pin names like GP4\n" +
+                      "in the Pin column.)\n\n" +
+                      "Tip: PinmapGen.ulp (the main ULP) does the export and\n" +
+                      "generation in one step.",
                       "OK");
     }
 }

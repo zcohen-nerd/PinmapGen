@@ -25,6 +25,7 @@ from . import (
     emit_mermaid,
     emit_micropython,
 )
+from .naming import build_name_map
 from .profile_registry import registry
 
 
@@ -532,6 +533,18 @@ def _run_cli() -> None:
         # Record the MCU reference designator so it appears in pinmap.json
         # and role metadata instead of "UNKNOWN".
         canonical_dict["mcu_ref"] = args.mcu_ref
+
+        # The emitters rename identifiers that are reserved (a net named
+        # SPI or MOSI must not shadow language/core symbols) or that
+        # collide after sanitization. Surface those renames as warnings so
+        # nobody hunts for a constant that was quietly renamed.
+        _, rename_notes = build_name_map(list(canonical_dict.get("pins", {})))
+        if rename_notes:
+            metadata = canonical_dict.setdefault("metadata", {})
+            warning_list = metadata.setdefault("validation_warnings", [])
+            for note in rename_notes:
+                print(f"Warning: {note}", file=sys.stderr)
+                warning_list.append(note)
 
         # In strict mode, refuse to write outputs from a pinmap with
         # validation errors or dropped pins (details were already printed

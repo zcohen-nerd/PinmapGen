@@ -58,14 +58,20 @@ The reference designator passed via `--mcu-ref` doesn't appear in the CSV.
 - Common mismatches: `U1` vs `IC1`, or trailing whitespace.
 - Case matters: `U1` ≠ `u1`.
 
-### "Required columns missing"
+### "CSV is missing required column(s)"
 
-`bom_csv.py` expects at least: `Net`, `Pin`, `Component`, `RefDes`.
+The parser needs `Net`, `Pin`, and `RefDes` (`Component` is optional).
+Headers are matched case-insensitively, common aliases are accepted
+(`Designator` → RefDes, `Net Name` → Net, `Part` → Component), the
+delimiter (comma/semicolon/tab) is detected automatically, and Excel's
+UTF-8 BOM is handled — so this error means the header row genuinely
+lacks a recognizable Net, Pin, or RefDes column. The error message lists
+the columns that were found.
 
-- Open the CSV and check the header row.
-- Fusion exports sometimes use different column names (e.g., `Designator`
-  instead of `RefDes`). Rename the column or adjust the export settings.
-- Remove any BOM (byte order mark) characters at the start of the file.
+- The easy fix: export with `fusion_addin/export_netlist.ulp`, which
+  writes exactly the right format (works on Windows and macOS).
+- For hand-made CSVs, rename the offending header to one of the accepted
+  spellings.
 
 ### Empty or partial output
 
