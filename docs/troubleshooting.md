@@ -22,9 +22,13 @@ Common problems and fixes when using PinmapGen.
 ModuleNotFoundError: No module named 'tools.pinmapgen'
 ```
 
-- Install in editable mode: `pip install -e .` from the repo root.
-- Make sure the virtual environment is activated.
-- Verify you are in the correct directory.
+- `python -m tools.pinmapgen.cli` must be run **from the repo root** (the
+  folder containing `tools/`). `cd` there first — that fixes this error
+  in almost every case.
+- To run from any directory instead, install once in editable mode:
+  `pip install -e .` from the repo root (this also adds the `pinmapgen`
+  command).
+- If you installed into a virtual environment, make sure it is activated.
 
 ### Virtual environment problems
 

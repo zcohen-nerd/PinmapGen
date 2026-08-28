@@ -40,7 +40,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         # No external dependencies - stdlib only project
-        
+
+    - name: Run test suite
+      run: python -m unittest discover -s tests -v
+
     - name: Test module imports
       run: |
         # Test all modules can be imported without errors
@@ -126,6 +129,41 @@ jobs:
           echo "❌ File watcher failed"
           exit 1
         fi
+
+  # Packaging must keep working: `pip install -e .` is the documented
+  # contributor setup, and a wheel without the TOML profiles has no MCUs.
+  # (This exact breakage shipped once because nothing exercised it.)
+  packaging:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Editable install provides the console script from any directory
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e .
+        cd /tmp
+        pinmapgen --version
+        pinmapgen --list-mcus | grep -q rp2040
+        python -m tools.pinmapgen.cli --list-mcus | grep -q stm32h743
+
+    - name: Built wheel ships the MCU profiles
+      run: |
+        python -m pip uninstall -y pinmapgen
+        python -m pip wheel --no-deps -w dist/ .
+        python -m pip install dist/pinmapgen-*.whl
+        cd /tmp
+        pinmapgen --list-mcus | grep -q rp2040
+        pinmapgen --list-mcus | grep -q stm32h743
+        pinmapgen --csv "$GITHUB_WORKSPACE/examples/simple_led/netlist.csv" \
+          --mcu rp2040 --mcu-ref U1 --out-root wheel_smoke --strict
 
   # Separate job for more intensive validation
   validate-comprehensive:

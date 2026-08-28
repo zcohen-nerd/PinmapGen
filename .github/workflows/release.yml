@@ -136,7 +136,9 @@ jobs:
         tar -xzf pinmapgen-$VERSION_NUMBER-source.tar.gz
         cd pinmapgen-$VERSION_NUMBER
 
-        # Install in development mode
+        # Optional: editable install (adds the 'pinmapgen' command and lets
+        # it run from any directory). PinmapGen is stdlib-only, so you can
+        # also skip this and run python -m tools.pinmapgen.cli from here.
         pip install -e .
         \`\`\`
 

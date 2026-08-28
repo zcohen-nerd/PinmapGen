@@ -208,13 +208,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - run: pip install -e .
-    - run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-    - run: git diff --exit-code pinmaps/ firmware/
+    # PinmapGen is stdlib-only — no install step needed when running
+    # from the repo root.
+    - run: >
+        python -m tools.pinmapgen.cli
+        --csv hardware/exports/sample_netlist.csv
+        --mcu rp2040 --mcu-ref U1 --out-root generated --strict
 ```
+
+`--strict` fails the build (exit 2) on validation errors or dropped pins.
+To also catch drift in **committed** generated outputs, regenerate them
+with `--reproducible` into their committed location and then
+`git diff --exit-code -- <that path>` — the path must be tracked by git.
+(The root-level `pinmaps/` and `firmware/` outputs are gitignored, so
+diffing those never fails and gates nothing; this repo's own workflow
+diffs the committed `examples/` outputs instead.)
 
 ### Pre-commit hook
 

@@ -17,7 +17,14 @@ coding standards, and conventions for contributing to PinmapGen.
    source .venv/bin/activate  # Linux/macOS
    # .venv\Scripts\activate     # Windows
 
+   # Optional but recommended: editable install. PinmapGen itself is
+   # stdlib-only and runs fine from the repo root without it — this adds
+   # the `pinmapgen` command and lets `python -m tools.pinmapgen.cli`
+   # work from any directory.
    pip install -e .
+
+   # Optional dev tools (pytest, ruff):
+   pip install -e ".[dev]"
 
    # Install git hooks
    bash .githooks/install-hooks.sh  # Linux/macOS
@@ -27,7 +34,7 @@ coding standards, and conventions for contributing to PinmapGen.
 3. **Verify everything works:**
    ```bash
    python -m tools.pinmapgen.cli --help
-   python -m pytest tests/ -v
+   python -m unittest discover -s tests -v
    ```
 
 ## Development workflow
@@ -45,7 +52,7 @@ coding standards, and conventions for contributing to PinmapGen.
 
 3. **Run tests:**
    ```bash
-   python -m pytest tests/ -v
+   python -m unittest discover -s tests -v
    python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
    ```
 
@@ -156,11 +163,14 @@ except UnicodeDecodeError:
 
 ## Testing
 
-All tests use `unittest.TestCase`. Run them with:
+All tests use `unittest.TestCase` and need no third-party packages. Run
+them with:
 
 ```bash
-python -m pytest tests/ -v
+python -m unittest discover -s tests -v
 ```
+
+(pytest also works if you installed the dev extras: `python -m pytest tests/ -v`.)
 
 When adding tests:
 - File naming: `test_<module>.py`

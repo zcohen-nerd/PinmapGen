@@ -125,7 +125,7 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 1. **Stdlib only** – no third-party runtime dependencies. `pyproject.toml` has zero `[project.dependencies]`. Dev tools (pytest, ruff) are dev-only.
 2. **Python 3.11+** required (uses `X | Y` type unions, `match` statements are not yet used but are available).
 3. **Ruff** is the linter/formatter. Config is in `pyproject.toml` with line-length 88, double quotes, space indent. Run `ruff check` and `ruff format` before committing.
-4. **All tests must pass** (`python -m pytest tests/ -v`). Currently 30 tests, 0 failures.
+4. **All tests must pass** (`python -m unittest discover -s tests -v` — stdlib only; pytest also works via the `dev` extra).
 5. **Canonical dict is the contract** between parsers and emitters. Never change its schema without updating all emitters and tests.
 
 ### Adding a New MCU Profile
@@ -197,7 +197,7 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 .\.venv\Scripts\Activate.ps1
 
 # Run tests
-python -m pytest tests/ -v
+python -m unittest discover -s tests -v
 
 # Generate pinmaps
 python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root . --mermaid -v

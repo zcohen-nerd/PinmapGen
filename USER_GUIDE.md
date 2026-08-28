@@ -77,7 +77,9 @@ python -m venv .venv
 source .venv/bin/activate          # macOS/Linux
 # .venv\Scripts\Activate.ps1      # Windows PowerShell
 
-# Install PinmapGen in editable mode
+# Optional: editable install. Adds the `pinmapgen` command and lets the
+# CLI run from any directory. PinmapGen is stdlib-only, so you can also
+# skip this and run `python -m tools.pinmapgen.cli` from the repo root.
 pip install -e .
 ```
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,10 +16,32 @@ classifiers = [
     "License :: Free To Use But Restricted",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
+
+[project.optional-dependencies]
+# The runtime is stdlib-only; these are contributor conveniences.
+# The test suite runs with plain unittest and needs none of them.
+dev = ["pytest", "ruff"]
 
 [project.scripts]
 pinmapgen = "tools.pinmapgen.cli:main"
+
+[tool.setuptools]
+# The importable package lives at tools/pinmapgen. Without an explicit
+# list, setuptools' flat-layout auto-discovery excludes a directory
+# named "tools" by default, then sees hardware/ and fusion_addin/ as two
+# top-level packages and refuses to build — which is why
+# `pip install -e .` used to fail outright.
+packages = ["tools", "tools.pinmapgen"]
+
+[tool.setuptools.package-data]
+# The TOML MCU profiles are loaded from the package directory at runtime
+# (profile_registry.py); a wheel without them would report
+# "No MCU profiles found."
+"tools.pinmapgen" = ["profiles/*.toml"]
 
 [tool.ruff]
 line-length = 88

@@ -40,6 +40,8 @@ For the other eight profiles (`allow_numeric = false`), the same input makes eve
 
 ### P0.3 `pip install -e .` fails outright — and it's both the documented setup and the documented fix
 
+> **Status: FIXED.** `pyproject.toml` now declares `packages = ["tools", "tools.pinmapgen"]` and ships `profiles/*.toml` as package data — verified end-to-end: editable install works, the `pinmapgen` console script runs from any directory, and a wheel installed into a fresh venv carries all 13 profiles and generates successfully. A new CI `packaging` job guards both paths. Docs updated: troubleshooting now leads with "run from the repo root", the CI recipes drop the install step (stdlib-only) and use `--strict` instead of the always-passing gitignored-path diff (this also closes P2.9), and a `dev` extra (`pytest`, `ruff`) was added.
+
 Reproduced: `error: Multiple top-level packages discovered in a flat-layout: ['hardware', 'fusion_addin']`. Causes:
 
 - `pyproject.toml` has no `[tool.setuptools]`/`packages` config, so setuptools auto-discovers — and its flat-layout finder **excludes a directory named `tools/`** while treating `hardware/` and `fusion_addin/` as namespace packages and refusing to build.
@@ -62,9 +64,13 @@ Seven places instruct the broken command: `CONTRIBUTING.md:20` (contributor quic
 
 ### P1.2 CI never runs the test suite (307 tests behind a green badge)
 
+> **Status: FIXED.** `build-test.yml` now runs `python -m unittest discover -s tests -v` across the full matrix (3 OS × Python 3.11–3.14), plus the new `packaging` job.
+
 Neither workflow contains any pytest/unittest step — `build-test.yml` does imports, `--help`, one generation, file-existence checks, and a watcher smoke test. Yet `README.md:5` shows a CI badge, `CONTRIBUTING.md:191` says CI ensures "tests pass", and `copilot-instructions.md:128` claims it. All 307 tests pass locally in ~2 s with zero dependencies (`python -m unittest discover -s tests`). **Fix:** one CI step.
 
 ### P1.3 Contributor setup instructions fail twice
+
+> **Status: FIXED.** `pip install -e .` works (P0.3) and is documented as optional; the canonical test command everywhere (CONTRIBUTING, README, copilot-instructions) is dependency-free `python -m unittest discover -s tests -v`, with pytest available via `pip install -e ".[dev]"`.
 
 `CONTRIBUTING.md` step 2 (`pip install -e .`) fails per P0.3; step 3 (`python -m pytest tests/ -v`) fails because pytest is never installed nor declared anywhere (no `[project.optional-dependencies]`, no requirements file; verified `No module named pytest`). The working command appears only in `tests/README.md:19`. Same broken pytest instruction in `README.md:238`.
 
@@ -116,7 +122,7 @@ The CLI needs columns `Net,Pin,Component,RefDes`; no CAD tool exports that nativ
 
 **P2.8 The ULP's output-format checkboxes are decorative.** Only Mermaid maps to a flag; the MicroPython/Arduino/Documentation boxes change nothing but the preview and the success text (`PinmapGen.ulp:356-375, 422-426` vs `cli.py:262-283`, which always writes all four) — the success dialog then misreports what was written. No CLI flags exist to select outputs or flatten the fixed `pinmaps/` + `firmware/{...}` tree either.
 
-**P2.9 The documented CI drift-check can never fail.** `docs/usage.md:203`, `docs/workflows.md:215`, `docs/faq.md:147-148` recommend `git diff --exit-code pinmaps/ firmware/` — paths that are **gitignored** (`.gitignore:27-31`), so the gate always passes. The repo's own workflow knows this and diffs `examples/` instead (`validate-pinmaps.yml:39-41`).
+**P2.9 The documented CI drift-check can never fail.** *(FIXED alongside P0.3: all three recipes now gate on `--strict` and explain that a `git diff` drift check only works on committed output paths.)* `docs/usage.md:203`, `docs/workflows.md:215`, `docs/faq.md:147-148` recommend `git diff --exit-code pinmaps/ firmware/` — paths that are **gitignored** (`.gitignore:27-31`), so the gate always passes. The repo's own workflow knows this and diffs `examples/` instead (`validate-pinmaps.yml:39-41`).
 
 **P2.10 Troubleshooting doc states wrong facts.** `--no-mermaid` doesn't exist (`docs/troubleshooting.md:172`); "Case matters: `U1` ≠ `u1`" (`:55`) is false (matching is case-insensitive, `bom_csv.py:17-19` — CI even tests `u1`); the quoted warning strings (`:143-164`) match no actual program output, so searching the page for the message you saw finds nothing; `README.md:171`'s quoted error ("MCU 'U1' not found") likewise doesn't match the real message.
 

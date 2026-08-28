@@ -245,8 +245,9 @@ get before installing anything:
 ## Contributing
 
 Bug reports and pull requests are welcome — start with
-[CONTRIBUTING.md](CONTRIBUTING.md). Run the test suite with `python -m pytest`
-before submitting.
+[CONTRIBUTING.md](CONTRIBUTING.md). Run the test suite with
+`python -m unittest discover -s tests` before submitting (no extra
+packages needed).
 
 ---
 

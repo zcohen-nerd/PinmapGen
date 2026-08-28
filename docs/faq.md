@@ -139,14 +139,21 @@ data. Use `profile_registry.registry.get_profile(...)` for new work.
 
 ### How do I integrate with CI/CD?
 
-Example GitHub Actions snippet:
+Example GitHub Actions snippet (no install step — PinmapGen is
+stdlib-only):
 
 ```yaml
-- name: Regenerate pinmaps
-  run: python -m tools.pinmapgen.cli --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 --out-root .
-- name: Fail if outputs drifted
-  run: git diff --exit-code pinmaps/ firmware/
+- name: Validate the netlist
+  run: >
+    python -m tools.pinmapgen.cli
+    --csv hardware/exports/sample_netlist.csv
+    --mcu rp2040 --mcu-ref U1 --out-root generated --strict
 ```
+
+`--strict` fails the build on validation errors or dropped pins. A
+`git diff --exit-code` drift gate only works on generated outputs that
+are committed to git (the root-level `pinmaps/` and `firmware/` outputs
+are gitignored, so diffing them never fails).
 
 ### Can I customize the output formats?
 
