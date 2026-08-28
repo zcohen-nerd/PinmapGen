@@ -15,6 +15,13 @@ A ULP (User Language Program) is an automation script that runs inside Fusion
 
 ## Installation
 
+> **Windows only.** The ULP automates generation through PowerShell and
+> cmd.exe; on macOS/Linux it shows a dialog pointing at the CLI workflow
+> (`docs/usage.md`) instead. It needs Python 3.11+ on the machine — before
+> each run it checks `python` on PATH and falls back to the `py -3`
+> launcher, so it works even if "Add python.exe to PATH" was left
+> unticked during the Python install.
+
 ### 1. Copy the ULP file
 
 **Windows:**
@@ -153,10 +160,14 @@ Two additional ULPs are included for development/debugging:
 
 - The failure dialog shows the CLI's own error from `pinmapgen_log.txt`
   (in the output folder) — read that first; it names the real problem.
-- If the dialog says no log file was created, Python never started:
-  Python 3.11+ must be installed and on PATH, and the "PinmapGen
-  repository" field must point at your cloned repo (the ULP checks for
-  `tools/pinmapgen/cli.py` there).
+- "Python 3.11 or newer was not found": the ULP probes `python` on PATH
+  and the `py -3` launcher before each run. Install Python 3.11+ from
+  python.org (the Microsoft Store's fake `python.exe` alias is
+  correctly rejected).
+- If the dialog says no log file was created, the "PinmapGen repository"
+  field most likely doesn't point at your cloned repo (the ULP checks
+  for `tools/pinmapgen/cli.py` there), or the repo copy is older than
+  the ULP.
 - Run the equivalent CLI command manually to isolate the issue.
 
 ### Permission errors

@@ -92,9 +92,13 @@ The #1 first-run surface for CLI users, all reproduced:
 
 ### P1.6 The ULP's quick-select buttons don't visibly work (missing `dlgRedisplay()`)
 
+> **Status: FIXED.** Every quick-select handler (13 MCU buttons, Add Timestamp, ULP Folder — both ULPs) now calls `dlgRedisplay()` so the bound text field visibly updates.
+
 Every quick button mutates a variable bound to a text field — MCU type (`PinmapGen.ulp:313-329`), project name (`:302-304`), output dir (`:348-350`) — but the file contains zero `dlgRedisplay()` calls, which EAGLE dialogs require to refresh widgets after programmatic changes. The user clicks **ESP32**, the field still shows `rp2040`; they either conclude the tool is broken or can't tell which value will be used. This is the README's step 3: "click the button for your chip" (`README.md:98`). One line per handler fixes it.
 
 ### P1.7 The ULP is Windows-only in ways the docs half-deny, with fragile shell plumbing
+
+> **Status: FIXED.** All `del` calls go through `cmd.exe /c` and every `explorer` call gets a backslashed path (mkdir was hardened in the P0.2 batch). Both ULPs now pre-flight Python before generating: `python` on PATH is probed first, then the `py -3` launcher, requiring version ≥ 3.11 — the Microsoft-Store alias fails the probe by design — with a clear fail-fast dialog when nothing suitable exists. On macOS/Linux the ULPs show a CLI-pointer dialog instead of dying mid-run (drive-letter detection); FUSION_TEST_GUIDE no longer implies macOS support and ULP_GUIDE states the Windows requirement.
 
 `powershell -Command`, `mkdir … 2>nul`, `del … 2>nul`, `explorer` (`PinmapGen.ulp:401,409,430,433`) are Windows/cmd constructs, yet `FUSION_TEST_GUIDE.md:20-22` documents a macOS install path (Fusion/Mac runs ULPs; this one just dies unexplained at generation). `mkdir`/`del` are **cmd.exe built-ins invoked without a shell** (EAGLE's `system()` needs `cmd.exe /c` for built-ins and `2>nul` redirection), with return values discarded — and if the mkdir fails, the ULP's `output()` netlist write dies with a raw EAGLE file error before any friendly handler runs. `explorer` gets forward-slash paths, which Explorer rejects (opens the wrong folder right after the success dialog names the right one). The ULP also hardcodes `python` (`:409`): on Windows the Microsoft-Store alias exists even with no Python installed, and the `py` launcher — present even when "Add to PATH" was left unticked, the exact failure `README.md:176` documents — is never tried; no version pre-flight (3.9 dies on `X | Y` syntax invisibly per P0.2).
 
@@ -136,7 +140,7 @@ The CLI needs columns `Net,Pin,Component,RefDes`; no CAD tool exports that nativ
 
 ## P3 — Papercuts and hygiene
 
-- **P3.1 Dialog buttons carry titles as labels.** All ten `dlgMessageBox(msg, "Some Title")` calls make the single *button* read "CLI Error"/"Input Validation Failed" — the second argument is a button list in EAGLE ULP, not a window title (`PinmapGen.ulp:338,381,432,444,466,469`; `_Manual:197,236,239,243`).
+- **P3.1 Dialog buttons carry titles as labels.** All ten `dlgMessageBox(msg, "Some Title")` calls make the single *button* read "CLI Error"/"Input Validation Failed" — the second argument is a button list in EAGLE ULP, not a window title (`PinmapGen.ulp:338,381,432,444,466,469`; `_Manual:197,236,239,243`). *(FIXED: every `dlgMessageBox` in both ULPs now passes "OK"; the redundant `errorTitle` variable is gone — each message opens with its own headline.)*
 - **P3.2 Root-directory clutter with stale internal docs.** `MILESTONES.md`, `PROJECT_COMPLETION.md`, `SUCCESS_DOCUMENTATION.md`, `FUSION_TEST_GUIDE.md` sit beside the README claiming 3 MCUs (there are 13), "30 tests" (there are 307), and phantom deliverables (`--fail-on-warn`, a VS Code workspace template, a printable handout). The issue template `documentation.md` offers `SUCCESS_DOCUMENTATION.md` as user docs while omitting the four real guides. Move to `docs/internal/` or delete.
 - **P3.3 FAQ contradicts itself.** `docs/faq.md:16-21` says 3 MCUs and "subclass MCUProfile" while `:157-167` in the same file gives the correct TOML instructions; `:98-101` forgets `--reproducible` exists.
 - **P3.4 Docs sprawl.** CLI usage, ULP install, classroom workflows, CI recipes, and naming advice each live in 3–5 places with drift between copies; `docs/` has no index. Merge `usage.md`+`workflows.md`; slim `USER_GUIDE.md` to pointers.

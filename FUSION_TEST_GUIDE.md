@@ -17,9 +17,12 @@ Copy the production ULP into Fusion's ULP directory:
 Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\API\ULPs\"
 ```
 
-Alternative paths:
+Path reference:
 - Windows default: `%APPDATA%\Autodesk\Autodesk Fusion 360\API\ULPs\`
-- macOS: `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/ULPs/`
+- **The ULP is Windows-only** (it automates generation through PowerShell
+  and cmd.exe). On macOS it displays a dialog pointing at the CLI
+  workflow instead of failing mid-run — Mac users should follow
+  `docs/usage.md`.
 
 Verify:
 - `PinmapGen.ulp` appears in the Fusion ULP directory

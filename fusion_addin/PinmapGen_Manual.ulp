@@ -92,6 +92,41 @@ void showRunLog(string title, string message, string logText) {
     };
 }
 
+// Probe one interpreter candidate: run "<candidate> --version" via
+// cmd.exe, capture the output, and require exit code 0 plus a version
+// of 3.11 or newer. The Microsoft Store's fake python.exe alias fails
+// this probe (it exits non-zero), so it can't be picked by mistake.
+int probePython(string candidate, string probeFile) {
+    string winProbe = toWindowsPath(probeFile);
+    int rc = system("cmd.exe /c " + candidate + " --version > \"" + winProbe + "\" 2>&1");
+    if (rc != 0) return 0;
+    string out = "";
+    if (fileread(out, probeFile) <= 0) return 0;
+    int at = strstr(out, "Python ");
+    if (at < 0) return 0;
+    string parts[];
+    int n = strsplit(parts, strsub(out, at + 7), '.');
+    if (n < 2) return 0;
+    int major = strtol(parts[0]);
+    int minor = strtol(parts[1]);
+    if (major > 3) return 1;
+    if (major == 3 && minor >= 11) return 1;
+    return 0;
+}
+
+// Find a Python 3.11+ interpreter: try "python" on PATH first, then the
+// "py -3" launcher, which the python.org installer provides even when
+// the "Add python.exe to PATH" box was left unticked. Returns the
+// command to use, or "" when no suitable interpreter exists.
+string findPython(string probeDir) {
+    string probeFile = probeDir + "/python_probe.txt";
+    string found = "";
+    if (probePython("python", probeFile)) found = "python";
+    else if (probePython("py -3", probeFile)) found = "py -3";
+    system("cmd.exe /c del \"" + toWindowsPath(probeFile) + "\" 2>nul");
+    return found;
+}
+
 // Reference designators are passed to the CLI unquoted, so restrict them
 // to safe characters (letters, digits, underscore, hyphen).
 int isSafeRefDes(string s) {
@@ -141,6 +176,19 @@ void saveSettings() {
 
 loadSettings();
 
+// This ULP automates generation through PowerShell and cmd.exe, so it is
+// Windows-only. EAGLE/Fusion normalizes Windows paths to "C:/...", so a
+// missing drive letter in this ULP's own location means macOS/Linux.
+if (strlen(ulpDir) < 2 || ulpDir[1] != ':') {
+    dlgMessageBox("This ULP automates PinmapGen using Windows tools\n"
+        "(PowerShell, cmd.exe) and runs on Windows only.\n\n"
+        "On macOS or Linux, use the command line instead - from the\n"
+        "PinmapGen repository folder:\n\n"
+        "  python3 -m tools.pinmapgen.cli --help\n\n"
+        "See docs/usage.md for the full CLI workflow.", "OK");
+    exit(0);
+}
+
 int result = dlgDialog("PinmapGen Configuration") {
     dlgVBoxLayout {
         dlgHBoxLayout {
@@ -155,23 +203,23 @@ int result = dlgDialog("PinmapGen Configuration") {
             dlgStringEdit(mcuType);
         }
         dlgHBoxLayout {
-            dlgPushButton("RP2040")  { mcuType = "rp2040"; }
-            dlgPushButton("RP2350")  { mcuType = "rp2350"; }
-            dlgPushButton("ESP32")   { mcuType = "esp32"; }
-            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; }
-            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; }
+            dlgPushButton("RP2040")  { mcuType = "rp2040"; dlgRedisplay(); }
+            dlgPushButton("RP2350")  { mcuType = "rp2350"; dlgRedisplay(); }
+            dlgPushButton("ESP32")   { mcuType = "esp32"; dlgRedisplay(); }
+            dlgPushButton("ESP32-S3") { mcuType = "esp32s3"; dlgRedisplay(); }
+            dlgPushButton("ESP32-C3") { mcuType = "esp32c3"; dlgRedisplay(); }
         }
         dlgHBoxLayout {
-            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; }
-            dlgPushButton("STM32F411") { mcuType = "stm32f411"; }
-            dlgPushButton("STM32H743") { mcuType = "stm32h743"; }
-            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; }
+            dlgPushButton("STM32G0")   { mcuType = "stm32g0"; dlgRedisplay(); }
+            dlgPushButton("STM32F411") { mcuType = "stm32f411"; dlgRedisplay(); }
+            dlgPushButton("STM32H743") { mcuType = "stm32h743"; dlgRedisplay(); }
+            dlgPushButton("nRF52840")  { mcuType = "nrf52840"; dlgRedisplay(); }
         }
         dlgHBoxLayout {
-            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; }
-            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; }
-            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; }
-            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; }
+            dlgPushButton("ATmega328P") { mcuType = "atmega328p"; dlgRedisplay(); }
+            dlgPushButton("ATmega2560") { mcuType = "atmega2560"; dlgRedisplay(); }
+            dlgPushButton("SAMD21")     { mcuType = "atsamd21"; dlgRedisplay(); }
+            dlgPushButton("SAMD51")     { mcuType = "atsamd51"; dlgRedisplay(); }
         }
         dlgSpacing(5);
 
@@ -188,6 +236,7 @@ int result = dlgDialog("PinmapGen Configuration") {
         dlgHBoxLayout {
             dlgPushButton("ULP Folder") {
                 outputDir = ulpDir + "PinmapGen_Output";
+                dlgRedisplay();
             }
         }
         dlgSpacing(10);
@@ -238,7 +287,7 @@ if (result) {
     }
 
     if (strlen(validationErrors) > 0) {
-        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "Input Validation Failed");
+        dlgMessageBox("Please fix the following issues:\n\n" + validationErrors, "OK");
         exit(1);
     }
 
@@ -246,6 +295,19 @@ if (result) {
     // cmd built-in and 2>nul is cmd redirection syntax; backslashes
     // because cmd rejects forward-slash paths.
     system("cmd.exe /c mkdir \"" + toWindowsPath(outputDir) + "\" 2>nul");
+
+    // Find a working Python 3.11+ up front so a missing or too-old
+    // interpreter fails fast with a clear message.
+    string pythonCmd = findPython(outputDir);
+    if (pythonCmd == "") {
+        dlgMessageBox("Python 3.11 or newer was not found.\n\n"
+            "Install it from python.org/downloads and tick the\n"
+            "'Add python.exe to PATH' box in the installer, then run\n"
+            "this ULP again.\n\n"
+            "(Both 'python' on PATH and the 'py -3' launcher were\n"
+            "checked.)", "OK");
+        exit(0);
+    }
 
     // Look for manually exported netlist file
     string netlistFile = outputDir + "/live_netlist.csv";
@@ -263,7 +325,7 @@ if (result) {
         // interfering, and the trailing 'exit $LASTEXITCODE' makes
         // powershell.exe report the CLI's exit code instead of its own.
         // The closing quote of -Command is added last.
-        string pinmapCmd = "powershell -NoProfile -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(outputDir) + "' --log-file '" + psEscape(logFile) + "'";
+        string pinmapCmd = "powershell -NoProfile -Command \"cd '" + psEscape(repoDir) + "'; " + pythonCmd + " -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(outputDir) + "' --log-file '" + psEscape(logFile) + "'";
 
         if (generateMermaid) {
             pinmapCmd += " --mermaid";
@@ -289,10 +351,10 @@ if (result) {
             successMsg += "\nUsing: Your exported netlist\nLocation: " + outputDir + "\nRun log: " + logFile;
 
             // Clean up temp netlist
-            system("del \"" + netlistFile + "\" 2>nul");
+            system("cmd.exe /c del \"" + toWindowsPath(netlistFile) + "\" 2>nul");
 
             dlgMessageBox(successMsg, "OK");
-            system("explorer \"" + outputDir + "\"");
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
         } else if (cliResult == 0 && logContent != "") {
             // Files were generated, but the CLI reported warnings,
             // validation errors, or dropped pins - show them instead of
@@ -301,21 +363,19 @@ if (result) {
                 "Pinmap Generated With Issues",
                 "PinmapGen finished, but reported issues you should review\nbefore trusting the generated files.\n\nOutput: " + outputDir,
                 logContent);
-            system("explorer \"" + outputDir + "\"");
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
         } else if (logContent != "") {
             // The CLI ran and failed - the log has the real reason.
             showRunLog(
                 "Pinmap Generation Failed",
                 "The PinmapGen CLI reported an error. The log below shows\nthe reason. Your netlist was kept:\n" + netlistFile,
                 logContent);
-            system("explorer \"" + outputDir + "\"");
+            system("explorer \"" + toWindowsPath(outputDir) + "\"");
         } else {
             // No log file was written: Python never started, so the
             // failure happened before the CLI could run.
             string errorMsg = "The PinmapGen CLI did not start (no log file was created).\n\n";
-            errorMsg += "Most likely causes:\n";
-            errorMsg += "- Python is not installed or not on PATH\n";
-            errorMsg += "  (install Python 3.11+ and tick 'Add python.exe to PATH')\n";
+            errorMsg += "Python was detected (" + pythonCmd + "), so the most likely causes are:\n";
             errorMsg += "- The PinmapGen repository path is wrong:\n  " + repoDir + "\n";
             errorMsg += "- The repository copy is older than this ULP\n";
             errorMsg += "  (it must support the --log-file option - update both together)\n\n";
@@ -334,6 +394,6 @@ if (result) {
                       "5. Run this ULP again\n\n" +
                       "Tip: PinmapGen.ulp (the main ULP) can generate the\n" +
                       "netlist automatically from the open schematic.",
-                      "Netlist Not Found");
+                      "OK");
     }
 }
