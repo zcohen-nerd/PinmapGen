@@ -467,6 +467,5 @@ Two workflows run on every push and pull request:
 - **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow.
 - **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
-- **docs/internal/** — Historical development documents (not maintained).
 
 If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide.
