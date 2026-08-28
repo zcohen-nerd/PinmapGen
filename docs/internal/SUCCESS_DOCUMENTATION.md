@@ -1,5 +1,11 @@
 # ULP Automation — Technical Notes
 
+> **Internal development document.** Kept for project history; counts,
+> tier lists, and feature claims reflect the moment they were written
+> and are not maintained. Current user documentation lives in
+> [README.md](../../README.md), [USER_GUIDE.md](../../USER_GUIDE.md),
+> and [docs/](../).
+
 This document records the key technical decisions and discoveries made while
 building the Fusion 360 ULP integration.
 

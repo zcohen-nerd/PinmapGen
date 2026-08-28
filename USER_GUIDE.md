@@ -365,16 +365,19 @@ Refer to `fusion_addin/ULP_GUIDE.md` for configuration tips and detailed trouble
 
 ## 10. Validation and troubleshooting
 
-### 10.1 Common warnings
+### 10.1 Understanding the messages
 
-| Warning | Interpretation | Suggested action |
-|---------|----------------|------------------|
-| `... pin(s) were bare numbers and were interpreted as logical GPIO numbers` | The Pin column held numbers like `2`; they were read as GPIO numbers, not package pad numbers | Verify one pin against the schematic; use pin names (`GP2`, `PA0`) in the export |
-| `GPIO0 is a boot strapping pin` | Strapping pin's boot-time state matters | Add pull-ups/pull-downs per datasheet |
-| `GPIO37 is not bonded out on ESP32-WROOM-32 modules` | The pin exists on the die but not on the named module | Move the signal to a bonded pin (or use a custom profile for your module) |
-| `Potential lonely differential pair: '...' has no partner` | A `*_P`/`*_N`-style net is missing its mate | Connect and name both halves of the pair |
-| `Pin ... used by multiple nets` | Two signals share one pin — a real conflict | Fix the schematic; `--strict` turns this into a hard failure |
-| `Net '...' connects to multiple pins` | One net touches several MCU pins | Fine for power rails; a routing error otherwise. Code emitters use the first pin and flag the rest in a comment |
+The rule of thumb: **errors** (pin conflicts, dropped pins) mean the
+pinmap is broken and fail `--strict`; **warnings** (special pins,
+multi-pin nets, lonely pair halves, bare-number interpretation,
+renamed identifiers) are advisories worth a look that never block
+generation — the full list of checks is in
+[section 4.2](#42-roles-and-validation).
+
+Every message the tool prints is catalogued verbatim — with what it
+means and what to do — in
+[docs/troubleshooting.md § Validation messages](docs/troubleshooting.md#validation-messages),
+so you can search that page for the exact text you saw.
 
 ### 10.2 Diagnosing empty or partial outputs
 
@@ -419,9 +422,10 @@ Launch tasks via `Ctrl+Shift+P → Tasks: Run Task`.
 
 Two workflows run on every push and pull request:
 
-- **`build-test.yml`** — runs generation end-to-end (with `--strict`) on
-  Linux/Windows/macOS across Python 3.11/3.12, plus module-import and
-  file-watcher smoke tests.
+- **`build-test.yml`** — runs the full test suite and generation
+  end-to-end (with `--strict`) on Linux/Windows/macOS across Python
+  3.11–3.14, plus module-import, file-watcher, and packaging
+  (`pip install -e .` / wheel) checks.
 - **`validate-pinmaps.yml`** — regenerates from the sample netlist with
   `--strict`, verifies output structure and content, and regenerates the
   committed `examples/` outputs with `--reproducible`, failing the build
@@ -459,9 +463,10 @@ Two workflows run on every push and pull request:
 ## 13. Reference
 
 - **README.md** — High-level project overview, installation, and highlights.
-- **MILESTONES.md** — Roadmap with current priorities (Classroom readiness & documentation sprint).
-- **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow with screenshots.
+- **docs/** — Topic guides (usage, workflows, troubleshooting, FAQ, output formats, extending) — see [docs/README.md](docs/README.md) for the index.
+- **fusion_addin/ULP_GUIDE.md** — Detailed Fusion workflow.
 - **tests/** — Sample fixtures and unit tests illustrating the canonical data flow.
 - **hardware/exports/sample_netlist.csv** — Reference dataset for experimentation.
+- **docs/internal/** — Historical development documents (not maintained).
 
 If you encounter gaps or have suggestions, open an issue or pull request and reference the relevant section of this guide.

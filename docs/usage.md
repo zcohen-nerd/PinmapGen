@@ -40,6 +40,12 @@ Optional:
   --reproducible              Fixed timestamps for reproducible builds
   --log-file PATH             Mirror all console output (status, warnings,
                               errors) to a file — used by the Fusion ULP
+  --list-mcus                 List every available MCU profile and exit
+  --version                   Print the PinmapGen version and exit
+
+Subcommands:
+  profiles list [--profile-dir DIR]          Table of available profiles
+  profiles check <name> [--profile-dir DIR]  Validate and inspect one profile
 ```
 
 ### Examples by MCU
@@ -249,8 +255,9 @@ bash .githooks/install-hooks.sh   # Linux/macOS
 pwsh -File .githooks/install-hooks.ps1  # Windows
 ```
 
-The hook regenerates pinmaps when files in `hardware/exports/` change and
-stages the updated outputs automatically.
+The hook validates staged `hardware/exports/*.csv` netlists by running
+the generator against them in a temporary directory - a broken netlist
+blocks the commit. It never writes or stages outputs itself.
 
 ---
 

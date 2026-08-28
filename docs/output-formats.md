@@ -74,8 +74,8 @@ RS485_P = 16         # GP16
 RS485_N = 17         # GP17
 ```
 
-RP2040 pins use bare integers (`GP15` → `15`). STM32 and ESP32 pins use quoted
-strings (`"PA0"`, `"GPIO4"`).
+RP2040 and ESP32 pins use bare integers (`GP15` → `15`, `GPIO4` → `4`).
+STM32 pins use quoted strings (`"PA0"`), which `machine.Pin` accepts by name.
 
 ### Usage
 
@@ -188,7 +188,9 @@ by direction (input, output, bidirectional, USB).
 
 ### Viewing
 
-- GitHub and GitLab render `.mmd` files inline.
+- GitHub renders Mermaid inside ```` ```mermaid ```` fenced blocks in
+  Markdown files — paste the `.mmd` content into one (raw `.mmd` files
+  are shown as plain text).
 - VS Code with the Mermaid extension previews diagrams.
 - Embed in HTML:
   ```html

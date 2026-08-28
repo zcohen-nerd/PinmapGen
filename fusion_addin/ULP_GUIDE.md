@@ -59,8 +59,9 @@ file next to the ULP for future runs.
 **MCU reference designator** — The ref des of your MCU (e.g., `U1`, `IC1`).
 Must match the schematic.
 
-**Project name** — Used for the output folder name. Defaults to a timestamped
-name if left blank.
+**Project name** — Used for the output folder name (`<output dir>\<project
+name>`). Must not be blank; the **Add Timestamp** button appends a unique
+suffix (idempotent — clicking again replaces the previous timestamp).
 
 **MCU type** — Pick from the quick buttons (all 13 built-in profiles) or type
 a profile name.
@@ -162,14 +163,13 @@ then keeps its own (`PinmapGen_manual_settings.txt`). Results are
 reported the same way — success list, issues log, or failure log — and
 your `live_netlist.csv` is kept for the next run, never deleted.
 
-## Research ULPs
+## The CSV exporter: export_netlist.ulp
 
-Two additional ULPs are included for development/debugging:
-
-- `ulp_schematic_access_test.ulp` — Lists accessible schematic data
-  structures (nets, parts, pins).
-- `direct_netlist_generator.ulp` — Generates a CSV directly from the
-  schematic object model without using `EXPORT NETLIST`.
+`export_netlist.ulp` writes the netlist CSV and nothing else — no shell
+commands, so it runs anywhere Fusion does, including macOS. Use it to
+feed the CLI directly or to produce `live_netlist.csv` for the manual
+ULP. **Automation → Run ULP → export_netlist**, pick a save location,
+done.
 
 ## Troubleshooting
 

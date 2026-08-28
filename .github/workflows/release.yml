@@ -49,26 +49,47 @@ jobs:
           exit 1
         fi
         echo "✅ Version format is valid: $VERSION"
-        
+
+    - name: Check tag matches pyproject version
+      run: |
+        VERSION_NUMBER=${{ steps.version.outputs.VERSION_NUMBER }}
+        PYPROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+        if [ "$VERSION_NUMBER" != "$PYPROJECT_VERSION" ]; then
+          echo "❌ Tag version $VERSION_NUMBER != pyproject.toml version $PYPROJECT_VERSION"
+          echo "   Bump [project] version in pyproject.toml before tagging."
+          exit 1
+        fi
+        echo "✅ Tag matches pyproject.toml ($PYPROJECT_VERSION)"
+
+    - name: Run test suite
+      run: python -m unittest discover -s tests
+
     - name: Generate release artifacts
       run: |
         VERSION=${{ steps.version.outputs.VERSION }}
-        
-        # Generate pinmaps with current sample data
+
+        # Generate pinmaps with current sample data — strict, so a
+        # broken sample can never ship in a release.
         echo "📦 Generating sample pinmaps for release..."
         python -m tools.pinmapgen.cli \
           --csv hardware/exports/sample_netlist.csv \
           --mcu rp2040 \
           --mcu-ref U1 \
           --out-root . \
-          --mermaid
-          
+          --mermaid \
+          --strict
+
         # Create release package
         mkdir -p release_artifacts
-        
+
         # Create source archive
         git archive --format=tar.gz --prefix=pinmapgen-${VERSION#v}/ HEAD > release_artifacts/pinmapgen-${VERSION#v}-source.tar.gz
-        
+
+        # Build the installable wheel (same artifact the packaging CI
+        # job verifies — ships the TOML profiles)
+        python -m pip install --upgrade pip
+        python -m pip wheel --no-deps -w release_artifacts/ .
+
         # Create example project package
         tar -czf release_artifacts/pinmapgen-${VERSION#v}-example.tar.gz \
           hardware/exports/sample_netlist.csv \
@@ -157,6 +178,7 @@ jobs:
 
         ### Files
         - \`pinmapgen-$VERSION_NUMBER-source.tar.gz\` — Complete source code
+        - \`pinmapgen-$VERSION_NUMBER-py3-none-any.whl\` — Installable wheel (\`pip install <file>\`)
         - \`pinmapgen-$VERSION_NUMBER-example.tar.gz\` — Example project with generated outputs
 
         Full documentation available in the repository README.
@@ -166,4 +188,5 @@ jobs:
           --title "PinmapGen $VERSION" \
           --notes-file release_notes.md \
           release_artifacts/pinmapgen-$VERSION_NUMBER-source.tar.gz \
+          release_artifacts/pinmapgen-$VERSION_NUMBER-py3-none-any.whl \
           release_artifacts/pinmapgen-$VERSION_NUMBER-example.tar.gz

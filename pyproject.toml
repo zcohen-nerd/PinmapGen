@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=61"]
+# >=77 for PEP 639 license expressions (SPDX LicenseRef + license-files).
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,13 +8,16 @@ name = "pinmapgen"
 version = "0.1.0"
 description = "Toolchain that bridges Fusion Electronics exports to firmware projects"
 authors = [{name = "Zachary Cohen"}]
-license = {file = "LICENSE"}
+# Custom non-OSI license (free non-commercial / paid commercial) — see
+# LICENSE. The SPDX LicenseRef form is machine-readable for legal
+# tooling; the deprecated License:: classifier is intentionally absent.
+license = "LicenseRef-PinmapGen-Community-License"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: Free To Use But Restricted",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

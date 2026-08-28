@@ -15,9 +15,11 @@ issues.
 
 ### Which MCUs are supported?
 
-RP2040, STM32G0 (STM32G071), and ESP32 (ESP32-WROOM-32). Adding a new MCU
-means subclassing `MCUProfile` and registering it in the CLI. See
-[extending.md](extending.md).
+13 built-in profiles: RP2040, RP2350, ESP32, ESP32-S3, ESP32-C3,
+STM32G0, STM32F411, STM32H743, nRF52840, ATmega328P, ATmega2560,
+ATSAMD21, and ATSAMD51 — run `--list-mcus` for the live list with
+descriptions. Adding a new MCU means writing a small TOML file (no
+code); see [extending.md](extending.md).
 
 ### Does it need internet access?
 
@@ -25,8 +27,14 @@ No. PinmapGen is stdlib-only and runs entirely offline.
 
 ### Can I use it commercially?
 
-Non-commercial use is free. Commercial use requires a license. See the
-[LICENSE](../LICENSE) file.
+Non-commercial use is free: hobby projects, education and coursework,
+academic research, and open-source projects where no money is made.
+Commercial use — work by or for a business, paid client/consulting
+work, or shipping it inside a paid product or service — requires a paid
+commercial license from the author first. The [LICENSE](../LICENSE)
+file has the exact category lists and the contact for licensing
+inquiries; when in doubt whether your use counts as commercial, ask
+before adopting it.
 
 ---
 
@@ -68,8 +76,8 @@ format directly from a Fusion schematic (Windows and macOS).
 
 ### Can I use KiCad / Altium / other CAD tool exports?
 
-Not directly. If you can produce a CSV with the four required columns, the CLI
-will accept it. Native KiCad `.net` or Altium NetList support would require a
+Not directly. If you can produce a CSV with the three required columns
+(`Net`, `Pin`, `RefDes`), the CLI will accept it. Native KiCad `.net` or Altium NetList support would require a
 new parser module.
 
 ---
@@ -100,9 +108,11 @@ documentation and whether the emitter generates helper code.
 
 ### Are the outputs deterministic?
 
-Mostly. Pin ordering and content are deterministic for a given input. However,
-timestamps in file headers change on each run, so byte-for-byte reproducibility
-requires stripping or fixing the timestamp.
+Yes, when you ask for it. Pin ordering and content are deterministic for
+a given input, and passing `--reproducible` pins the header timestamps
+(via `SOURCE_DATE_EPOCH`) so repeated runs are byte-identical — that's
+how the committed examples and the CI drift check work. Without the
+flag, only the timestamp lines differ between runs.
 
 ### How does validation work?
 

@@ -152,9 +152,9 @@ The `fixtures/minimal_netlist.csv` uses a **different** BOM-style format with co
 - Both return `dict[str, list[str]]` mapping net names to pin lists.
 
 ### Editing Normalization / Profiles
-- `normalize.py` contains a **legacy duplicate** of RP2040 logic. The real profiles live in `*_profile.py` files.
+- `normalize.py`'s `RP2040Profile` is a backward-compatibility shim that delegates to the TOML profile registry; the real pin data lives in `profiles/*.toml`.
 - `mcu_profiles.py` `create_canonical_pinmap()` handles: normalization → validation → diff-pair detection → role inference → canonical dict assembly.
-- Validation prints warnings but does NOT raise on validation_errors (only prints them). The legacy `normalize.py` RP2040Profile **does** raise on validation errors. This is an inconsistency.
+- Validation prints errors/warnings and records them in metadata; the CLI's `--strict` flag turns validation errors (pin conflicts) and dropped pins into exit code 2.
 
 ### Testing
 - Tests use `unittest.TestCase` (not pytest fixtures).

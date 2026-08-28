@@ -1,5 +1,11 @@
 # PinmapGen Milestones & Roadmap
 
+> **Internal development document.** Kept for project history; counts,
+> tier lists, and feature claims reflect the moment they were written
+> and are not maintained. Current user documentation lives in
+> [README.md](../../README.md), [USER_GUIDE.md](../../USER_GUIDE.md),
+> and [docs/](../).
+
 Staged development history. Milestones 1–10 are complete; stretch goals are
 listed at the end.
 

@@ -19,10 +19,12 @@ assignees: ''
 ## Location
 **Which documentation is affected?**
 - [ ] README.md
-- [ ] USER_GUIDE.md  
-- [ ] docs/usage.md
-- [ ] ULP_GUIDE.md
-- [ ] SUCCESS_DOCUMENTATION.md
+- [ ] USER_GUIDE.md
+- [ ] docs/usage.md (or another file under docs/)
+- [ ] docs/troubleshooting.md
+- [ ] docs/faq.md
+- [ ] fusion_addin/ULP_GUIDE.md
+- [ ] examples/ READMEs
 - [ ] Code comments/docstrings
 - [ ] Other: ___________
 
