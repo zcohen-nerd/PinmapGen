@@ -119,6 +119,26 @@ def _issue_summary(canonical_dict: dict[str, Any]) -> str:
     return ", ".join(bits)
 
 
+# Fallback when the package isn't pip-installed (plain source checkout).
+# Keep in sync with pyproject.toml's [project] version.
+_FALLBACK_VERSION = "0.1.0"
+
+
+def _version_string() -> str:
+    """Version from installed package metadata, or the source fallback.
+
+    Reading importlib.metadata keeps ``--version`` and pyproject.toml in
+    agreement for installed copies instead of maintaining two hardcoded
+    strings.
+    """
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("pinmapgen")
+    except PackageNotFoundError:
+        return _FALLBACK_VERSION
+
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     available = registry.list_profiles()
@@ -132,6 +152,10 @@ Examples:
   python -m tools.pinmapgen.cli --sch hardware/exports/project.sch --mcu rp2040 --mcu-ref U1 --out-root . --mermaid
   python -m tools.pinmapgen.cli --list-mcus
   python -m tools.pinmapgen.cli --csv netlist.csv --mcu my_mcu --mcu-ref U1 --profile-dir ./my_profiles
+
+Subcommands:
+  profiles list [--profile-dir DIR]         table of available MCU profiles
+  profiles check <name> [--profile-dir DIR] validate and inspect one profile
         """,
     )
 
@@ -224,7 +248,7 @@ Examples:
         ),
     )
     parser.add_argument(
-        "--version", action="version", version="%(prog)s 0.1.0",
+        "--version", action="version", version=f"%(prog)s {_version_string()}",
     )
 
     args = parser.parse_args()
@@ -238,8 +262,7 @@ Examples:
 
     # Handle --list-mcus early.
     if args.list_mcus:
-        _print_profile_list()
-        sys.exit(0)
+        sys.exit(_print_profile_list())
 
     # When not listing, --csv/--sch, --mcu, and --mcu-ref are required.
     if not args.csv and not args.sch:
@@ -264,7 +287,7 @@ def _print_profile_list() -> int:
     """Print a formatted table of all registered profiles.
 
     Used by both ``--list-mcus`` and the ``profiles list`` subcommand.
-    Returns an exit code (always 0).
+    Returns an exit code: 0, or 1 when any profile failed to parse.
     """
     profiles = registry.list_profiles()
     if not profiles:
@@ -276,8 +299,16 @@ def _print_profile_list() -> int:
         f"{'Source':<8} {'Schema':<8} Description"
     )
     print("-" * 88)
+    broken = 0
     for name in profiles:
-        info = registry.get_profile_info(name)
+        # One malformed TOML must not take down the whole listing - show
+        # it as broken (with the file named) and keep going.
+        try:
+            info = registry.get_profile_info(name)
+        except ValueError as exc:
+            print(f"{name:<16} [BROKEN] {exc}")
+            broken += 1
+            continue
         sv = info.get("schema_version")
         sv_str = str(sv) if sv is not None else "-"
         print(
@@ -288,7 +319,7 @@ def _print_profile_list() -> int:
             f"{sv_str:<8} "
             f"{info.get('description', '')}"
         )
-    return 0
+    return 1 if broken else 0
 
 
 def parse_input_file(args: argparse.Namespace) -> dict[str, list[str]]:
@@ -427,10 +458,20 @@ def _profiles_main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="action")
     sub.required = True
 
-    sub.add_parser("list", help="List available MCU profiles")
+    # --profile-dir is accepted both before and after the subcommand, so
+    # the documented `profiles check <name> --profile-dir DIR` order works.
+    list_p = sub.add_parser("list", help="List available MCU profiles")
+    list_p.add_argument(
+        "--profile-dir", type=Path, dest="profile_dir",
+        default=argparse.SUPPRESS,
+    )
 
     check_p = sub.add_parser("check", help="Validate and inspect a profile")
     check_p.add_argument("name", help="Profile name to check")
+    check_p.add_argument(
+        "--profile-dir", type=Path, dest="profile_dir",
+        default=argparse.SUPPRESS,
+    )
 
     args = parser.parse_args(argv)
 
@@ -461,7 +502,11 @@ def _profiles_check_cmd(name: str) -> int:
             )
         return 1
 
-    info = registry.get_profile_info(key)
+    try:
+        info = registry.get_profile_info(key)
+    except ValueError as exc:
+        print(f"Validation FAILED: {exc}", file=sys.stderr)
+        return 1
     print(f"Profile:         {info['name']}")
     print(f"Source:          {info['source']}")
     if info.get("path"):
@@ -537,9 +582,13 @@ def _run_cli() -> None:
             print(f"Output root: {args.out_root}")
             print()
 
-        # Enable reproducible builds
+        # Enable reproducible builds. A pre-existing valid value is
+        # honored (that's the SOURCE_DATE_EPOCH convention), but a
+        # garbage one is replaced rather than left to poison the run.
         if args.reproducible:
-            os.environ.setdefault("SOURCE_DATE_EPOCH", "0")
+            existing = os.environ.get("SOURCE_DATE_EPOCH")
+            if existing is None or not existing.strip().lstrip("-").isdigit():
+                os.environ["SOURCE_DATE_EPOCH"] = "0"
 
         # Parse input file and extract nets
         nets = parse_input_file(args)

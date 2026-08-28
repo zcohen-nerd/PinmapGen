@@ -1,0 +1,11 @@
+# Normalize line endings so generated output diffs cleanly across
+# platforms: the emitters always write LF (newline="\n"), and these
+# rules keep git from converting anything to CRLF on Windows checkouts,
+# which would defeat --reproducible drift checks.
+* text=auto eol=lf
+
+# Binary-safe exceptions (none currently tracked, listed for clarity)
+*.png binary
+*.jpg binary
+*.gif binary
+*.zip binary

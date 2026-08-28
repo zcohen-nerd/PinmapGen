@@ -103,4 +103,6 @@ Check that generated files contain definitions for all expected pins:
 Once comfortable with this example:
 - Try the **sensor_hub** example for I2C/SPI communication
 - Modify the netlist to add more LEDs or buttons
-- Generate outputs for different MCU types (STM32G0, ESP32)
+- Try another MCU profile (`--list-mcus`) - note that this netlist
+  uses RP2040 `GP*` pin names, so a different chip needs its own
+  netlist with that chip's pin names (`PA5`, `GPIO4`, ...)

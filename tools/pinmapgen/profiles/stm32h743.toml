@@ -189,52 +189,55 @@ special_function_short = "LSE"
 
 # ── Peripherals ───────────────────────────────────────────────────────────
 
+# Instances follow ST's 1-based peripheral names (I2C1, SPI1, USART1...),
+# so the numbers here match the datasheet and CubeMX.
+
 [[peripherals]]
 name = "I2C"
-instance = 0
+instance = 1
 pins = { sda = "PB7", scl = "PB6" }
 
 [[peripherals]]
 name = "I2C"
-instance = 1
+instance = 2
 pins = { sda = "PB11", scl = "PB10" }
 
 [[peripherals]]
 name = "SPI"
-instance = 0
+instance = 1
 pins = { mosi = "PA7", miso = "PA6", sck = "PA5", cs = "PA4" }
 
 [[peripherals]]
 name = "SPI"
-instance = 1
+instance = 2
 pins = { mosi = "PC3", miso = "PC2", sck = "PB10" }
 
 [[peripherals]]
 name = "UART"
-instance = 0
+instance = 1
 pins = { tx = "PA9", rx = "PA10" }
 
 [[peripherals]]
 name = "UART"
-instance = 1
+instance = 2
 pins = { tx = "PA2", rx = "PA3" }
 
 [[peripherals]]
 name = "UART"
-instance = 2
+instance = 3
 pins = { tx = "PC6", rx = "PC7" }
 
 [[peripherals]]
 name = "CAN"
-instance = 0
+instance = 1
 pins = { tx = "PB9", rx = "PB8" }
 
 [[peripherals]]
 name = "USB"
-instance = 0
+instance = 1
 pins = { dp = "PA12", dm = "PA11" }
 
 [[peripherals]]
 name = "DAC"
-instance = 0
+instance = 1
 pins = { ch0 = "PA4", ch1 = "PA5" }

@@ -8,8 +8,24 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import get_build_timestamp
+from .naming import sanitize_net_name
 from .pin_metadata import get_special_functions_short
+
+
+def _escape_label(text: str) -> str:
+    """Escape text for interpolation into a double-quoted Mermaid label.
+
+    Mermaid parses quotes/angle brackets inside ``["..."]`` labels, so a
+    net name containing them would break the whole diagram. Entity codes
+    render back as the original characters.
+    """
+    return (
+        text.replace("&", "#amp;")
+        .replace('"', "#quot;")
+        .replace("<", "#lt;")
+        .replace(">", "#gt;")
+    )
 
 
 def emit_mermaid_diagram(
@@ -33,7 +49,7 @@ def emit_mermaid_diagram(
     diagram = generate_mermaid_graph(canonical_dict)
 
     # Write to file
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(diagram)
 
 
@@ -79,7 +95,7 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
     lines = []
 
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = get_build_timestamp()
 
     # Diagram header with metadata
     lines.extend(
@@ -89,7 +105,7 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
             "",
             "graph TB",
             "    %% MCU node",
-            f'    MCU["{mcu}<br/>Microcontroller"]',
+            f'    MCU["{_escape_label(mcu)}<br/>Microcontroller"]',
             "",
         ]
     )
@@ -200,16 +216,17 @@ def generate_mermaid_graph(canonical_dict: dict[str, Any]) -> str:
 
         lines.append("")
 
-    # Add multi-pin nets (power rails, etc.)
+    # Add multi-pin nets. Styled by what the net actually is - a fanned
+    # out sensor bus is not a power rail and must not render as one.
     if multi_pin_nets:
         lines.append("    %% Multi-pin nets")
         for net_name, pin_list in sorted(multi_pin_nets):
             node_id = node_id_map.get(net_name, _sanitize_node_id(net_name))
             pins_str = ", ".join(sorted(pin_list))
-            lines.append(
-                f'    MCU --> {node_id}["{net_name}<br/>{pins_str}"]'
-            )
-            lines.append(f"    class {node_id} power")
+            label = f"{_escape_label(net_name)}<br/>{_escape_label(pins_str)}"
+            lines.append(f'    MCU --> {node_id}["{label}"]')
+            style = _get_node_style(net_name, "", canonical_dict)
+            lines.append(f"    class {node_id} {style}")
         lines.append("")
 
     # Define styles
@@ -277,17 +294,16 @@ def _group_pins_by_function(
 
 
 def _sanitize_node_id(name: str) -> str:
-    """Convert net name to valid Mermaid node ID."""
-    # Replace invalid characters with underscores
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    """Convert net name to valid Mermaid node ID.
 
-    # Ensure it starts with a letter
-    if sanitized and sanitized[0].isdigit():
-        sanitized = "PIN_" + sanitized
-
-    if not sanitized or sanitized == "_":
-        sanitized = "UNNAMED_PIN"
-
+    Uses the shared identifier sanitizer so polarity markers survive
+    (``USB_D+``/``USB_D-`` become ``USB_D_P``/``USB_D_N`` instead of
+    colliding), with a Mermaid-specific guard against a leading
+    underscore from digit-prefixed names like ``3V3``.
+    """
+    sanitized = sanitize_net_name(name)
+    if sanitized.startswith("_"):
+        sanitized = "PIN" + sanitized
     return sanitized
 
 
@@ -304,7 +320,7 @@ def _create_node_label(net_name: str, pin: str, canonical_dict: dict[str, Any]) 
     if pin in mcu_funcs:
         label_parts.append(mcu_funcs[pin])
 
-    return "<br/>".join(label_parts)
+    return "<br/>".join(_escape_label(part) for part in label_parts)
 
 
 def _get_node_style(net_name: str, pin: str, canonical_dict: dict[str, Any]) -> str:

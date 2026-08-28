@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import get_build_timestamp
 from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
@@ -36,7 +36,7 @@ def emit_arduino_header(
     code = generate_arduino_with_roles(canonical_dict)
 
     # Write to file
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(code)
 
 
@@ -193,10 +193,14 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
     """
     lines = []
 
-    # Header guard and includes
-    guard_name = "PINMAP_ARDUINO_H"
+    # Header guard and includes. The guard embeds the MCU and reference
+    # designator so two generated pinmaps in one project (two MCUs on a
+    # board, or two boards) don't silently no-op each other's include.
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    mcu_ref = str(canonical_dict.get("mcu_ref", "") or "").upper()
+    guard_tag = re.sub(r"[^A-Z0-9]+", "_", f"{mcu}_{mcu_ref}".strip("_"))
+    guard_name = f"PINMAP_ARDUINO_{guard_tag}_H".replace("__", "_")
+    timestamp = get_build_timestamp()
 
     lines.extend(
         [
@@ -320,8 +324,8 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                     lines.extend(
                         [
                             "struct USBPins {",
-                            f"    static constexpr uint8_t DP = {pos_const};  // {pair[0].description}",
-                            f"    static constexpr uint8_t DN = {neg_const};  // {pair[1].description}",
+                            f"    static constexpr auto DP = {pos_const};  // {pair[0].description}",
+                            f"    static constexpr auto DN = {neg_const};  // {pair[1].description}",
                             "};",
                             "",
                         ]
@@ -338,8 +342,8 @@ def generate_arduino_with_roles(canonical_dict: dict[str, Any]) -> str:
                     lines.extend(
                         [
                             "struct CANPins {",
-                            f"    static constexpr uint8_t H = {pos_const};  // {pair[0].description}",
-                            f"    static constexpr uint8_t L = {neg_const};  // {pair[1].description}",
+                            f"    static constexpr auto H = {pos_const};  // {pair[0].description}",
+                            f"    static constexpr auto L = {neg_const};  // {pair[1].description}",
                             "};",
                             "",
                         ]

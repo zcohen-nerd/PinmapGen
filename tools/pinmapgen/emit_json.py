@@ -5,6 +5,7 @@ Generates canonical pinmap.json files with role metadata.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -27,16 +28,13 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     # Create output directory if it doesn't exist
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Validate canonical dict structure before emitting
+    # Validate canonical dict structure before emitting. Reported on
+    # stderr like every other diagnostic (warnings.warn deduplicates and
+    # routes through the warning filters, which made these easy to miss
+    # and inconsistent with the rest of the tool).
     errors = validate_canonical_dict(canonical_dict)
-    if errors:
-        import warnings
-
-        for err in errors:
-            warnings.warn(
-                f"canonical dict validation: {err}",
-                stacklevel=2,
-            )
+    for err in errors:
+        print(f"Warning: canonical dict validation: {err}", file=sys.stderr)
 
     # Start with a copy of the canonical dictionary (defensive: never
     # mutate the caller's structures).
@@ -91,7 +89,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     }
 
     # Write JSON file with pretty formatting and stable key ordering
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False, sort_keys=True)
         f.write("\n")  # Add trailing newline
 

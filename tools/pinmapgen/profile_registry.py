@@ -58,6 +58,10 @@ class ProfileRegistry:
     def __init__(self, *, discover_builtins: bool = True) -> None:
         # Maps lowercase profile name → TOML path *or* Python class.
         self._entries: dict[str, Path | type[MCUProfile]] = {}
+        # Instantiated profiles, so repeated get_profile() calls don't
+        # re-parse and re-validate the same TOML. Invalidated per name
+        # whenever its entry is replaced.
+        self._instances: dict[str, MCUProfile] = {}
 
         if discover_builtins:
             builtin_dir = Path(__file__).resolve().parent / "profiles"
@@ -93,6 +97,7 @@ class ProfileRegistry:
                 existing,
             )
         self._entries[key] = profile_class
+        self._instances.pop(key, None)
 
     def get_profile(self, name: str) -> MCUProfile:
         """Instantiate and return the profile identified by *name*.
@@ -109,11 +114,21 @@ class ProfileRegistry:
             )
             raise KeyError(msg)
 
+        if key in self._instances:
+            return self._instances[key]
+
         entry = self._entries[key]
         if isinstance(entry, Path):
-            return TOMLProfile(entry)
-        # Python class - instantiate it.
-        return entry()
+            try:
+                profile = TOMLProfile(entry)
+            except tomllib.TOMLDecodeError as exc:
+                msg = f"Malformed profile TOML {entry}: {exc}"
+                raise ValueError(msg) from exc
+        else:
+            # Python class - instantiate it.
+            profile = entry()
+        self._instances[key] = profile
+        return profile
 
     def list_profiles(self) -> list[str]:
         """Return sorted list of registered profile names."""
@@ -132,8 +147,12 @@ class ProfileRegistry:
             raise KeyError(msg)
 
         if isinstance(entry, Path):
-            with entry.open("rb") as fh:
-                cfg = tomllib.load(fh)
+            try:
+                with entry.open("rb") as fh:
+                    cfg = tomllib.load(fh)
+            except tomllib.TOMLDecodeError as exc:
+                msg = f"Malformed profile TOML {entry}: {exc}"
+                raise ValueError(msg) from exc
             meta = cfg.get("profile", {})
             return {
                 "name": meta.get("name", key),
@@ -217,6 +236,7 @@ class ProfileRegistry:
                     existing,
                 )
             self._entries[name] = path
+            self._instances.pop(name, None)
 
 
 # ---------------------------------------------------------------------------

@@ -457,13 +457,22 @@ class MCUProfile(ABC):
         # Detect differential pairs
         diff_pairs = self.detect_differential_pairs(normalized_nets)
 
-        # Get special pins used
-        special_pins_used = [
-            pin
-            for net_pins in normalized_nets.values()
-            for pin in net_pins
-            if pin in self.pins and self.pins[pin].special_function
-        ]
+        # Get special pins used. Deduplicated and sorted in natural pin
+        # order so the metadata (and PINOUT.md's special-pins section)
+        # doesn't reshuffle when CSV rows are reordered.
+        def _pin_order(pin: str) -> tuple[str, int]:
+            num = re.search(r"\d+", pin)
+            return (re.sub(r"\d.*$", "", pin), int(num.group()) if num else -1)
+
+        special_pins_used = sorted(
+            {
+                pin
+                for net_pins in normalized_nets.values()
+                for pin in net_pins
+                if pin in self.pins and self.pins[pin].special_function
+            },
+            key=_pin_order,
+        )
 
         # Extract special-function metadata from pin definitions so that
         # emitters can use it without hard-coded look-up tables.

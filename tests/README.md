@@ -1,67 +1,64 @@
 # Test suite for PinmapGen
 
-This directory contains unit tests for the PinmapGen toolchain.
+Unit and integration tests for the PinmapGen toolchain. The suite is
+plain `unittest` — no dependencies to install.
 
 ## Running Tests
 
-### Using Python's unittest module:
 ```bash
-# Run all tests
-python -m unittest discover tests
+# Run everything (from the repo root)
+python -m unittest discover -s tests -v
 
-# Run specific test file  
-python -m unittest tests.test_normalize
+# Run one file
+python -m unittest tests.test_roles
 
-# Run specific test case
-python -m unittest tests.test_normalize.TestNormalize.test_rp2040_pin_normalization
+# Run one test case
+python -m unittest tests.test_p2_validation_and_outputs.TestValidationTaxonomy
 ```
 
-### Using pytest (if installed):
+pytest also works if you have it (`pip install -e ".[dev]"`):
+
 ```bash
-# Run all tests
-pytest tests/
-
-# Run with verbose output
-pytest -v tests/
-
-# Run specific test
-pytest tests/test_normalize.py::TestNormalize::test_rp2040_pin_normalization
+pytest tests/ -v
 ```
 
-## Test Structure
+## What lives where
 
-- `test_normalize.py` - Tests for pin name normalization
-- `test_roles.py` - Tests for role inference
-- `test_bom_csv.py` - Tests for CSV parsing
-- `test_emitters.py` - Tests for output generation
-- `fixtures/` - Test data files
+Rather than one file per module, the suite mixes module-focused files
+with regression files named after the audit/fix round that produced
+them (run `ls tests/` for the full current list):
 
-## Test Data
-
-Test cases use sample data in the `fixtures/` directory:
-- Minimal CSV files for edge case testing
-- Sample schematic data
-- Expected output files for comparison
+- **Module-focused:** `test_normalize.py`, `test_roles.py`,
+  `test_bom_csv.py`, `test_emitters.py`, `test_toml_profiles.py`,
+  `test_profile_validation.py`, `test_csv_parsing.py`
+- **Behavior/regression rounds:** `test_p0_fixes.py` … `test_p3_fixes.py`,
+  `test_fixes_35_44.py` … `test_fixes_61_64.py`,
+  `test_output_visibility.py`, `test_pin_data_fixes.py`,
+  `test_reserved_names.py`, `test_p2_validation_and_outputs.py`
+- **End-to-end:** `test_integration.py` (spawns the CLI as a subprocess)
+- `fixtures/` — sample input data used by the tests
 
 ## Writing Tests
 
-When adding new tests:
-
-1. **Follow the naming convention:** `test_module_name.py`
+1. **Follow the naming convention:** `test_<topic>.py`
 2. **Use descriptive test names:** `test_function_with_specific_condition`
 3. **Include docstrings:** Explain what the test validates
 4. **Test edge cases:** Empty inputs, malformed data, etc.
-5. **Use fixtures:** Keep test data in `fixtures/` directory
+5. **Prefer real entry points:** go through `registry.get_profile(...)`
+   and `create_canonical_pinmap(...)` rather than private helpers
 
-Example test structure:
+Example (this runs as-is):
+
 ```python
 import unittest
-from pathlib import Path
-from tools.pinmapgen.normalize import normalize_pin_name
 
-class TestNormalize(unittest.TestCase):
+from tools.pinmapgen.profile_registry import registry
+
+
+class TestNormalization(unittest.TestCase):
     def test_rp2040_pin_normalization(self):
-        """Test that RP2040 pins are normalized correctly."""
-        self.assertEqual(normalize_pin_name("GPIO0", "rp2040"), "GP0")
-        self.assertEqual(normalize_pin_name("GP1", "rp2040"), "GP1")
+        """RP2040 accepts GPIO/GP spellings and canonicalizes to GP<n>."""
+        profile = registry.get_profile("rp2040")
+        self.assertEqual(profile.normalize_pin_name("GPIO0"), "GP0")
+        self.assertEqual(profile.normalize_pin_name("GP1"), "GP1")
 ```

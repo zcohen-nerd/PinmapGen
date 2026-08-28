@@ -30,10 +30,15 @@ class SimpleFileWatcher:
             callback: Function to call when files change
             poll_interval: Polling interval in seconds
         """
+        if poll_interval <= 0:
+            msg = f"poll_interval must be positive, got {poll_interval}"
+            raise ValueError(msg)
+
         self.watch_paths = watch_paths
         self.callback = callback
         self.poll_interval = poll_interval
         self.file_times = {}  # Path -> last modified time
+        self._pending = {}  # Path -> mtime awaiting one settle poll
         self.running = False
 
         # Initialize file modification times
@@ -57,33 +62,43 @@ class SimpleFileWatcher:
                             )
 
     def _check_for_changes(self) -> set[Path]:
-        """Check for file changes and return set of changed files."""
-        changed_files = set()
+        """Check for file changes and return set of settled changed files.
+
+        A change is only reported once the file's mtime has been stable
+        for one full poll interval (debounce): editors and Excel write
+        exports in several chunks, and regenerating from a half-written
+        CSV produces garbage or a parse error.
+        """
+        candidates: dict[Path, float] = {}
 
         for watch_path in self.watch_paths:
             if not watch_path.exists():
                 continue
 
             if watch_path.is_file():
-                current_time = watch_path.stat().st_mtime
-                if (
-                    watch_path not in self.file_times
-                    or self.file_times[watch_path] != current_time
-                ):
-                    self.file_times[watch_path] = current_time
-                    changed_files.add(watch_path)
-
+                candidates[watch_path] = watch_path.stat().st_mtime
             elif watch_path.is_dir():
                 # Check only relevant file types in directory
                 for ext in self._WATCH_EXTENSIONS:
                     for file_path in watch_path.rglob(ext):
-                        current_time = file_path.stat().st_mtime
-                        if (
-                            file_path not in self.file_times
-                            or self.file_times[file_path] != current_time
-                        ):
-                            self.file_times[file_path] = current_time
-                            changed_files.add(file_path)
+                        candidates[file_path] = file_path.stat().st_mtime
+
+        changed_files = set()
+        for file_path, current_time in candidates.items():
+            known_time = self.file_times.get(file_path)
+            if known_time == current_time:
+                self._pending.pop(file_path, None)
+                continue
+
+            pending_time = self._pending.get(file_path)
+            if pending_time == current_time:
+                # Unchanged since last poll: the write has settled.
+                self.file_times[file_path] = current_time
+                del self._pending[file_path]
+                changed_files.add(file_path)
+            else:
+                # New or still being written - wait one more poll.
+                self._pending[file_path] = current_time
 
         return changed_files
 
@@ -170,6 +185,20 @@ def watch_and_regenerate(
         print(f"  - {file_path.name}")
     if watch_dir.is_dir():
         print("(New files added to the directory will also be detected)")
+    if len(initial_files) > 1:
+        print(
+            "NOTE: every watched file regenerates into the same "
+            f"--out-root ({out_root}) - last write wins. Watch a single "
+            "file, or run one watcher per netlist with separate "
+            "--out-root folders, if these are different boards."
+        )
+
+    # The subprocess imports tools.pinmapgen.cli, which only works from
+    # the repository root (unless pinmapgen is pip-installed). Run it
+    # there explicitly so `cd hardware/exports && watch .` works too -
+    # with every path made absolute first, since they were given
+    # relative to the user's directory, not the repo root.
+    repo_root = Path(__file__).resolve().parents[2]
 
     def regenerate_callback(changed_file: Path) -> None:
         """Callback to regenerate pinmaps when files change."""
@@ -179,17 +208,23 @@ def watch_and_regenerate(
         cmd = [sys.executable, "-m", "tools.pinmapgen.cli"]
 
         if changed_file.suffix.lower() == ".csv":
-            cmd.extend(["--csv", str(changed_file)])
+            cmd.extend(["--csv", str(changed_file.resolve())])
         elif changed_file.suffix.lower() == ".sch":
-            cmd.extend(["--sch", str(changed_file)])
+            cmd.extend(["--sch", str(changed_file.resolve())])
         else:
             print(f"ERROR: Unsupported file type: {changed_file.suffix}")
             return
 
-        cmd.extend(["--mcu", mcu, "--mcu-ref", mcu_ref, "--out-root", str(out_root)])
+        cmd.extend(
+            [
+                "--mcu", mcu,
+                "--mcu-ref", mcu_ref,
+                "--out-root", str(out_root.resolve()),
+            ]
+        )
 
         if profile_dir:
-            cmd.extend(["--profile-dir", str(profile_dir)])
+            cmd.extend(["--profile-dir", str(Path(profile_dir).resolve())])
 
         if mermaid:
             cmd.append("--mermaid")
@@ -202,6 +237,7 @@ def watch_and_regenerate(
                 capture_output=True,
                 text=True,
                 timeout=30,  # 30 second timeout
+                cwd=repo_root,
             )
 
             if result.returncode == 0:
@@ -251,14 +287,16 @@ def main() -> None:
     )
     parser.add_argument(
         "--mcu",
-        default="rp2040",
+        default=None,
         help=(
             "MCU profile (default: rp2040). Available: "
             + ", ".join(registry.list_profiles())
         ),
     )
     parser.add_argument(
-        "--mcu-ref", default="U1", help="MCU reference designator (default: U1)"
+        "--mcu-ref",
+        default=None,
+        help="MCU reference designator (default: U1)",
     )
     parser.add_argument(
         "--out-root",
@@ -282,6 +320,29 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    if args.interval <= 0:
+        parser.error(
+            f"--interval must be a positive number of seconds, "
+            f"got {args.interval}"
+        )
+
+    # Defaults are convenient for the common Pico case, but silently
+    # generating rp2040 output for someone watching an STM32 netlist is
+    # a trap - say loudly which profile is in play when it was assumed.
+    defaulted = []
+    if args.mcu is None:
+        args.mcu = "rp2040"
+        defaulted.append("--mcu rp2040")
+    if args.mcu_ref is None:
+        args.mcu_ref = "U1"
+        defaulted.append("--mcu-ref U1")
+    if defaulted:
+        print(
+            f"NOTE: using default {' '.join(defaulted)} - pass these "
+            "explicitly if your netlist targets a different chip or "
+            "reference designator."
+        )
 
     # Validate the MCU name against the registry (including any custom
     # profile directory) instead of a hardcoded subset.

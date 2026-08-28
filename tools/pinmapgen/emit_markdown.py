@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import get_build_timestamp
 from .naming import build_name_map
 from .pin_metadata import get_special_function as _get_special_function_impl
 from .roles import analyze_roles
@@ -45,7 +45,7 @@ def emit_markdown_docs(canonical_dict: dict[str, Any], output_path: Path | str) 
     content = generate_pinout_documentation(canonical_dict)
 
     # Write to file
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
@@ -62,7 +62,7 @@ def generate_pinout_documentation(canonical_dict: dict[str, Any]) -> str:
     lines = []
 
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = get_build_timestamp()
     metadata = canonical_dict.get("metadata", {})
 
     # Document header

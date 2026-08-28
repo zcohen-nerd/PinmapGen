@@ -39,8 +39,12 @@ This example demonstrates PinmapGen with multiple communication protocols on an 
 PinmapGen creates organized firmware files for this multi-protocol setup.
 
 ## Usage
+
+From the repository root (the CLI is run as a module, so the
+`tools/` package must be importable from where you run it):
+
 ```bash
-python -m tools.pinmapgen.cli --csv netlist.csv --mcu rp2040 --mcu-ref U1 --out-root generated --mermaid
+python -m tools.pinmapgen.cli --csv examples/communication_module/netlist.csv --mcu rp2040 --mcu-ref U1 --out-root examples/communication_module/generated --mermaid
 ```
 
 This example covers:

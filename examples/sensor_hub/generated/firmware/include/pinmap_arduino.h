@@ -1,9 +1,9 @@
-#ifndef PINMAP_ARDUINO_H
-#define PINMAP_ARDUINO_H
+#ifndef PINMAP_ARDUINO_RP2040_U1_H
+#define PINMAP_ARDUINO_RP2040_U1_H
 
 /*
  * Auto-generated Arduino pinmap for RP2040
- * Generated: 1970-01-01 00:00:00
+ * Generated: 1970-01-01 00:00:00 UTC
  * Generator: PinmapGen
  *
  * This file contains pin definitions, helper structures, and macros
@@ -57,4 +57,4 @@
         Wire.setClock(freq); \
     } while (0)
 
-#endif // PINMAP_ARDUINO_H
+#endif // PINMAP_ARDUINO_RP2040_U1_H

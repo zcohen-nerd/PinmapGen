@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import get_build_timestamp
 from .naming import build_name_map
 from .naming import sanitize_net_name as _sanitize_net_name
 from .pin_metadata import get_pin_comment
@@ -37,7 +37,7 @@ def emit_micropython(
     code = generate_micropython_with_roles(canonical_dict)
 
     # Write to file
-    with output_path.open("w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(code)
 
 
@@ -177,7 +177,7 @@ def _render_file_header(
     needed_imports: set[str] | None = None,
 ) -> list[str]:
     mcu = canonical_dict.get("mcu", "unknown").upper()
-    timestamp = get_build_datetime().strftime("%Y-%m-%d %H:%M:%S %Z")
+    timestamp = get_build_timestamp()
     if needed_imports is None:
         needed_imports = {"Pin", "I2C", "SPI", "PWM", "ADC"}
     # Stable import order
