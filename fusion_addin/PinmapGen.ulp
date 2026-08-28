@@ -13,6 +13,7 @@ string outputDir = ulpDir + "PinmapGen_Output";
 string projectName = "Project";
 string mcuType = "rp2040";
 string repoDir = "";   // Path to the cloned PinmapGen repository (required)
+int settingsLoaded = 0;  // set by loadSettings when a settings file was read
 int generateMicroPython = 1;
 int generateArduino = 1;
 int generateMarkdown = 1;
@@ -56,6 +57,42 @@ string toWindowsPath(string path) {
     string parts[];
     strsplit(parts, path, '/');
     return strjoin(parts, '\\');
+}
+
+// Clean a user-entered path or field: trim whitespace, strip the
+// wrapping quotes Explorer's "Copy as path" adds, and normalize
+// backslashes to the forward slashes EAGLE uses internally.
+string cleanPath(string p) {
+    int start = 0;
+    int end = strlen(p);
+    while (start < end && (p[start] == ' ' || p[start] == '\t' || p[start] == '"')) start++;
+    while (end > start && (p[end - 1] == ' ' || p[end - 1] == '\t' || p[end - 1] == '"' || p[end - 1] == '\r')) end--;
+    string trimmed = strsub(p, start, end - start);
+    string parts[];
+    strsplit(parts, trimmed, '\\');
+    return strjoin(parts, '/');
+}
+
+// Default output location: the user's Documents folder when this ULP
+// lives in the usual AppData ULP directory - AppData is hidden, often
+// write-protected, and wiped on a Fusion reinstall.
+string defaultOutputDir() {
+    int at = strstr(ulpDir, "/AppData/");
+    if (at > 0) {
+        return strsub(ulpDir, 0, at) + "/Documents/PinmapGen_Output";
+    }
+    return ulpDir + "PinmapGen_Output";
+}
+
+// Escape a CSV field value: double any embedded quotes so a quote in a
+// net name cannot corrupt the row.
+string csvField(string s) {
+    string result = "";
+    for (int i = 0; i < strlen(s); i++) {
+        if (s[i] == '"') result += "\"\"";
+        else result += strsub(s, i, 1);
+    }
+    return result;
 }
 
 // Read the CLI's --log-file back in; returns "" when the file is missing
@@ -143,11 +180,51 @@ int isSafeRefDes(string s) {
     return 1;
 }
 
-// Function to generate timestamped project name
+// Function to generate timestamped project name. A previous "_<epoch>"
+// suffix is stripped first so repeated clicks replace the timestamp
+// instead of compounding it forever.
 string generateProjectName(string baseName) {
+    int us = strrchr(baseName, '_');
+    if (us > 0) {
+        string tail = strsub(baseName, us + 1);
+        int digits = strlen(tail) >= 9;
+        for (int i = 0; digits && i < strlen(tail); i++) {
+            if (tail[i] < '0' || tail[i] > '9') digits = 0;
+        }
+        if (digits) baseName = strsub(baseName, 0, us);
+    }
     string timestamp;
     sprintf(timestamp, "%u", time());
     return baseName + "_" + timestamp;
+}
+
+// Windows filenames may not contain these characters.
+int isSafeProjectName(string s) {
+    if (strlen(s) == 0) return 0;
+    for (int i = 0; i < strlen(s); i++) {
+        char c = s[i];
+        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
+            c == '"' || c == '<' || c == '>' || c == '|') return 0;
+    }
+    return 1;
+}
+
+// True when a part with this reference designator exists in the open
+// schematic (case-insensitive).
+int refdesExists(string ref) {
+    string want = ref;
+    want = strupr(want);
+    int found = 0;
+    if (schematic) {
+        schematic(S) {
+            S.parts(P) {
+                string pn = P.name;
+                pn = strupr(pn);
+                if (pn == want) found = 1;
+            }
+        }
+    }
+    return found;
 }
 
 // Load settings from the file saved next to this ULP (if it exists)
@@ -157,6 +234,7 @@ void loadSettings() {
 
     string content;
     if (fileread(content, settingsFile) <= 0) return;
+    settingsLoaded = 1;
 
     string lines[];
     int n = strsplit(lines, content, '\n');
@@ -166,11 +244,11 @@ void loadSettings() {
         if (eq <= 0) continue;
         string key = strsub(line, 0, eq);
         string val = strsub(line, eq + 1);
-        if (key == "mcuRef") mcuRef = val;
-        else if (key == "outputDir") outputDir = val;
+        if (key == "mcuRef") mcuRef = cleanPath(val);
+        else if (key == "outputDir") outputDir = cleanPath(val);
         else if (key == "projectName") projectName = val;
-        else if (key == "mcuType") mcuType = val;
-        else if (key == "repoDir") repoDir = val;
+        else if (key == "mcuType") mcuType = cleanPath(val);
+        else if (key == "repoDir") repoDir = cleanPath(val);
         else if (key == "generateMicroPython") generateMicroPython = (val == "1");
         else if (key == "generateArduino") generateArduino = (val == "1");
         else if (key == "generateMarkdown") generateMarkdown = (val == "1");
@@ -262,7 +340,7 @@ string analyzeSchematic(string targetMcuRef) {
 }
 
 // Function to validate input parameters
-string validateInputs(string mcuRefIn, string outputDirIn, string mcuTypeIn, string repoDirIn) {
+string validateInputs(string mcuRefIn, string outputDirIn, string projectNameIn, string repoDirIn) {
     string errors = "";
 
     if (!isSafeRefDes(mcuRefIn)) {
@@ -270,11 +348,15 @@ string validateInputs(string mcuRefIn, string outputDirIn, string mcuTypeIn, str
     }
 
     if (strlen(outputDirIn) == 0) {
-        errors += "- Output Directory cannot be empty\n";
+        errors += "- Base Output Directory cannot be empty\n";
     }
 
-    if (!isValidMcu(mcuTypeIn)) {
-        errors += "- MCU Type must be one of: " + validMcuList + "\n";
+    if (!isSafeProjectName(projectNameIn)) {
+        errors += "- Project Name must be non-empty and free of \\ / : * ? \" < > |\n";
+    }
+
+    if (strchr(outputDirIn, '"') >= 0 || strchr(repoDirIn, '"') >= 0) {
+        errors += "- Paths must not contain quote characters\n";
     }
 
     if (strlen(repoDirIn) == 0) {
@@ -350,12 +432,19 @@ int generateNetlistCSV(string netlistPath) {
                                     break;
                                 }
 
+                                // Component = the device name (falling
+                                // back to value, then refdes), not a
+                                // duplicate of the RefDes column.
+                                string compName = PR.part.device.name;
+                                if (compName == "") compName = PR.part.value;
+                                if (compName == "") compName = PR.part.name;
+
                                 printf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                                    PR.part.name,
-                                    pinNum,
-                                    PR.part.name,
-                                    N.name,
-                                    padNum);
+                                    csvField(PR.part.name),
+                                    csvField(pinNum),
+                                    csvField(compName),
+                                    csvField(N.name),
+                                    csvField(padNum));
                                 success = 1;
                             }
                         }
@@ -371,6 +460,12 @@ int generateNetlistCSV(string netlistPath) {
 // ── Main execution ─────────────────────────────────────────────────────────
 
 loadSettings();
+
+// First run (no settings yet): default the output away from the hidden,
+// often write-protected AppData ULP folder.
+if (!settingsLoaded) {
+    outputDir = defaultOutputDir();
+}
 
 // This ULP automates generation through PowerShell and cmd.exe, so it is
 // Windows-only. EAGLE/Fusion normalizes Windows paths to "C:/...", so a
@@ -393,6 +488,13 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
         dlgHBoxLayout {
             dlgLabel("PinmapGen repository:");
             dlgStringEdit(repoDir);
+            dlgPushButton("Browse...") {
+                string picked = dlgDirectory("Select the PinmapGen repository folder", repoDir);
+                if (picked != "") {
+                    repoDir = cleanPath(picked);
+                    dlgRedisplay();
+                }
+            }
         }
         dlgLabel("(folder containing the cloned PinmapGen repo - saved for next time)");
         dlgSpacing(5);
@@ -448,10 +550,17 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
         dlgHBoxLayout {
             dlgLabel("Base Output Directory:");
             dlgStringEdit(outputDir);
+            dlgPushButton("Browse...") {
+                string picked = dlgDirectory("Select the output folder", outputDir);
+                if (picked != "") {
+                    outputDir = cleanPath(picked);
+                    dlgRedisplay();
+                }
+            }
         }
         dlgHBoxLayout {
-            dlgPushButton("ULP Folder") {
-                outputDir = ulpDir + "PinmapGen_Output";
+            dlgPushButton("Default Folder") {
+                outputDir = defaultOutputDir();
                 dlgRedisplay();
             }
         }
@@ -494,15 +603,34 @@ int result = dlgDialog("PinmapGen - Automated Pinmap Generation") {
 };
 
 if (result) {
-    // Save settings for next run
-    saveSettings();
+    // Normalize what the user typed or pasted before using any of it.
+    repoDir = cleanPath(repoDir);
+    outputDir = cleanPath(outputDir);
+    mcuRef = cleanPath(mcuRef);
+    mcuType = cleanPath(mcuType);
+    mcuType = strlwr(mcuType);
 
-    // Create full project output directory
+    // Validate inputs first; settings are saved only once they pass, so
+    // rejected values are never persisted for the next run.
+    string validationErrors = validateInputs(mcuRef, outputDir, projectName, repoDir);
+
+    // A custom TOML profile dropped into the repository is a legitimate
+    // MCU type the built-in list doesn't know - offer to proceed and let
+    // the CLI validate it for real.
+    if (strlen(validationErrors) == 0 && !isValidMcu(mcuType)) {
+        int choice = dlgMessageBox("MCU type '" + mcuType + "' is not one of the built-in profiles:\n" +
+            validMcuList + "\n\n" +
+            "If it is a custom TOML profile inside the repository's\n" +
+            "tools/pinmapgen/profiles/ folder it can still work - the\n" +
+            "CLI validates the profile for real.", "Use anyway", "-Cancel");
+        if (choice != 0) exit(0);
+    }
+
     string fullOutputDir = outputDir + "/" + projectName;
 
-    // Validate inputs first
-    string validationErrors = validateInputs(mcuRef, fullOutputDir, mcuType, repoDir);
     if (strlen(validationErrors) == 0) {
+        saveSettings();
+
         // Create project output directory. cmd.exe /c is required because
         // mkdir is a cmd built-in (not an executable) and 2>nul is cmd
         // redirection syntax; backslashes because cmd rejects
@@ -523,6 +651,16 @@ if (result) {
             exit(0);
         }
 
+        // The Analyze button already knows how to answer "does this
+        // reference exist?" - so never run a generation that is doomed
+        // to produce an empty pinmap.
+        if (!refdesExists(mcuRef)) {
+            dlgMessageBox("MCU reference '" + mcuRef + "' was not found in the open schematic.\n\n" +
+                "Use the Analyze button next to the MCU Reference field to\n" +
+                "inspect the schematic, fix the reference, and generate again.", "OK");
+            exit(0);
+        }
+
         // Generate netlist automatically from schematic
         string netlistFile = fullOutputDir + "/auto_netlist.csv";
         int netlistResult = generateNetlistCSV(netlistFile);
@@ -538,9 +676,19 @@ if (result) {
             // report the CLI's exit code instead of its own.
             string pinmapCmd = "powershell -NoProfile -Command \"cd '" + psEscape(repoDir) + "'; " + pythonCmd + " -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(fullOutputDir) + "' --log-file '" + psEscape(logFile) + "'";
 
-            // Add mermaid flag if selected
+            // The format checkboxes map to real CLI flags now -
+            // unchecking one genuinely skips that file.
             if (generateMermaid) {
                 pinmapCmd += " --mermaid";
+            }
+            if (!generateMicroPython) {
+                pinmapCmd += " --no-micropython";
+            }
+            if (!generateArduino) {
+                pinmapCmd += " --no-arduino";
+            }
+            if (!generateMarkdown) {
+                pinmapCmd += " --no-markdown";
             }
 
             pinmapCmd += " --verbose; exit $LASTEXITCODE\"";
@@ -556,9 +704,9 @@ if (result) {
                 // Clean run: no warnings, no errors, no dropped pins.
                 string successMsg = "Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated files:\n";
                 successMsg += "- pinmaps/pinmap.json\n";
-                successMsg += "- firmware/micropython/pinmap_micropython.py\n";
-                successMsg += "- firmware/include/pinmap_arduino.h\n";
-                successMsg += "- firmware/docs/PINOUT.md\n";
+                if (generateMicroPython) successMsg += "- firmware/micropython/pinmap_micropython.py\n";
+                if (generateArduino) successMsg += "- firmware/include/pinmap_arduino.h\n";
+                if (generateMarkdown) successMsg += "- firmware/docs/PINOUT.md\n";
                 if (generateMermaid) successMsg += "- firmware/docs/pinout.mmd\n";
                 successMsg += "\nLocation: " + fullOutputDir + "\nRun log: " + logFile;
 

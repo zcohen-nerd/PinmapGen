@@ -65,11 +65,18 @@ name if left blank.
 **MCU type** — Pick from the quick buttons (all 13 built-in profiles) or type
 a profile name.
 
-**Output directory** — Where generated files go. Defaults to a
-`PinmapGen_Output` folder next to the ULP; you can type any custom path.
+**Output directory** — Where generated files go. Use the **Browse…**
+button to pick a folder (there's one next to the repository field too),
+or **Default Folder** to reset it. The default is a `PinmapGen_Output`
+folder next to the ULP — unless the ULP lives in the AppData ULPs
+directory, in which case it defaults to `Documents\PinmapGen_Output` so
+your results land somewhere you'll actually find them.
 
 **Output formats** — Check the boxes for the formats you want (MicroPython,
-Arduino, Markdown, Mermaid).
+Arduino, Markdown, Mermaid). Unchecked formats are genuinely skipped (the
+ULP passes the CLI's `--no-micropython` / `--no-arduino` / `--no-markdown`
+flags); the canonical `pinmap.json` is always generated. Your choices are
+saved with the other settings.
 
 ### 4. Generate
 
@@ -94,13 +101,13 @@ Click **Generate Pinmap**. The ULP:
 ```
 <project>/
 ├── pinmaps/
-│   └── pinmap.json
+│   └── pinmap.json     (always generated)
 ├── firmware/
-│   ├── micropython/pinmap_micropython.py
-│   ├── include/pinmap_arduino.h
+│   ├── micropython/pinmap_micropython.py   (if MicroPython is checked)
+│   ├── include/pinmap_arduino.h            (if Arduino is checked)
 │   └── docs/
-│       ├── PINOUT.md
-│       └── pinout.mmd
+│       ├── PINOUT.md   (if Markdown is checked)
+│       └── pinout.mmd  (if Mermaid is checked)
 ├── pinmapgen_log.txt   (full CLI output from the last run)
 └── auto_netlist.csv    (temporary; removed after a clean run, kept
                          after a run with issues for troubleshooting)
@@ -136,6 +143,24 @@ The ULP detects pin roles from net names:
 
 Related signals are grouped automatically: I2C buses, SPI buses, UART
 channels, control groups.
+
+## The fallback: PinmapGen_Manual.ulp
+
+`PinmapGen_Manual.ulp` runs the same generation pipeline on a netlist CSV
+**you provide**, instead of exporting one from the open schematic. Use it
+when the automatic export misbehaves, or when your CSV comes from
+somewhere else entirely (a hand-written file, another tool, a colleague).
+
+1. Export a netlist with `export_netlist.ulp` (or write one by hand:
+   `Net`, `Pin`, `RefDes` columns, chip pin names like `GP4` in `Pin`).
+2. Save it as `live_netlist.csv` in the output folder.
+3. Run **Automation → Run ULP → PinmapGen_Manual** and click **Generate**.
+
+The dialog offers the same fields, Browse buttons, and format checkboxes
+as the main ULP; on first run it inherits the main ULP's saved settings,
+then keeps its own (`PinmapGen_manual_settings.txt`). Results are
+reported the same way — success list, issues log, or failure log — and
+your `live_netlist.csv` is kept for the next run, never deleted.
 
 ## Research ULPs
 

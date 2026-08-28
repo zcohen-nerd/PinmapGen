@@ -10,6 +10,17 @@
 // pinmap. The physical pad goes into the extra Pad column, which the
 // CLI ignores.
 
+// Escape a CSV field value: double any embedded quotes so a quote in a
+// net name cannot corrupt the row.
+string csvField(string s) {
+    string result = "";
+    for (int i = 0; i < strlen(s); i++) {
+        if (s[i] == '"') result += "\"\"";
+        else result += strsub(s, i, 1);
+    }
+    return result;
+}
+
 int generateNetlistCSV(string netlistPath) {
     if (!schematic) {
         return -1; // No schematic available
@@ -60,12 +71,19 @@ int generateNetlistCSV(string netlistPath) {
                                     break;
                                 }
 
+                                // Component = the device name (falling
+                                // back to value, then refdes), not a
+                                // duplicate of the RefDes column.
+                                string compName = PR.part.device.name;
+                                if (compName == "") compName = PR.part.value;
+                                if (compName == "") compName = PR.part.name;
+
                                 printf("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                                    PR.part.name,
-                                    pinNum,
-                                    PR.part.name,
-                                    N.name,
-                                    padNum);
+                                    csvField(PR.part.name),
+                                    csvField(pinNum),
+                                    csvField(compName),
+                                    csvField(N.name),
+                                    csvField(padNum));
                                 success = 1;
                             }
                         }
