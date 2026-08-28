@@ -25,6 +25,8 @@ For the other eight profiles (`allow_numeric = false`), the same input makes eve
 
 ### P0.2 The advertised design checks are invisible — and failures say "Success"
 
+> **Status: FIXED.** Warnings now print to stderr (deduplicated) and count into an honest final status line; a new `--log-file` option mirrors all console output for GUI front ends; both ULPs run with `-NoProfile`/`exit $LASTEXITCODE`, read the log back, and show a clean-success / generated-with-issues / failure-with-real-error / Python-never-started dialog accordingly.
+
 `README.md:24-27` leads with "It also **checks your design** … warns you if two signals share a pin, if you used a special pin (like a boot or debug pin) by accident". Four stacked defects make this promise false in practice:
 
 1. **Special-pin warnings are never printed at all.** `create_canonical_pinmap` collects per-pin profile warnings into `metadata.validation_warnings` (`mcu_profiles.py:326-331`) but only ever prints `validation_errors` (`:346-349`). Verified: nets on ESP32 GPIO0 (boot strap) or RP2040 GP24/25 produce **no console output whatsoever**, with or without `--verbose`, and `--strict` ignores them (`cli.py:426-427`). Every `warnings = [...]` array lovingly authored across the 13 TOML profiles is dead code at the console; the only trace is buried in `pinmap.json` metadata and a PINOUT.md section.

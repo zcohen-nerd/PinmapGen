@@ -211,7 +211,8 @@ python -m tools.pinmapgen.cli \
   [--verbose] \
   [--strict] \
   [--profile-dir <dir>] \
-  [--reproducible]
+  [--reproducible] \
+  [--log-file <path>]
 ```
 
 - `--mcu` accepts any of the 13 built-in profiles — run `--list-mcus` to
@@ -224,6 +225,9 @@ python -m tools.pinmapgen.cli \
 - `--reproducible` pins timestamps (via `SOURCE_DATE_EPOCH`) so repeated
   runs produce byte-identical output — useful for committed artifacts and
   drift checks.
+- `--log-file` mirrors everything the run prints (status, warnings,
+  validation errors) into a file. The Fusion ULP passes this automatically
+  and displays the log when a run needs review.
 
 ### 7.2 Output management
 

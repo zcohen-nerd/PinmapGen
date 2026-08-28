@@ -188,6 +188,11 @@ the dialog should point at the folder that contains `tools` and `README.md`
 telling you a pin has a special job on your chip. Double-check those pins
 are safe to use for your signal, or move the signal to another pin.
 
+**Anything else from the ULP** — every run writes `pinmapgen_log.txt` into
+the output folder with the full details, and the result dialog shows it
+when something needs your attention. That file is the first thing to
+attach to a bug report.
+
 More answers: [docs/troubleshooting.md](docs/troubleshooting.md) and
 [docs/faq.md](docs/faq.md).
 

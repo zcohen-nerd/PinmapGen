@@ -34,6 +34,8 @@ Optional:
                               dropped pins (recommended for CI)
   --profile-dir PATH          Additional directory with custom TOML profiles
   --reproducible              Fixed timestamps for reproducible builds
+  --log-file PATH             Mirror all console output (status, warnings,
+                              errors) to a file — used by the Fusion ULP
 ```
 
 ### Examples by MCU
@@ -100,6 +102,11 @@ Copy-Item fusion_addin/PinmapGen.ulp "$env:APPDATA\Autodesk\Autodesk Fusion 360\
 The ULP reads the schematic object model directly — no manual CSV export is
 needed. It writes a temporary CSV, invokes the CLI, and opens the output
 folder.
+
+Every run also writes `pinmapgen_log.txt` into the output folder with the
+CLI's full output. If the run produced warnings, validation errors, or
+dropped pins, the ULP shows that log in a dialog instead of a plain success
+message — review it before trusting the generated files.
 
 ### Preview mode
 

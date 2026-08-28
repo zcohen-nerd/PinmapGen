@@ -95,8 +95,12 @@ The reference designator passed via `--mcu-ref` doesn't appear in the CSV.
 
 ### Python / CLI errors from ULP
 
-- Ensure Python 3.11+ is installed and on PATH.
-- Verify the PinmapGen project path in the ULP matches the actual location.
+- Every ULP run writes `pinmapgen_log.txt` into the output folder with the
+  CLI's full output — the failure dialog shows it, and it's the first thing
+  to attach to a bug report.
+- If the dialog says no log file was created, Python never started: ensure
+  Python 3.11+ is installed and on PATH, and the PinmapGen repository path
+  in the ULP matches the actual location.
 - Run the equivalent CLI command manually to isolate the problem.
 
 ---

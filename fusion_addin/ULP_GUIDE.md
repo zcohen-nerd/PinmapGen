@@ -62,11 +62,21 @@ Arduino, Markdown, Mermaid).
 
 ### 4. Generate
 
-Click **Generate Pinmaps**. The ULP:
+Click **Generate Pinmap**. The ULP:
 1. Reads the netlist from the schematic object model.
 2. Writes a temporary CSV.
-3. Invokes the PinmapGen CLI.
-4. Opens File Explorer at the output folder.
+3. Invokes the PinmapGen CLI, capturing its full output to
+   `pinmapgen_log.txt` in the output folder.
+4. Shows the result:
+   - **Clean run** — a success dialog listing the generated files.
+   - **Run with issues** — the CLI reported warnings, validation errors,
+     or dropped pins: the dialog shows the full log so you can review
+     them before trusting the generated files.
+   - **Failure** — the dialog shows the log with the actual error
+     (wrong MCU reference, bad netlist, and so on). If no log was
+     created at all, Python never started — check that Python 3.11+ is
+     installed and on PATH and the repository path is right.
+5. Opens File Explorer at the output folder.
 
 ## Generated output
 
@@ -80,7 +90,9 @@ Click **Generate Pinmaps**. The ULP:
 │   └── docs/
 │       ├── PINOUT.md
 │       └── pinout.mmd
-└── temp/         (temporary files, safe to delete)
+├── pinmapgen_log.txt   (full CLI output from the last run)
+└── auto_netlist.csv    (temporary; removed after a clean run, kept
+                         after a run with issues for troubleshooting)
 ```
 
 ### File descriptions
@@ -139,9 +151,12 @@ Two additional ULPs are included for development/debugging:
 
 ### Python / CLI errors
 
-- Python 3.11+ must be installed and on PATH.
-- Verify the "PinmapGen repository" field points at your cloned repo
-  (the ULP checks for `tools/pinmapgen/cli.py` there).
+- The failure dialog shows the CLI's own error from `pinmapgen_log.txt`
+  (in the output folder) — read that first; it names the real problem.
+- If the dialog says no log file was created, Python never started:
+  Python 3.11+ must be installed and on PATH, and the "PinmapGen
+  repository" field must point at your cloned repo (the ULP checks for
+  `tools/pinmapgen/cli.py` there).
 - Run the equivalent CLI command manually to isolate the issue.
 
 ### Permission errors
@@ -152,7 +167,8 @@ Two additional ULPs are included for development/debugging:
 
 ### Files not generated
 
-- Check verbose output in the ULP dialog for errors.
+- Read `pinmapgen_log.txt` in the output folder (also shown in the
+  result dialog) — dropped pins and validation errors are listed there.
 - Verify the MCU ref des is correct.
 - Ensure nets are properly named and connected.
 

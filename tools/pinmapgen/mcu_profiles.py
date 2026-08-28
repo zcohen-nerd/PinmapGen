@@ -343,6 +343,13 @@ class MCUProfile(ABC):
             if normalized_pins:
                 normalized_nets[net_name] = normalized_pins
 
+        # Surface advisory per-pin warnings (strapping/boot/USB/debug pins).
+        # Deduplicated: the same pin warning can be collected once per net
+        # that touches the pin, but repeating it adds no information.
+        validation_warnings = list(dict.fromkeys(validation_warnings))
+        for warning in validation_warnings:
+            print(f"Warning: {warning}", file=sys.stderr)
+
         # Validate the normalized pinmap
         validation_errors = self.validate_pinmap(normalized_nets)
         for err in validation_errors:

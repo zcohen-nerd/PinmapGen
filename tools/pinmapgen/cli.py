@@ -13,7 +13,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 # Import parser and MCU profile modules
 from . import (
@@ -26,6 +26,96 @@ from . import (
     emit_micropython,
 )
 from .profile_registry import registry
+
+
+class _LogTee:
+    """Duplicate a console stream into the --log-file handle.
+
+    GUI front ends (the Fusion ULP in particular) cannot reliably capture
+    console output, so the CLI mirrors everything it prints — status,
+    warnings, errors — into a file they can read back and display.
+    """
+
+    def __init__(self, console: TextIO, log_handle: TextIO) -> None:
+        self.console = console
+        self._log = log_handle
+
+    def write(self, text: str) -> int:
+        # Log first: a console encoding error must not lose the log line.
+        self._log.write(text)
+        return self.console.write(text)
+
+    def flush(self) -> None:
+        self._log.flush()
+        self.console.flush()
+
+    def __getattr__(self, name: str) -> Any:
+        # Delegate everything else (encoding, isatty, ...) to the console.
+        return getattr(self.console, name)
+
+
+def _install_log_tee(argv: list[str]) -> TextIO | None:
+    """Mirror stdout/stderr to the file named by ``--log-file``, if given.
+
+    Scans argv directly instead of waiting for argparse so that argparse's
+    own error output (usage errors print and exit before parsing finishes)
+    reaches the log as well. Returns the open log handle, or None when no
+    --log-file was requested or the file could not be opened.
+    """
+    path_str = None
+    for i, arg in enumerate(argv):
+        if arg == "--log-file" and i + 1 < len(argv):
+            path_str = argv[i + 1]
+        elif arg.startswith("--log-file="):
+            path_str = arg.split("=", 1)[1]
+    if not path_str:
+        return None
+
+    log_path = Path(path_str)
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Held open for the whole run; closed in main()'s finally block.
+        handle = log_path.open(  # noqa: SIM115
+            "w", encoding="utf-8", errors="replace"
+        )
+    except OSError as exc:
+        print(
+            f"Warning: could not open log file {log_path}: {exc}",
+            file=sys.stderr,
+        )
+        return None
+
+    sys.stdout = _LogTee(sys.stdout, handle)
+    sys.stderr = _LogTee(sys.stderr, handle)
+    return handle
+
+
+def _remove_log_tee(handle: TextIO) -> None:
+    """Restore the real console streams and close the log file."""
+    if isinstance(sys.stdout, _LogTee):
+        sys.stdout = sys.stdout.console
+    if isinstance(sys.stderr, _LogTee):
+        sys.stderr = sys.stderr.console
+    handle.close()
+
+
+def _issue_summary(canonical_dict: dict[str, Any]) -> str:
+    """Build the issue-count phrase for the final status line.
+
+    Returns an empty string when the run was clean.
+    """
+    metadata = canonical_dict.get("metadata", {})
+    bits = []
+    n_errors = len(metadata.get("validation_errors", []))
+    n_dropped = len(metadata.get("dropped_pins", []))
+    n_warnings = len(metadata.get("validation_warnings", []))
+    if n_errors:
+        bits.append(f"{n_errors} validation error(s)")
+    if n_dropped:
+        bits.append(f"{n_dropped} dropped pin(s)")
+    if n_warnings:
+        bits.append(f"{n_warnings} warning(s)")
+    return ", ".join(bits)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -102,6 +192,18 @@ Examples:
         "--reproducible",
         action="store_true",
         help="Produce reproducible output (fixed timestamps)",
+    )
+    # The tee itself is installed in main() by scanning argv before argparse
+    # runs (see _install_log_tee); this entry documents the flag and keeps
+    # argparse from rejecting it.
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        help=(
+            "Mirror all console output (status, warnings, errors) to this "
+            "file. The Fusion ULP passes this so it can display the run's "
+            "diagnostics afterwards."
+        ),
     )
     parser.add_argument(
         "--version", action="version", version="%(prog)s 0.1.0",
@@ -389,6 +491,19 @@ def _profiles_check_cmd(name: str) -> int:
 
 def main():
     """Main CLI entry point."""
+    # Install the --log-file tee before anything can print, and tear it
+    # down (restoring the real streams, flushing the file) on every exit
+    # path, including sys.exit() and KeyboardInterrupt.
+    log_handle = _install_log_tee(sys.argv)
+    try:
+        _run_cli()
+    finally:
+        if log_handle is not None:
+            _remove_log_tee(log_handle)
+
+
+def _run_cli() -> None:
+    """Parse arguments and run one generation (wrapped by main)."""
     # Check for ``profiles`` subcommand before normal argparse.
     if len(sys.argv) > 1 and sys.argv[1] == "profiles":
         sys.exit(_profiles_main(sys.argv[2:]))
@@ -438,7 +553,17 @@ def main():
         # Generate all output files
         generate_outputs(canonical_dict, args)
 
-        if args.verbose:
+        # Honest final status: never print a bare success line when the
+        # run produced errors, warnings, or dropped pins. The Fusion ULP
+        # keys off this summary to decide which dialog to show.
+        issues = _issue_summary(canonical_dict)
+        prefix = "\n" if args.verbose else ""
+        if issues:
+            print(
+                f"{prefix}Pinmap files generated with {issues} - "
+                "review the messages above"
+            )
+        elif args.verbose:
             print("\nPinmap generation completed successfully!")
         else:
             print("Pinmap files generated successfully")

@@ -50,6 +50,50 @@ string psEscape(string s) {
     return result;
 }
 
+// Convert an EAGLE-style forward-slash path to backslashes for cmd.exe,
+// which rejects forward-slash separators.
+string toWindowsPath(string path) {
+    string parts[];
+    strsplit(parts, path, '/');
+    return strjoin(parts, '\\');
+}
+
+// Read the CLI's --log-file back in; returns "" when the file is missing
+// (which means Python never started).
+string readLogFile(string path) {
+    string found[];
+    if (fileglob(found, path) == 0) return "";
+    string content = "";
+    if (fileread(content, path) <= 0) return "";
+    return content;
+}
+
+// The CLI prefixes every problem line with one of these markers; any hit
+// means the run deserves review even though files were written.
+int logHasIssues(string logText) {
+    if (strstr(logText, "Warning:") >= 0) return 1;
+    if (strstr(logText, "Validation error:") >= 0) return 1;
+    if (strstr(logText, "Error:") >= 0) return 1;
+    return 0;
+}
+
+// Show a run's outcome with the full CLI log in a scrollable view -
+// dlgMessageBox cannot scroll long output.
+void showRunLog(string title, string message, string logText) {
+    int r = dlgDialog(title) {
+        dlgVBoxLayout {
+            dlgLabel(message);
+            dlgSpacing(5);
+            dlgTextView(logText);
+            dlgSpacing(5);
+            dlgHBoxLayout {
+                dlgStretch(1);
+                dlgPushButton("+OK") dlgAccept();
+            }
+        }
+    };
+}
+
 // Reference designators are passed to the CLI unquoted, so restrict them
 // to safe characters (letters, digits, underscore, hyphen).
 int isSafeRefDes(string s) {
@@ -397,52 +441,86 @@ if (result) {
     // Validate inputs first
     string validationErrors = validateInputs(mcuRef, fullOutputDir, mcuType, repoDir);
     if (strlen(validationErrors) == 0) {
-        // Create project output directory (simplified)
-        system("mkdir \"" + fullOutputDir + "\" 2>nul");
+        // Create project output directory. cmd.exe /c is required because
+        // mkdir is a cmd built-in (not an executable) and 2>nul is cmd
+        // redirection syntax; backslashes because cmd rejects
+        // forward-slash paths.
+        system("cmd.exe /c mkdir \"" + toWindowsPath(fullOutputDir) + "\" 2>nul");
 
         // Generate netlist automatically from schematic
         string netlistFile = fullOutputDir + "/auto_netlist.csv";
         int netlistResult = generateNetlistCSV(netlistFile);
 
         if (netlistResult == 1) {
-            // Use PowerShell to run PinmapGen CLI from the configured repo
-            string pinmapCmd = "powershell -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(fullOutputDir) + "'";
+            // Every run mirrors its console output into this log via the
+            // CLI's --log-file option; the dialogs below display it.
+            string logFile = fullOutputDir + "/pinmapgen_log.txt";
+
+            // Use PowerShell to run PinmapGen CLI from the configured
+            // repo. -NoProfile keeps user profiles from interfering, and
+            // the trailing 'exit $LASTEXITCODE' makes powershell.exe
+            // report the CLI's exit code instead of its own.
+            string pinmapCmd = "powershell -NoProfile -Command \"cd '" + psEscape(repoDir) + "'; python -m tools.pinmapgen.cli --csv '" + psEscape(netlistFile) + "' --mcu " + mcuType + " --mcu-ref " + mcuRef + " --out-root '" + psEscape(fullOutputDir) + "' --log-file '" + psEscape(logFile) + "'";
 
             // Add mermaid flag if selected
             if (generateMermaid) {
                 pinmapCmd += " --mermaid";
             }
 
-            pinmapCmd += " --verbose\"";
+            pinmapCmd += " --verbose; exit $LASTEXITCODE\"";
+
+            // Remove any stale log from a previous run so a missing file
+            // afterwards reliably means Python never started this time.
+            system("cmd.exe /c del \"" + toWindowsPath(logFile) + "\" 2>nul");
 
             int cliResult = system(pinmapCmd);
+            string logContent = readLogFile(logFile);
 
-            if (cliResult == 0) {
-                // Success!
-                string successMsg = "Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated formats:\n";
-                if (generateMicroPython) successMsg += "- MicroPython module\n";
-                if (generateArduino) successMsg += "- Arduino headers\n";
-                if (generateMarkdown) successMsg += "- Documentation\n";
-                if (generateMermaid) successMsg += "- Mermaid diagrams\n";
-                successMsg += "\nLocation: " + fullOutputDir;
+            if (cliResult == 0 && logContent != "" && !logHasIssues(logContent)) {
+                // Clean run: no warnings, no errors, no dropped pins.
+                string successMsg = "Pinmap Generation Complete!\n\nProject: " + projectName + "\nMCU: " + mcuType + " (" + mcuRef + ")\n\nGenerated files:\n";
+                successMsg += "- pinmaps/pinmap.json\n";
+                successMsg += "- firmware/micropython/pinmap_micropython.py\n";
+                successMsg += "- firmware/include/pinmap_arduino.h\n";
+                successMsg += "- firmware/docs/PINOUT.md\n";
+                if (generateMermaid) successMsg += "- firmware/docs/pinout.mmd\n";
+                successMsg += "\nLocation: " + fullOutputDir + "\nRun log: " + logFile;
 
                 // Clean up temp netlist
                 system("del \"" + netlistFile + "\" 2>nul");
 
-                dlgMessageBox(successMsg, "Generation Successful");
+                dlgMessageBox(successMsg, "OK");
+                system("explorer \"" + fullOutputDir + "\"");
+            } else if (cliResult == 0 && logContent != "") {
+                // Files were generated, but the CLI reported warnings,
+                // validation errors, or dropped pins - show them instead
+                // of pretending the run was clean. The netlist is kept
+                // for troubleshooting.
+                showRunLog(
+                    "Pinmap Generated With Issues",
+                    "PinmapGen finished, but reported issues you should review\nbefore trusting the generated files.\n\nOutput: " + fullOutputDir,
+                    logContent);
+                system("explorer \"" + fullOutputDir + "\"");
+            } else if (logContent != "") {
+                // The CLI ran and failed - the log has the real reason.
+                showRunLog(
+                    "Pinmap Generation Failed",
+                    "The PinmapGen CLI reported an error. The log below shows\nthe reason. The exported netlist was kept for troubleshooting:\n" + netlistFile,
+                    logContent);
                 system("explorer \"" + fullOutputDir + "\"");
             } else {
-                // CLI failed - show helpful error message
-                string errorMsg = "The PinmapGen CLI encountered an error.\n\n";
-                errorMsg += "Possible causes:\n";
-                errorMsg += "- Python not installed or not in PATH\n";
-                errorMsg += "- PinmapGen repository path is wrong: " + repoDir + "\n";
-                errorMsg += "- Invalid netlist format\n";
-                errorMsg += "- MCU reference '" + mcuRef + "' not found in netlist\n\n";
-                errorMsg += "Check the generated netlist at:\n" + netlistFile;
+                // No log file was written: Python never started, so the
+                // failure happened before the CLI could run.
+                string errorMsg = "The PinmapGen CLI did not start (no log file was created).\n\n";
+                errorMsg += "Most likely causes:\n";
+                errorMsg += "- Python is not installed or not on PATH\n";
+                errorMsg += "  (install Python 3.11+ and tick 'Add python.exe to PATH')\n";
+                errorMsg += "- The PinmapGen repository path is wrong:\n  " + repoDir + "\n";
+                errorMsg += "- The repository copy is older than this ULP\n";
+                errorMsg += "  (it must support the --log-file option - update both together)\n\n";
+                errorMsg += "Expected log location:\n" + logFile;
 
-                dlgMessageBox(errorMsg, "CLI Error");
-                system("explorer \"" + fullOutputDir + "\"");
+                dlgMessageBox(errorMsg, "OK");
             }
         } else {
             // Handle specific netlist generation errors
