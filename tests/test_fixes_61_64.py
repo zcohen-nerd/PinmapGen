@@ -135,7 +135,7 @@ class TestIssue64CLIVersion(unittest.TestCase):
             text=True,
             check=False,
         )
-        self.assertIn("0.1.0", result.stdout)
+        self.assertIn("0.5.0", result.stdout)
 
 
 if __name__ == "__main__":

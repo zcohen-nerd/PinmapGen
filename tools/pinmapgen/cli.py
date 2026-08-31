@@ -121,7 +121,7 @@ def _issue_summary(canonical_dict: dict[str, Any]) -> str:
 
 # Fallback when the package isn't pip-installed (plain source checkout).
 # Keep in sync with pyproject.toml's [project] version.
-_FALLBACK_VERSION = "0.1.0"
+_FALLBACK_VERSION = "0.5.0"
 
 
 def _version_string() -> str:

@@ -84,7 +84,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     output_data["generated"] = {
         "timestamp": get_build_datetime().isoformat(),
         "generator": "PinmapGen",
-        "version": "0.1.0",
+        "version": "0.5.0",
         "features": ["role_inference", "bus_groups", "differential_pairs"],
     }
 

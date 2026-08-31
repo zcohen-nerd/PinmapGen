@@ -215,8 +215,8 @@ version tag:
 3. Tag and push:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 
 The workflow runs the test suite, regenerates the sample outputs with

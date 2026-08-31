@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pinmapgen"
-version = "0.1.0"
+version = "0.5.0"
 description = "Toolchain that bridges Fusion Electronics exports to firmware projects"
 authors = [{name = "Zachary Cohen"}]
 # Custom non-OSI license (free non-commercial / paid commercial) — see
