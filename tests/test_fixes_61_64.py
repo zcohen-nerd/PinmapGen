@@ -129,13 +129,16 @@ class TestIssue64CLIVersion(unittest.TestCase):
     """#64 — CLI should support --version flag."""
 
     def test_version_flag(self):
+        from tools.pinmapgen import __version__
+
         result = subprocess.run(
             [sys.executable, "-m", "tools.pinmapgen.cli", "--version"],
             capture_output=True,
             text=True,
             check=False,
         )
-        self.assertIn("0.5.0", result.stdout)
+        # --version must report the single package version, not a second literal.
+        self.assertIn(__version__, result.stdout)
 
 
 if __name__ == "__main__":
