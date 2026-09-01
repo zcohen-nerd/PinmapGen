@@ -4,6 +4,27 @@ import os
 import sys
 from datetime import UTC, datetime
 
+# ── Single source of truth for the package version ──────────────────────────
+# Everything that reports or stamps a version (the CLI ``--version``, the JSON
+# and Markdown emitters, the release-workflow guard) reads ``__version__`` from
+# here. For an installed copy it comes from the package metadata, so it can
+# never disagree with ``pyproject.toml``. ``_FALLBACK_VERSION`` is used only for
+# a plain source checkout that was never ``pip install``-ed; the release
+# workflow fails if it drifts from ``pyproject.toml``.
+_FALLBACK_VERSION = "0.5.2"
+
+
+def _resolve_version() -> str:
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("pinmapgen")
+    except PackageNotFoundError:
+        return _FALLBACK_VERSION
+
+
+__version__ = _resolve_version()
+
 
 def get_build_datetime() -> datetime:
     """Return build timestamp, respecting SOURCE_DATE_EPOCH for reproducible builds.
