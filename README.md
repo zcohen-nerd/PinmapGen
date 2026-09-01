@@ -41,6 +41,43 @@ Every time you run PinmapGen, it creates a folder containing:
 
 ---
 
+## Quick start (first success)
+
+The fastest way to see PinmapGen work — no Fusion, no install:
+
+1. **Get the code** — [Download ZIP](https://github.com/zcohen-nerd/PinmapGen/archive/refs/heads/main.zip)
+   or `git clone https://github.com/zcohen-nerd/PinmapGen.git`, then open a
+   terminal in the folder. (Tagged versions are on the
+   [Releases page](https://github.com/zcohen-nerd/PinmapGen/releases).)
+2. **Supported input** — a CSV netlist with `Net`, `Pin`, `RefDes` columns
+   (`Component` optional). A ready-made one ships in the repo.
+3. **Run it** against the bundled example:
+
+   ```bash
+   python -m tools.pinmapgen.cli --csv examples/simple_led/netlist.csv \
+     --mcu rp2040 --mcu-ref U1 --out-root out --mermaid
+   ```
+
+   Python 3.11+ is the only requirement — PinmapGen is standard-library only,
+   nothing to `pip install`.
+4. **Expected outputs** — `out/` now contains `pinmaps/pinmap.json`,
+   `firmware/micropython/pinmap_micropython.py`,
+   `firmware/include/pinmap_arduino.h`, `firmware/docs/PINOUT.md`, and
+   `firmware/docs/pinout.mmd`.
+5. **Validation warnings** — PinmapGen prints advisories to the terminal
+   (special/strapping pins, lonely differential-pair halves, bare-number pin
+   names, …) and mirrors them into `pinmap.json` under
+   `metadata.validation_warnings`. Warnings never block generation; add
+   `--strict` to turn real errors (pin conflicts, dropped pins) into a
+   non-zero exit for CI.
+6. **See a full example** — [`examples/simple_led/`](examples/simple_led/) has
+   the input and every generated file committed, so you can diff your `out/`
+   against it.
+
+The guided Fusion (Electronics workspace) workflow is below.
+
+---
+
 ## What you'll need
 
 1. **Windows PC** with **Fusion 360** (the Electronics workspace).
@@ -250,6 +287,35 @@ get before installing anything:
 - [`simple_led`](examples/simple_led/) — LEDs and buttons (beginner)
 - [`sensor_hub`](examples/sensor_hub/) — I²C/SPI sensors (intermediate)
 - [`communication_module`](examples/communication_module/) — UART/CAN/USB (advanced)
+
+---
+
+## Current status & known limits
+
+- **Maturity:** early / alpha. `pyproject.toml` is at **0.1.0**; the source is
+  stable enough for personal, classroom, and small-team use, and the full test
+  suite (388 tests) plus example-drift checks run on every push across
+  Linux / Windows / macOS and Python 3.11–3.14. Check the
+  [Releases page](https://github.com/zcohen-nerd/PinmapGen/releases) for tagged
+  builds; if a tag and `pyproject.toml` disagree, `main` is the source of truth
+  and the CLI's `--version` reports the packaged value.
+- **Supported Fusion Electronics:** the bundled scripts are **ULPs** (the
+  EAGLE-heritage scripting mechanism Autodesk Fusion's Electronics workspace
+  still runs via **Automation → Run ULP**). There is no version lock — they are
+  developed against current Fusion. `export_netlist.ulp` (the CSV export) works
+  on Windows and macOS; the full `PinmapGen.ulp` shells out to a
+  system-installed Python, so it is effectively Windows-first (the CLI covers
+  macOS/Linux). Continued ULP support is Autodesk's decision, not this
+  project's — the CLI path is the stable long-term interface.
+- **Input:** CSV (`Net`, `Pin`, `RefDes`; `Component` optional) and legacy
+  EAGLE `.sch`. No native KiCad `.net` / Altium parser — export a CSV instead.
+- **Coverage:** 13 built-in MCU profiles (`--list-mcus`); others via a TOML
+  file, no code (`docs/extending.md`).
+- **Not** a schematic checker or DRC tool — it validates *pin assignment*
+  (conflicts, roles, special pins), not electrical correctness. Outputs are
+  overwritten in place on regeneration; there is no merge step.
+- `normalize.py`'s `RP2040Profile` shim is deprecated and slated for removal
+  in a future release; use `profile_registry` for new code.
 
 ---
 

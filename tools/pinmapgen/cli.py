@@ -119,24 +119,11 @@ def _issue_summary(canonical_dict: dict[str, Any]) -> str:
     return ", ".join(bits)
 
 
-# Fallback when the package isn't pip-installed (plain source checkout).
-# Keep in sync with pyproject.toml's [project] version.
-_FALLBACK_VERSION = "0.5.0"
-
-
 def _version_string() -> str:
-    """Version from installed package metadata, or the source fallback.
+    """The single package version — see ``tools.pinmapgen.__version__``."""
+    from . import __version__
 
-    Reading importlib.metadata keeps ``--version`` and pyproject.toml in
-    agreement for installed copies instead of maintaining two hardcoded
-    strings.
-    """
-    try:
-        from importlib.metadata import PackageNotFoundError, version
-
-        return version("pinmapgen")
-    except PackageNotFoundError:
-        return _FALLBACK_VERSION
+    return __version__
 
 
 def parse_arguments() -> argparse.Namespace:

@@ -1,0 +1,33 @@
+name: Docs Integrity
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Verifies documentation links resolve — it does not enforce prose style.
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Link, anchor, and image check
+        run: node .github/scripts/check-docs.mjs
+
+      - name: Guard against non-rendering blob image embeds
+        run: |
+          if grep -rEn '!\[[^]]*\]\(https://github\.com/[^)]*/blob/' --include='*.md' .; then
+            echo "::error::Image embed uses a github.com blob URL; use a relative path."
+            exit 1
+          fi
+          echo "No blob image embeds."

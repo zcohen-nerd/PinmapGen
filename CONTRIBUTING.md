@@ -206,20 +206,32 @@ Include:
 ## Cutting a release
 
 Releases are built by `.github/workflows/release.yml`, triggered by a
-version tag:
+version tag.
 
-1. Bump `[project] version` in `pyproject.toml` (the workflow refuses a
-   tag that doesn't match it) and update `_FALLBACK_VERSION` in
-   `tools/pinmapgen/cli.py` to the same value.
-2. Make sure `main` is green.
-3. Tag and push:
+**One version, one place.** `tools/pinmapgen/__version__` is the single source
+of truth. It resolves from the installed package metadata (so it can never
+disagree with `pyproject.toml`), falling back to `_FALLBACK_VERSION` in
+`tools/pinmapgen/__init__.py` for a plain source checkout. The CLI `--version`,
+the JSON emitter's `generated.version`, and the Markdown emitter's footer all
+read `__version__` — none of them carry a literal.
+
+1. Bump `[project] version` in `pyproject.toml` **and** `_FALLBACK_VERSION` in
+   `tools/pinmapgen/__init__.py` to the same value (a test and the release
+   workflow both enforce that they match).
+2. Make sure `main` is green (`python -m pytest`).
+3. Pick the next **unused** tag — never reuse or move a published tag. If a tag
+   exists without a matching release (e.g. `v0.5.1`), skip it and use the next
+   number.
+4. Tag and push:
 
    ```bash
-   git tag v0.5.0
-   git push origin v0.5.0
+   git tag v0.5.2
+   git push origin v0.5.2
    ```
 
-The workflow runs the test suite, regenerates the sample outputs with
-`--strict`, and publishes a GitHub Release with the source archive, an
-installable wheel, and an example bundle. (It can also be run manually
-from the Actions tab via *workflow_dispatch*.)
+The workflow **refuses to build any release asset** unless the Git tag, the
+`pyproject.toml` version, the CLI `--version` output, and the version stamped
+into a freshly generated `pinmap.json` all match exactly. It then runs the test
+suite, regenerates the sample outputs with `--strict`, and publishes a GitHub
+Release with the source archive, an installable wheel, and an example bundle.
+(It can also be run manually from the Actions tab via *workflow_dispatch*.)

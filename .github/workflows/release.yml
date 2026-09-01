@@ -50,18 +50,44 @@ jobs:
         fi
         echo "✅ Version format is valid: $VERSION"
 
-    - name: Check tag matches pyproject version
+    - name: Tag is unused / not being moved
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        # Published tags are immutable. If a workflow_dispatch names a tag that
+        # already points at a different commit, or a release already exists for
+        # it, refuse — cut the next number instead.
+        if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+          TAG_COMMIT=$(git rev-list -n1 "$VERSION")
+          if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "❌ Tag $VERSION already exists at $TAG_COMMIT (≠ $GITHUB_SHA). Never move a published tag — use the next unused number."
+            exit 1
+          fi
+        fi
+        echo "✅ $VERSION is not moving an existing tag."
+
+    - name: All version surfaces agree (tag == pyproject == CLI --version == generated artifact)
       run: |
         VERSION_NUMBER=${{ steps.version.outputs.VERSION_NUMBER }}
-        PYPROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-        if [ "$VERSION_NUMBER" != "$PYPROJECT_VERSION" ]; then
-          echo "❌ Tag version $VERSION_NUMBER != pyproject.toml version $PYPROJECT_VERSION"
-          echo "   Bump [project] version in pyproject.toml before tagging."
-          exit 1
-        fi
-        echo "✅ Tag matches pyproject.toml ($PYPROJECT_VERSION)"
 
-    - name: Run test suite
+        PYPROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+        [ "$VERSION_NUMBER" = "$PYPROJECT_VERSION" ] || { echo "❌ tag $VERSION_NUMBER != pyproject $PYPROJECT_VERSION"; exit 1; }
+
+        PKG_VERSION=$(python -c "from tools.pinmapgen import __version__; print(__version__)")
+        [ "$VERSION_NUMBER" = "$PKG_VERSION" ] || { echo "❌ tag $VERSION_NUMBER != tools.pinmapgen.__version__ $PKG_VERSION (bump _FALLBACK_VERSION)"; exit 1; }
+
+        CLI_VERSION=$(python -m tools.pinmapgen.cli --version | tr -d '\r' | awk '{print $NF}')
+        [ "$VERSION_NUMBER" = "$CLI_VERSION" ] || { echo "❌ tag $VERSION_NUMBER != CLI --version $CLI_VERSION"; exit 1; }
+
+        # Generate a fresh pinmap.json and confirm it stamps the same version.
+        python -m tools.pinmapgen.cli \
+          --csv hardware/exports/sample_netlist.csv --mcu rp2040 --mcu-ref U1 \
+          --out-root "$RUNNER_TEMP/relcheck" --strict
+        GEN_VERSION=$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['generated']['version'])" "$RUNNER_TEMP/relcheck/pinmaps/pinmap.json")
+        [ "$VERSION_NUMBER" = "$GEN_VERSION" ] || { echo "❌ tag $VERSION_NUMBER != generated pinmap.json version $GEN_VERSION"; exit 1; }
+
+        echo "✅ tag / pyproject / __version__ / CLI --version / generated artifact all = $VERSION_NUMBER"
+
+    - name: Run test suite (tag contents)
       run: python -m unittest discover -s tests
 
     - name: Generate release artifacts

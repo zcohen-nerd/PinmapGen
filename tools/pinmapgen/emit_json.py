@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import get_build_datetime
+from . import __version__, get_build_datetime
 from .roles import analyze_roles
 
 
@@ -84,7 +84,7 @@ def emit_json(canonical_dict: dict[str, Any], output_path: Path | str) -> None:
     output_data["generated"] = {
         "timestamp": get_build_datetime().isoformat(),
         "generator": "PinmapGen",
-        "version": "0.5.0",
+        "version": __version__,
         "features": ["role_inference", "bus_groups", "differential_pairs"],
     }
 
